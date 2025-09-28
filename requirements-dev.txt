@@ -1,2 +1,7 @@
+# Production dependencies
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# Development dependencies
 pytest==7.4.0
 httpx
