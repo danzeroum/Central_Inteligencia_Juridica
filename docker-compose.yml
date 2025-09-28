@@ -1,54 +1,30 @@
 version: '3.8'
 
 services:
-  buildtoflip-app:
-    build: .
-    ports:
-      - "8080:8000"
-    environment:
-      - ENVIRONMENT=production
-      - LOG_LEVEL=INFO
+  agent-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multi-agent-system
     volumes:
-      - ./logs:/app/logs
-      - ./data:/app/data
+      - ./src:/app/src:ro
+    working_dir: /app
+    command: python src/agents/supervisor_agent.py
+    environment:
+      - PYTHONPATH=/app/src
+    restart: unless-stopped
+
+  agent-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-tests
+    working_dir: /app
+    command: ["pytest", "tests/", "-v"]
+    environment:
+      - PYTHONPATH=/app/src
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
     depends_on:
-      - redis
-      - postgres
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=buildtoflip
-      - POSTGRES_USER=agent
-      - POSTGRES_PASSWORD=securepassword
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-
-  monitoring:
-    image: grafana/grafana:9.0.0
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-
-  chromadb:
-    image: chromadb/chroma:latest
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data/chromadb:/chroma/chroma
-
-volumes:
-  redis_data:
-  postgres_data:
-  grafana_data:
+      - agent-system
