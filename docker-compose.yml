@@ -6,12 +6,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: multi-agent-system
+    ports:
+      - "8000:8000"
     volumes:
-      - ./src:/app/src:ro
+      - ./src:/app/src
+      - ./tests:/app/tests
     working_dir: /app
-    command: python src/agents/supervisor_agent.py
     environment:
-      - PYTHONPATH=/app/src
+      - PYTHONPATH=/app
     restart: unless-stopped
     depends_on:
       - redis
@@ -22,12 +24,12 @@ services:
       dockerfile: Dockerfile
     container_name: agent-tests
     working_dir: /app
-    command: ["pytest", "tests/", "-v"]
+    command: ["pytest", "-v"]
     environment:
-      - PYTHONPATH=/app/src
+      - PYTHONPATH=/app
     volumes:
-      - ./src:/app/src:ro
-      - ./tests:/app/tests:ro
+      - ./src:/app/src
+      - ./tests:/app/tests
     depends_on:
       - agent-system
       - redis
