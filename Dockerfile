@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir -r requirements-dev.txt
 
 COPY src/ ./src/
+COPY src/api/static ./src/api/static
 
 RUN chown -R appuser:appuser /app
 

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central de Inteligência Jurídica</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2C5AA0;
+            --primary-hover-color: #1E3F73;
+            --background-color: #F8F9FA;
+            --text-color: #333333;
+            --attention-color: #FFC107;
+            --error-color: #DC3545;
+            --card-background: #FFFFFF;
+            --border-color: #DDDDDD;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(44, 90, 160, 0.2);
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--card-background);
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--primary-hover-color);
+        }
+
+        button:disabled {
+            background-color: #CCCCCC;
+            cursor: not-allowed;
+        }
+
+        .result-card {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            min-height: 50px;
+            overflow-wrap: break-word;
+        }
+
+        .result-card.error {
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+        }
+
+        .result-card pre {
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.875rem;
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: var(--card-background);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Central de Inteligência Jurídica</h1>
+        </header>
+        <main>
+            <textarea id="task-input" placeholder="Exemplo: Verificar o status do tribunal TJSP ou Consultar as últimas decisões do STF sobre..."></textarea>
+            <button id="process-button">
+                <span id="button-text">Processar</span>
+                <div id="spinner" class="spinner" style="display: none;"></div>
+            </button>
+            <div id="result-area" class="result-card"></div>
+        </main>
+    </div>
+
+    <script>
+        const taskInput = document.getElementById('task-input');
+        const processButton = document.getElementById('process-button');
+        const buttonText = document.getElementById('button-text');
+        const spinner = document.getElementById('spinner');
+        const resultArea = document.getElementById('result-area');
+
+        const API_URL = 'http://localhost:8000/api/v1/tasks';
+
+        function setUIState(state) {
+            switch (state) {
+                case 'loading':
+                    spinner.style.display = 'block';
+                    buttonText.textContent = 'Processando...';
+                    processButton.disabled = true;
+                    resultArea.innerHTML = '';
+                    resultArea.classList.remove('error');
+                    break;
+                case 'success':
+                case 'error':
+                    spinner.style.display = 'none';
+                    buttonText.textContent = 'Processar';
+                    processButton.disabled = false;
+                    break;
+                case 'idle':
+                default:
+                    spinner.style.display = 'none';
+                    buttonText.textContent = 'Processar';
+                    processButton.disabled = false;
+                    resultArea.innerHTML = '';
+                    resultArea.classList.remove('error');
+                    break;
+            }
+        }
+
+        function formatSuccess(data) {
+            const result = data.supervisor_result;
+            const formattedJson = JSON.stringify(result, null, 2);
+            return `
+                <h3>Tribunal Utilizado: ${data.tribunal_used}</h3>
+                <pre>${formattedJson}</pre>
+            `;
+        }
+
+        function formatError(errorData) {
+            resultArea.classList.add('error');
+            return `
+                <h4>Erro ao Processar</h4>
+                <p>${errorData.detail || 'Ocorreu um erro desconhecido.'}</p>
+            `;
+        }
+
+        processButton.addEventListener('click', async () => {
+            const taskDescription = taskInput.value.trim();
+            if (!taskDescription) {
+                resultArea.classList.add('error');
+                resultArea.innerHTML = 'Por favor, insira uma tarefa.';
+                return;
+            }
+
+            setUIState('loading');
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ task_description: taskDescription }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    resultArea.innerHTML = formatError(data);
+                    setUIState('error');
+                } else {
+                    resultArea.innerHTML = formatSuccess(data);
+                    setUIState('success');
+                }
+
+            } catch (error) {
+                const errorInfo = { detail: `Falha na comunicação com a API. Verifique se o backend está rodando. Detalhes: ${error.message}` };
+                resultArea.innerHTML = formatError(errorInfo);
+                setUIState('error');
+            }
+        });
+
+        setUIState('idle');
+    </script>
+</body>
+</html>

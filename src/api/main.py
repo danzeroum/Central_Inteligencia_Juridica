@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, List
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.agents.supervisor_agent import SupervisorAgent
@@ -20,6 +22,12 @@ app = FastAPI(
     description="API para orquestrar agentes de IA em tarefas de consulta jurídica.",
     version="1.0.0",
 )
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(current_dir, "static")
+
+if os.path.isdir(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 supervisor_agent = SupervisorAgent()
 
@@ -128,6 +136,17 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
         content=problem.model_dump(by_alias=True),
         media_type="application/problem+json",
     )
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def read_root() -> HTMLResponse:
+    """Serve a página principal da UI."""
+
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as file:
+            return HTMLResponse(content=file.read())
+    return HTMLResponse(content="<h1>UI não encontrada.</h1>", status_code=404)
 
 
 @app.post(
