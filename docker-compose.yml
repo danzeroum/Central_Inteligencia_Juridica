@@ -14,6 +14,7 @@ services:
     working_dir: /app
     environment:
       - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     depends_on:
       - redis
@@ -24,14 +25,14 @@ services:
       dockerfile: Dockerfile
     container_name: agent-tests
     working_dir: /app
-    command: ["pytest", "-v"]
+    command: ["pytest", "-v", "tests"]
     environment:
       - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
     depends_on:
-      - agent-system
       - redis
 
   redis:
