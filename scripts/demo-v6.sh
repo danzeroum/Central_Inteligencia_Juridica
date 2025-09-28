@@ -4,39 +4,31 @@ set -euo pipefail
 echo "🚀 BuildToFlip v6 - Demo Runner"
 
 # Verificar pré-requisitos
-command -v docker >/dev/null 2>&1 || { echo "❌ Docker não instalado"; exit 1; }
-command -v curl >/dev/null 2>&1 || { echo "❌ curl não instalado"; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "❌ Docker não instalado. Abortando."; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo "❌ curl não instalado. Abortando."; exit 1; }
 
 # Subir ambiente
-echo "📦 Iniciando containers..."
-docker-compose up -d
+echo "📦 Iniciando containers em segundo plano..."
+docker-compose up -d --build
 
 # Aguardar serviços
-echo "⏳ Aguardando serviços (30s)..."
-sleep 30
+echo "⏳ Aguardando a aplicação iniciar (15s)..."
+sleep 15
 
-# Verificar saúde
-echo "🔍 Verificando health..."
-if curl -sf http://localhost:8080/actuator/health > /dev/null; then
-    echo "✅ Aplicação saudável"
+# Verificar saúde da aplicação
+echo "🔍 Verificando o endpoint de saúde..."
+if curl -sf http://localhost:8000/health; then
+    echo "✅ Aplicação saudável e respondendo."
 else
-    echo "❌ Aplicação não respondeu"
+    echo "❌ A aplicação não respondeu ao health check. Verifique os logs com 'docker-compose logs'."
     exit 1
 fi
 
-# Criar dados de demo
-echo "📊 Criando dados de demonstração..."
-curl -X POST http://localhost:8080/api/v1/demo/seed \
-    -H "Content-Type: application/json" \
-    -H "X-BTF-Mock: true" \
-    -d '{"records": 100}'
-
 echo ""
 echo "=================="
-echo "DEMO READY"
+echo "DEMO PRONTA"
 echo "=================="
-echo "🌐 Aplicação: http://localhost:8080"
-echo "📊 Grafana: http://localhost:3000 (admin/admin)"
-echo "📈 Prometheus: http://localhost:9090"
+echo "🌐 Aplicação disponível em: http://localhost:8000"
 echo ""
-echo "Para parar: docker-compose down"
+echo "Para parar os serviços, execute: docker-compose down"
+echo ""
