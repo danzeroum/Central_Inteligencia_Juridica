@@ -3,6 +3,7 @@ FROM python:3.9-slim
 # Define diretório de trabalho
 WORKDIR /app
 
+
 # Instala dependências do sistema se necessário
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -47,4 +48,5 @@ USER appuser
 EXPOSE 8000
 
 # Comando para iniciar
+
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
