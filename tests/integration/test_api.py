@@ -34,6 +34,13 @@ def test_health_check_deve_retornar_ok(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_read_root_deve_retornar_html(client: TestClient) -> None:
+    """O endpoint GET / deve retornar 200 OK com conteúdo HTML."""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+
+
 def test_process_task_com_sucesso(client: TestClient) -> None:
     """O endpoint POST /api/v1/tasks deve retornar sucesso com payload válido."""
 
