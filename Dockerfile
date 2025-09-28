@@ -3,23 +3,43 @@ FROM python:3.9-slim
 # Define diretório de trabalho
 WORKDIR /app
 
-# Cria usuário não-root para segurança
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Instala curl para healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copia e instala dependências primeiro (melhor cache)
-COPY requirements.txt requirements-dev.txt ./
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -r requirements-dev.txt
+# Copia arquivos de requirements
+COPY requirements*.txt ./
 
-# Copia o código fonte
-COPY src/ ./src/
-COPY tests/ ./tests/
+# Instala dependências Python
+RUN pip install --no-cache-dir -r requirements.txt && \
+    if [ -f requirements-dev.txt ]; then pip install --no-cache-dir -r requirements-dev.txt; fi
 
-# Copia arquivos estáticos da API se existirem
-COPY src/api/static ./src/api/static
+# IMPORTANTE: Copia TODO o projeto para garantir que nada fique faltando
+COPY . /app/
 
-# Define ownership correto
-RUN chown -R appuser:appuser /app
+# DEBUG: Verifica estrutura copiada
+RUN echo "=== Listando /app ===" && ls -la /app/ && \
+    echo "=== Listando /app/src ===" && ls -la /app/src/ || echo "ERRO: src não existe" && \
+    echo "=== Listando /app/src/api ===" && ls -la /app/src/api/ || echo "ERRO: src/api não existe" && \
+    echo "=== Procurando __init__.py ===" && find /app -name "__init__.py" | head -20
+
+# Define variáveis de ambiente ANTES de testar imports
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# DEBUG: Testa imports Python
+RUN python -c "import sys; print('PYTHONPATH:', sys.path)" && \
+    python -c "import os; print('Arquivos em /app:', os.listdir('/app'))" && \
+    python -c "import os; print('Arquivos em /app/src:', os.listdir('/app/src') if os.path.exists('/app/src') else 'SRC NÃO EXISTE')" && \
+    python -c "try: import src; print('✓ src importado'); except Exception as e: print('✗ Erro importando src:', e)" && \
+    python -c "try: import src.api; print('✓ src.api importado'); except Exception as e: print('✗ Erro importando src.api:', e)" && \
+    python -c "try: from src.api.main import app; print('✓ app importado de main.py'); except Exception as e: print('✗ Erro importando app:', e)"
+
+# Cria usuário não-root
+RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+    chown -R appuser:appuser /app
+
 
 # Muda para usuário não-root
 USER appuser
@@ -31,9 +51,7 @@ ENV PYTHONUNBUFFERED=1
 # Expõe porta
 EXPOSE 8000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
 
-# Comando para iniciar a aplicação
+# Comando final
+
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
