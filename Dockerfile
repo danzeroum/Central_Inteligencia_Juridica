@@ -40,9 +40,18 @@ RUN python -c "import sys; print('PYTHONPATH:', sys.path)" && \
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
     chown -R appuser:appuser /app
 
+
+# Muda para usuário não-root
 USER appuser
 
+# Define PYTHONPATH para encontrar módulos
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Expõe porta
 EXPOSE 8000
 
+
 # Comando final
+
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
