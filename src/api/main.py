@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from src.api.auth import AuthManager
+from src.api.rate_limiter import RateLimiter
 from src.agents.supervisor_agent import SupervisorAgent
+from src.utils.cache_manager import get_cache_manager
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +34,20 @@ static_dir = os.path.join(current_dir, "static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+AUTH_REQUIRED = os.getenv("API_REQUIRE_AUTH", "false").lower() == "true"
+AuthManager.configure(
+    secret_key=os.getenv("API_AUTH_SECRET"),
+    required=AUTH_REQUIRED,
+)
+rate_limiter = RateLimiter(requests_per_minute=int(os.getenv("API_RATE_LIMIT_PER_MINUTE", "60")))
+cache_manager = get_cache_manager()
 supervisor_agent = SupervisorAgent()
+
+
+async def enforce_rate_limit(request: Request) -> None:
+    """Wrapper dependency to enforce rate limiting."""
+
+    await rate_limiter(request)
 
 
 class TaskRequest(BaseModel):
@@ -74,7 +92,11 @@ class ProblemDetail(BaseModel):
 def _format_validation_errors(errors: List[Dict[str, Any]]) -> str:
     formatted_messages = []
     for error in errors:
-        location = " -> ".join(str(item) for item in error.get("loc", []) if item not in {"body"})
+        location = " -> ".join(
+            str(item)
+            for item in error.get("loc", [])
+            if item not in {"body", "query", "request"}
+        )
         message = error.get("msg", "Invalid input")
         formatted_messages.append(f"{location}: {message}" if location else message)
     return "; ".join(formatted_messages)
@@ -173,17 +195,51 @@ async def read_root() -> HTMLResponse:
     summary="Processa uma nova tarefa jurídica",
     description="Recebe uma descrição de tarefa, delega para o SupervisorAgent e retorna o resultado estruturado.",
 )
-async def process_task(task_request: TaskRequest) -> SuccessfulTaskResponse:
+async def process_task(
+    task_request: TaskRequest,
+    user_id: str = Depends(AuthManager.verify_token),
+    _: None = Depends(enforce_rate_limit),
+) -> SuccessfulTaskResponse:
     """Processa uma tarefa jurídica utilizando o SupervisorAgent."""
 
-    logger.info("Recebida tarefa para processamento: %s", task_request.task_description)
+    logger.info(
+        "Recebida tarefa para processamento%s: %s",
+        f" do usuário {user_id}" if AUTH_REQUIRED else "",
+        task_request.task_description,
+    )
     result = supervisor_agent.process_task(task_request.task_description)
     response = SuccessfulTaskResponse.model_validate(result)
     return response
 
 
 @app.get("/health", tags=["Monitoring"], summary="Verifica a saúde da API")
-async def health_check() -> Dict[str, str]:
-    """Endpoint simples de verificação de saúde."""
+async def health_check(
+    verbose: bool = Query(
+        False,
+        description="Retorna informações detalhadas de saúde quando verdadeiro.",
+    )
+) -> Dict[str, Any]:
+    """Endpoint de verificação de saúde com suporte a detalhes opcionais."""
 
-    return {"status": "ok"}
+    cache_status = cache_manager.health()
+    agent_stats = supervisor_agent.get_agent_stats()
+    overall_status = "ok" if cache_status.get("status") == "healthy" else "degraded"
+
+    if not verbose:
+        return {"status": overall_status}
+
+    return {
+        "status": overall_status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": {
+            "cache": cache_status,
+            "agents": agent_stats,
+        },
+    }
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> Response:
+    """Exposes Prometheus metrics for scraping."""
+
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
