@@ -15,14 +15,24 @@ COPY requirements*.txt ./
 RUN pip install --no-cache-dir -r requirements.txt && \
     if [ -f requirements-dev.txt ]; then pip install --no-cache-dir -r requirements-dev.txt; fi
 
-# IMPORTANTE: Copia TODO o projeto para garantir que nada fique faltando
+
+# Copia TODO o projeto
 COPY . /app/
 
-# DEBUG: Verifica estrutura copiada
-RUN echo "=== Listando /app ===" && ls -la /app/ && \
-    echo "=== Listando /app/src ===" && ls -la /app/src/ || echo "ERRO: src não existe" && \
-    echo "=== Listando /app/src/api ===" && ls -la /app/src/api/ || echo "ERRO: src/api não existe" && \
-    echo "=== Procurando __init__.py ===" && find /app -name "__init__.py" | head -20
+# Define variáveis de ambiente
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Testa que o import funciona (versão simplificada)
+RUN python -c "import sys; print('PYTHONPATH:', sys.path)" && \
+    python -c "import src" && \
+    python -c "import src.api" && \
+    python -c "from src.api.main import app; print('App importado com sucesso!')"
+
+# Cria usuário não-root
+RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+    chown -R appuser:appuser /app
+
 
 # Define variáveis de ambiente ANTES de testar imports
 ENV PYTHONPATH=/app
@@ -52,6 +62,10 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 
-# Comando final
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
+
+# Comando final
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
