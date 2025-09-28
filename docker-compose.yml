@@ -13,6 +13,8 @@ services:
     environment:
       - PYTHONPATH=/app/src
     restart: unless-stopped
+    depends_on:
+      - redis
 
   agent-tests:
     build:
@@ -28,3 +30,16 @@ services:
       - ./tests:/app/tests:ro
     depends_on:
       - agent-system
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: tribunal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:

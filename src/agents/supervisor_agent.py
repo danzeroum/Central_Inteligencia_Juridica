@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from src.agents.tribunal_agent import TribunalAgent
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
+from src.utils.metrics_collector import MetricsCollector
 
 
 class SupervisorAgent:
@@ -113,6 +114,7 @@ class SupervisorAgent:
                     "delegate_count": len(self.active_delegates),
                 },
             )
+            MetricsCollector.set_agent_active(tribunal_code, True)
 
         agent = self.active_delegates[tribunal_code]
         return agent.execute_task(task)
@@ -120,12 +122,14 @@ class SupervisorAgent:
     def get_agent_stats(self) -> Dict[str, Any]:
         """Return statistics about active agents."""
 
-        return {
+        stats = {
             "total_delegates": len(self.active_delegates),
             "active_tribunals": list(self.active_delegates.keys()),
             "total_tasks_processed": len(self.task_history),
             "latest_tasks": self.task_history[-5:] if self.task_history else [],
         }
+        MetricsCollector.set_total_agents({tribunal: 1 for tribunal in self.active_delegates})
+        return stats
 
     def _get_timestamp(self) -> str:
         return datetime.now().isoformat()

@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import logging
 import random
 import re
+import time
 from datetime import datetime
 from typing import Any, Dict, List
 
+from src.agents.tribunal_api_client import TribunalAPIClient
+from src.utils.cache_manager import get_cache_manager
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
+from src.utils.metrics_collector import MetricsCollector
 
 
 class TribunalAgent:
@@ -25,12 +30,20 @@ class TribunalAgent:
 
         self.config = self._load_tribunal_config()
         self.capabilities = self._define_capabilities()
+        self.cache = get_cache_manager()
+        self.api_client = TribunalAPIClient(tribunal_code)
+
+        MetricsCollector.set_agent_active(self.tribunal_code, True)
 
     def execute_task(self, task_description: str) -> Dict[str, Any]:
         """Execute tribunal-specific task."""
 
         self.task_count += 1
         task_id = f"{self.tribunal_code}_task_{self.task_count:04d}"
+
+        start_time = time.perf_counter()
+        operation_for_metrics = "unknown"
+        success_for_metrics = False
 
         try:
             sanitized_task = self.sanitizer.sanitize_text(task_description)
@@ -53,6 +66,8 @@ class TribunalAgent:
             )
 
             result = self._route_task(sanitized_task, task_id)
+            operation_for_metrics = result.get("operation", "unknown")
+            success_for_metrics = result.get("status") not in {"error"}
 
             self.ledger.log_decision(
                 agent_type=f"TribunalAgent_{self.tribunal_code}",
@@ -73,12 +88,17 @@ class TribunalAgent:
                 decision_type="TASK_EXECUTION_ERROR",
                 metadata={"task_id": task_id, "error": error_msg},
             )
+            operation_for_metrics = "error"
+            success_for_metrics = False
             return {
                 "status": "error",
                 "message": error_msg,
                 "tribunal": self.tribunal_code,
                 "timestamp": self._get_timestamp(),
             }
+        finally:
+            duration = time.perf_counter() - start_time
+            MetricsCollector.record_task(self.tribunal_code, operation_for_metrics, duration, success_for_metrics)
 
     def _route_task(self, task: str, task_id: str) -> Dict[str, Any]:
         task_lower = task.lower()
@@ -86,12 +106,17 @@ class TribunalAgent:
         if any(word in task_lower for word in ["status", "sistema", "operacional", "funcionamento"]):
             return self._check_tribunal_status(task_id)
         if any(word in task_lower for word in ["processo", "consulta", "número", "numero", "protocolo"]):
-            return self._simulate_process_query(task, task_id)
+            return self._process_query(task, task_id)
         if any(word in task_lower for word in ["andamento", "movimentação", "movimentacao"]):
-            return self._simulate_process_movements(task_id)
+            return self._process_movements(task_id)
         return self._generic_tribunal_response(task_id)
 
     def _check_tribunal_status(self, task_id: str | None = None) -> Dict[str, Any]:
+        operation = "status_check"
+        cached = self._maybe_return_cached(operation, {}, task_id)
+        if cached:
+            return cached
+
         status_map: Dict[str, Dict[str, Any]] = {
             "TJSP": {
                 "status": "operacional",
@@ -136,34 +161,115 @@ class TribunalAgent:
             "servicos_ativos": 0,
         }
 
-        return {
-            "tribunal": self.tribunal_code,
-            "operation": "status_check",
-            "task_id": task_id or self._generate_task_id_stub(),
-            "data": status_map.get(self.tribunal_code, default_status),
-            "timestamp": self._get_timestamp(),
-            "status": "success",
-        }
+        api_response = self.api_client.get_real_status()
+        if api_response and not api_response.get("error"):
+            result = self._build_response(
+                operation=operation,
+                data=api_response,
+                status="success",
+                task_id=task_id,
+                meta={"source": "real_api"},
+            )
+            self._store_in_cache(operation, {}, result)
+            return result
 
-    def _simulate_process_query(self, task: str | None = None, task_id: str | None = None) -> Dict[str, Any]:
+        if api_response.get("error"):
+            MetricsCollector.record_api_error(self.tribunal_code, "api_error")
+
+        fallback_meta = {"source": "simulated", "fallback": True}
+        if api_response.get("error"):
+            fallback_meta["error"] = api_response["error"]
+
+        result = self._build_response(
+            operation=operation,
+            data=status_map.get(self.tribunal_code, default_status),
+            status="success",
+            task_id=task_id,
+            meta=fallback_meta,
+        )
+        self._store_in_cache(operation, {}, result)
+        return result
+
+    def _process_query(self, task: str, task_id: str | None = None) -> Dict[str, Any]:
+        operation = "process_query"
         process_number = self._extract_process_number(task or "") or self._generate_process_number()
+        cache_params = {"process_number": process_number}
 
-        return {
-            "tribunal": self.tribunal_code,
-            "operation": "process_query",
-            "task_id": task_id or self._generate_task_id_stub(),
-            "data": {
-                "numero_processo": process_number,
-                "situacao": "Em andamento",
-                "classe_processual": "Procedimento Ordinário",
-                "assunto": "Direito Civil",
-                "ultima_movimentacao": "2024-01-15 10:30:00",
-                "orgao_julgador": "1ª Vara Cível",
-                "valor_causa": "R$ 45.000,00",
-            },
-            "timestamp": self._get_timestamp(),
-            "status": "success",
+        cached = self._maybe_return_cached(operation, cache_params, task_id)
+        if cached:
+            return cached
+
+        api_response = self.api_client.query_real_process(process_number)
+        if api_response and not api_response.get("error"):
+            result = self._build_response(
+                operation=operation,
+                data=api_response,
+                status="success",
+                task_id=task_id,
+                meta={"source": "real_api"},
+            )
+            self._store_in_cache(operation, cache_params, result)
+            return result
+
+        if api_response.get("error"):
+            MetricsCollector.record_api_error(self.tribunal_code, "api_error")
+
+        fallback = self._simulate_process_query(
+            task=task,
+            task_id=task_id,
+            process_number=process_number,
+        )
+        if not isinstance(fallback, dict):
+            return fallback
+
+        fallback_copy = copy.deepcopy(fallback)
+        if {"tribunal", "operation"}.issubset(fallback_copy):
+            meta = copy.deepcopy(fallback_copy.get("meta", {}))
+            meta.update({"source": "simulated", "fallback": True})
+            if api_response.get("error"):
+                meta["error"] = api_response["error"]
+            fallback_copy["meta"] = meta
+            fallback_copy["status"] = fallback_copy.get("status", "success")
+            self._store_in_cache(operation, cache_params, fallback_copy)
+            return fallback_copy
+
+        return fallback
+
+    def _process_movements(self, task_id: str | None = None) -> Dict[str, Any]:
+        operation = "process_movements"
+        cached = self._maybe_return_cached(operation, {}, task_id)
+        if cached:
+            return cached
+
+        result = self._simulate_process_movements(task_id)
+        self._store_in_cache(operation, {}, result)
+        return result
+
+    def _simulate_process_query(
+        self,
+        task: str | None = None,
+        task_id: str | None = None,
+        process_number: str | None = None,
+    ) -> Dict[str, Any]:
+        process_id = process_number or self._extract_process_number(task or "") or self._generate_process_number()
+
+        data = {
+            "numero_processo": process_id,
+            "situacao": "Em andamento",
+            "classe_processual": "Procedimento Ordinário",
+            "assunto": "Direito Civil",
+            "ultima_movimentacao": "2024-01-15 10:30:00",
+            "orgao_julgador": "1ª Vara Cível",
+            "valor_causa": "R$ 45.000,00",
         }
+
+        return self._build_response(
+            operation="process_query",
+            data=data,
+            status="success",
+            task_id=task_id,
+            meta={"source": "simulated"},
+        )
 
     def _simulate_process_movements(self, task_id: str | None = None) -> Dict[str, Any]:
         movements = [
@@ -172,31 +278,86 @@ class TribunalAgent:
             {"data": "2024-01-05", "descricao": "Autuação do processo"},
         ]
 
-        return {
-            "tribunal": self.tribunal_code,
-            "operation": "process_movements",
-            "task_id": task_id or self._generate_task_id_stub(),
-            "data": {
-                "movimentacoes": movements,
-                "total_movimentacoes": len(movements),
-            },
-            "timestamp": self._get_timestamp(),
-            "status": "success",
+        data = {
+            "movimentacoes": movements,
+            "total_movimentacoes": len(movements),
         }
 
+        return self._build_response(
+            operation="process_movements",
+            data=data,
+            status="success",
+            task_id=task_id,
+            meta={"source": "simulated"},
+        )
+
     def _generic_tribunal_response(self, task_id: str | None = None) -> Dict[str, Any]:
-        return {
-            "tribunal": self.tribunal_code,
-            "operation": "generic_response",
-            "task_id": task_id or self._generate_task_id_stub(),
-            "data": {
+        operation = "generic_response"
+        cached = self._maybe_return_cached(operation, {}, task_id)
+        if cached:
+            return cached
+
+        result = self._build_response(
+            operation=operation,
+            data={
                 "message": f"Operação genérica para {self.tribunal_code}",
                 "capacidades": self.capabilities,
                 "config": self.config,
             },
+            status="success",
+            task_id=task_id,
+            meta={"source": "simulated"},
+        )
+        self._store_in_cache(operation, {}, result)
+        return result
+
+    def _maybe_return_cached(
+        self,
+        operation: str,
+        params: Dict[str, Any],
+        task_id: str | None = None,
+    ) -> Dict[str, Any] | None:
+        cached = self.cache.get_cached(self.tribunal_code, operation, params)
+        if not cached:
+            return None
+
+        cached_result = copy.deepcopy(cached)
+        cached_result["task_id"] = task_id or cached_result.get("task_id", self._generate_task_id_stub())
+        cached_result["timestamp"] = self._get_timestamp()
+        meta = copy.deepcopy(cached_result.get("meta", {}))
+        meta["cache"] = "hit"
+        cached_result["meta"] = meta
+        MetricsCollector.record_cache_hit(self.tribunal_code, operation)
+        return cached_result
+
+    def _store_in_cache(self, operation: str, params: Dict[str, Any], result: Dict[str, Any]) -> None:
+        payload = copy.deepcopy(result)
+        if "meta" in payload:
+            meta = dict(payload["meta"])
+            meta.pop("cache", None)
+            payload["meta"] = meta
+        self.cache.set_cache(self.tribunal_code, operation, params, payload)
+
+    def _build_response(
+        self,
+        *,
+        operation: str,
+        data: Dict[str, Any],
+        status: str,
+        task_id: str | None,
+        meta: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        response = {
+            "tribunal": self.tribunal_code,
+            "operation": operation,
+            "task_id": task_id or self._generate_task_id_stub(),
+            "data": data,
             "timestamp": self._get_timestamp(),
-            "status": "success",
+            "status": status,
         }
+        if meta:
+            response["meta"] = meta
+        return response
 
     def _extract_process_number(self, task: str) -> str | None:
         patterns = [

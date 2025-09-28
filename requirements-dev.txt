@@ -1,7 +1,10 @@
 # Production dependencies
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
+httpx==0.24.1
+redis==4.6.0
+prometheus-client==0.17.1
+PyJWT==2.8.0
 
 # Development dependencies
 pytest==7.4.0
-httpx
