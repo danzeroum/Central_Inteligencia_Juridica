@@ -9,5 +9,8 @@ pytest-asyncio==0.21.1
 coverage==7.5.4
 langchain==0.2.7
 langchain-openai==0.1.8
-chromadb==0.4.24
+chromadb==0.5.0
 pydantic==2.7.4
+# Vector Memory (Onda 2.2)
+chromadb-client==0.5.0
+openai==1.12.0
