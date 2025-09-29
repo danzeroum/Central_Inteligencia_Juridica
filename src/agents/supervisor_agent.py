@@ -403,6 +403,14 @@ class SupervisorAgent:
 
         return aggregated
 
+    def get_api_health_stats(self) -> Dict[str, Any]:
+        """Retorna estado das integrações reais para cada tribunal ativo."""
+
+        return {
+            tribunal: agent.get_circuit_breaker_stats()
+            for tribunal, agent in self.active_delegates.items()
+        }
+
     def get_agent_stats(self) -> Dict[str, Any]:
         """Return statistics about active agents."""
 
@@ -424,6 +432,9 @@ class SupervisorAgent:
 
         if self.memory.is_available():
             stats["memory"] = self.memory.get_stats()
+
+        if self.active_delegates:
+            stats["api_health"] = self.get_api_health_stats()
 
         MetricsCollector.set_total_agents(
             {tribunal: 1 for tribunal in self.active_delegates}
