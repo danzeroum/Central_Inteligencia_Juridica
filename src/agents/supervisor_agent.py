@@ -138,7 +138,9 @@ class SupervisorAgent:
             if any(keyword in task_lower for keyword in keywords):
                 found_tribunals.append(tribunal)
 
-        # Remove duplicatas mantendo ordem
+
+        # Remove duplicatas mantendo a ordem de descoberta
+
         return list(dict.fromkeys(found_tribunals))
 
     async def _delegate_to_tribunal_agent(
