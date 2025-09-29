@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
@@ -87,6 +88,11 @@ def test_remember_and_recall_cycle(memory_system: VectorMemory):
     assert recalled[0]["intent_operacao"] == "status_check"
     assert "similarity_score" in recalled[0]
     assert recalled[0]["similarity_score"] > 0.7
+    assert "result_snapshot" in recalled[0]
+
+    snapshot = recalled[0]["result_snapshot"]
+    restored = json.loads(snapshot)
+    assert restored["tribunal"] == "TJSP"
 
 
 @pytest.mark.integration
@@ -170,6 +176,7 @@ def test_memory_persistence(memory_system: VectorMemory):
     recalled = new_memory.recall_similar(task_id, k=1)
     assert len(recalled) >= 1
     assert recalled[0].get("test_id") == task_id
+    assert "result_snapshot" in recalled[0]
 
 
 @pytest.mark.integration

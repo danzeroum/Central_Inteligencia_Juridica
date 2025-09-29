@@ -141,6 +141,12 @@ class VectorMemory:
             # Evitar mutar metadata original
             metadata = dict(metadata)
 
+            # Persistir um snapshot compacto do resultado para cache futuro
+            try:
+                metadata["result_snapshot"] = json.dumps(result, ensure_ascii=False)
+            except (TypeError, ValueError):
+                logger.debug("Result snapshot could not be serialized for memory cache")
+
             # Criar documento rico para embedding
             document = self._create_document(task, result, metadata)
 
@@ -214,12 +220,13 @@ class VectorMemory:
             # Converter para similarity score (1 - normalized_distance)
             recalled = []
             for metadata, distance in zip(metadatas, distances):
+                metadata_copy = dict(metadata)
                 # Normalizar distância para similarity (aproximação)
                 similarity = max(0.0, 1.0 - (distance / 2.0))
 
                 if similarity >= min_similarity:
-                    metadata["similarity_score"] = similarity
-                    recalled.append(metadata)
+                    metadata_copy["similarity_score"] = similarity
+                    recalled.append(metadata_copy)
 
             logger.info(
                 "Memory recall: query='%s', found=%d/%d, time=%.3fs",

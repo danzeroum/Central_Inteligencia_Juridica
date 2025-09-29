@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from datetime import datetime
@@ -123,6 +124,8 @@ class SupervisorAgent:
             # Memory recall before intent classification
             recalled_memories: List[Dict[str, Any]] = []
             recall_time = 0.0
+            memory_cache_hit = False
+            cached_result: Dict[str, Any] | None = None
 
             if self.memory.is_available():
                 recall_start = time.perf_counter()
@@ -149,6 +152,33 @@ class SupervisorAgent:
                     },
                 )
 
+                if recalled_memories:
+                    best_memory = recalled_memories[0]
+                    similarity = float(best_memory.get("similarity_score", 0.0))
+                    snapshot = best_memory.get("result_snapshot")
+
+                    if snapshot and similarity >= 0.85:
+                        try:
+                            cached_result = json.loads(snapshot)
+                        except (TypeError, ValueError) as exc:
+                            self.logger.debug(
+                                "Failed to deserialize cached result from memory: %s",
+                                exc,
+                            )
+                        else:
+                            if isinstance(cached_result, dict):
+                                memory_cache_hit = True
+                                self.ledger.log_decision(
+                                    agent_type="SupervisorAgent",
+                                    decision_type="MEMORY_CACHE_HIT",
+                                    metadata={
+                                        "similarity": similarity,
+                                        "tribunals": best_memory.get("tribunals", []),
+                                    },
+                                )
+                            else:
+                                cached_result = None
+
             intent = await self._classify_intent(sanitized_task)
 
             tribunal_codes = intent.tribunais if intent.tribunais else ["TJSP"]
@@ -162,46 +192,55 @@ class SupervisorAgent:
                 len(recalled_memories),
             )
 
-            start_time = asyncio.get_event_loop().time()
+            if memory_cache_hit and cached_result is not None:
+                elapsed_time = 0.0
+                final_result = cached_result
+                valid_results: List[Dict[str, Any]] = [cached_result]
+            else:
+                start_time = asyncio.get_event_loop().time()
 
-            delegated_tasks = [
-                self._delegate_to_tribunal_agent(code, sanitized_task)
-                for code in tribunal_codes
-            ]
-            results = await asyncio.gather(*delegated_tasks, return_exceptions=True)
-
-            elapsed_time = asyncio.get_event_loop().time() - start_time
-
-            valid_results = [
-                r for r in results if isinstance(r, dict) and not isinstance(r, Exception)
-            ]
-            errors = [r for r in results if isinstance(r, Exception)]
-
-            if errors:
-                self.logger.warning("Errors in parallel execution: %s", errors)
-
-            final_result = self._aggregate_results(valid_results, tribunal_codes)
-
-            if valid_results and self.memory.is_available():
-                remember_success = self.memory.remember(
-                    task=sanitized_task,
-                    result=final_result,
-                    metadata={
-                        "tribunals": tribunal_codes,
-                        "intent_operacao": intent.operacao,
-                        "intent_confidence": intent.confidence,
-                        "execution_time": elapsed_time,
-                        "recalled_count": len(recalled_memories),
-                        "timestamp": self._get_timestamp(),
-                    },
+                delegated_tasks = [
+                    self._delegate_to_tribunal_agent(code, sanitized_task)
+                    for code in tribunal_codes
+                ]
+                results = await asyncio.gather(
+                    *delegated_tasks, return_exceptions=True
                 )
 
-                if remember_success:
-                    self.ledger.log_decision(
-                        agent_type="SupervisorAgent",
-                        decision_type="MEMORY_STORED",
-                        metadata={"task": sanitized_task[:100]},
+                elapsed_time = asyncio.get_event_loop().time() - start_time
+
+                valid_results = [
+                    r
+                    for r in results
+                    if isinstance(r, dict) and not isinstance(r, Exception)
+                ]
+                errors = [r for r in results if isinstance(r, Exception)]
+
+                if errors:
+                    self.logger.warning("Errors in parallel execution: %s", errors)
+
+                final_result = self._aggregate_results(valid_results, tribunal_codes)
+
+                if valid_results and self.memory.is_available():
+                    remember_success = self.memory.remember(
+                        task=sanitized_task,
+                        result=final_result,
+                        metadata={
+                            "tribunals": tribunal_codes,
+                            "intent_operacao": intent.operacao,
+                            "intent_confidence": intent.confidence,
+                            "execution_time": elapsed_time,
+                            "recalled_count": len(recalled_memories),
+                            "timestamp": self._get_timestamp(),
+                        },
                     )
+
+                    if remember_success:
+                        self.ledger.log_decision(
+                            agent_type="SupervisorAgent",
+                            decision_type="MEMORY_STORED",
+                            metadata={"task": sanitized_task[:100]},
+                        )
 
             task_record = {
                 "task": sanitized_task,
@@ -212,6 +251,7 @@ class SupervisorAgent:
                 "execution_time": elapsed_time,
                 "recall_time": recall_time,
                 "parallel": len(tribunal_codes) > 1,
+                "memory_cache_hit": memory_cache_hit,
                 "timestamp": self._get_timestamp(),
             }
             self.task_history.append(task_record)
@@ -239,6 +279,7 @@ class SupervisorAgent:
                 "memory": {
                     "recalled_count": len(recalled_memories),
                     "recall_time": recall_time,
+                    "cache_hit": memory_cache_hit,
                 },
                 "task_id": f"task_{len(self.task_history):04d}",
                 "execution_time": elapsed_time,
@@ -345,6 +386,9 @@ class SupervisorAgent:
             ),
             "tasks_with_memory_recall": sum(
                 1 for t in self.task_history if t.get("recalled_memories", 0) > 0
+            ),
+            "tasks_with_memory_cache_hit": sum(
+                1 for t in self.task_history if t.get("memory_cache_hit")
             ),
             "latest_tasks": self.task_history[-5:] if self.task_history else [],
         }
