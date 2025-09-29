@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import sys
 import time
 from pathlib import Path
@@ -17,28 +16,27 @@ if str(ROOT) not in sys.path:
 from src.agents.supervisor_agent import SupervisorAgent
 
 
-def _wait_for_indexing(seconds: float = 2.5) -> None:
-    """Helper to wait for ChromaDB background persistence."""
+def _wait_for_indexing(seconds: float = 0.2) -> None:
+    """Helper to wait for memory persistence (tunable for local mode)."""
 
     time.sleep(seconds)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(autouse=True)
+def configure_vector_memory_env(monkeypatch, tmp_path_factory):
+    """Force SupervisorAgent to use local deterministic vector memory."""
+
+    persist_dir = tmp_path_factory.mktemp("vector_memory_emergent")
+    monkeypatch.setenv("VECTOR_MEMORY_MODE", "local")
+    monkeypatch.setenv("VECTOR_MEMORY_PERSIST_PATH", str(persist_dir))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    yield
+
+
+@pytest.fixture
 def supervisor_with_memory() -> SupervisorAgent:
     """Cria supervisor preparado para testes com memória persistente."""
-
-    import os
-
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set. Memory learning suite skipped.")
-
-    import httpx
-
-    try:
-        response = httpx.get("http://localhost:8000/api/v1/heartbeat", timeout=5)
-        response.raise_for_status()
-    except Exception:
-        pytest.skip("ChromaDB heartbeat not available at http://localhost:8000.")
 
     supervisor = SupervisorAgent()
 
@@ -119,7 +117,7 @@ async def test_memory_accumulation_over_sessions(supervisor_with_memory: Supervi
     for query in queries:
         response = await supervisor_with_memory.process_task(query)
         recall_counts.append(response["memory"]["recalled_count"])
-        _wait_for_indexing(1.5)
+        _wait_for_indexing(0.2)
 
     avg_early = sum(recall_counts[:2]) / 2
     avg_late = sum(recall_counts[-2:]) / 2
@@ -155,9 +153,9 @@ async def test_recall_precision(supervisor_with_memory: SupervisorAgent) -> None
     """Memórias recuperadas devem ser relevantes ao contexto da consulta atual."""
 
     await supervisor_with_memory.process_task("Status completo do TJSP")
-    _wait_for_indexing(1.5)
+    _wait_for_indexing(0.2)
     await supervisor_with_memory.process_task("Status completo do TJMG")
-    _wait_for_indexing(1.5)
+    _wait_for_indexing(0.2)
     await supervisor_with_memory.process_task("Processo TJSP 123456")
     _wait_for_indexing(1.5)
 
