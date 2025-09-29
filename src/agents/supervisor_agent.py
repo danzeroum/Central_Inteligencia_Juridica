@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import Any, Dict, List
 
 from src.agents.tribunal_agent import TribunalAgent
 from src.routing.intent_classifier import ClassifiedIntent, IntentClassifier
+from src.memory.vector_memory import VectorMemory
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
 from src.utils.metrics_collector import MetricsCollector
@@ -27,6 +29,15 @@ class SupervisorAgent:
         # NOVO: Intent Classifier para routing inteligente
         self.intent_classifier = IntentClassifier(confidence_threshold=0.7)
         self.use_intelligent_routing = True
+
+        # Vector Memory (Onda 2.2)
+        self.memory = VectorMemory()
+
+        if not self.memory.is_available():
+            self.logger.warning(
+                "VectorMemory not available. Memory features disabled. "
+                "Start ChromaDB with: docker-compose up -d chromadb"
+            )
 
     async def _classify_intent(self, sanitized_task: str) -> ClassifiedIntent:
         """Classifica a intenção do usuário usando LLM ou fallback keyword-based."""
@@ -109,16 +120,46 @@ class SupervisorAgent:
                 },
             )
 
+            # Memory recall before intent classification
+            recalled_memories: List[Dict[str, Any]] = []
+            recall_time = 0.0
+
+            if self.memory.is_available():
+                recall_start = time.perf_counter()
+                recalled_memories = self.memory.recall_similar(
+                    sanitized_task,
+                    k=3,
+                )
+                recall_time = time.perf_counter() - recall_start
+
+                self.ledger.log_decision(
+                    agent_type="SupervisorAgent",
+                    decision_type="MEMORY_RECALLED",
+                    metadata={
+                        "recalled_count": len(recalled_memories),
+                        "recall_time": recall_time,
+                        "memories": [
+                            {
+                                "task": memory.get("original_task", "")[:100],
+                                "similarity": memory.get("similarity_score", 0.0),
+                                "tribunals": memory.get("tribunals", []),
+                            }
+                            for memory in recalled_memories
+                        ],
+                    },
+                )
+
             intent = await self._classify_intent(sanitized_task)
 
             tribunal_codes = intent.tribunais if intent.tribunais else ["TJSP"]
 
             self.logger.info(
-                "Processing task with %d tribunals: %s (op=%s, confidence=%.2f)",
+                "Processing task with %d tribunals: %s (op=%s, confidence=%.2f, recalled=%d)",
                 len(tribunal_codes),
                 tribunal_codes,
                 intent.operacao,
                 intent.confidence,
+                len(recalled_memories),
             )
 
             start_time = asyncio.get_event_loop().time()
@@ -141,12 +182,35 @@ class SupervisorAgent:
 
             final_result = self._aggregate_results(valid_results, tribunal_codes)
 
+            if valid_results and self.memory.is_available():
+                remember_success = self.memory.remember(
+                    task=sanitized_task,
+                    result=final_result,
+                    metadata={
+                        "tribunals": tribunal_codes,
+                        "intent_operacao": intent.operacao,
+                        "intent_confidence": intent.confidence,
+                        "execution_time": elapsed_time,
+                        "recalled_count": len(recalled_memories),
+                        "timestamp": self._get_timestamp(),
+                    },
+                )
+
+                if remember_success:
+                    self.ledger.log_decision(
+                        agent_type="SupervisorAgent",
+                        decision_type="MEMORY_STORED",
+                        metadata={"task": sanitized_task[:100]},
+                    )
+
             task_record = {
                 "task": sanitized_task,
                 "tribunals": tribunal_codes,
                 "intent": intent.model_dump(),
+                "recalled_memories": len(recalled_memories),
                 "result": final_result,
                 "execution_time": elapsed_time,
+                "recall_time": recall_time,
                 "parallel": len(tribunal_codes) > 1,
                 "timestamp": self._get_timestamp(),
             }
@@ -158,6 +222,7 @@ class SupervisorAgent:
                 metadata={
                     "tribunals": tribunal_codes,
                     "intent_confidence": intent.confidence,
+                    "recalled_count": len(recalled_memories),
                     "result_status": final_result.get("status", "unknown"),
                     "execution_time": elapsed_time,
                 },
@@ -170,6 +235,10 @@ class SupervisorAgent:
                 "intent": {
                     "operacao": intent.operacao,
                     "confidence": intent.confidence,
+                },
+                "memory": {
+                    "recalled_count": len(recalled_memories),
+                    "recall_time": recall_time,
                 },
                 "task_id": f"task_{len(self.task_history):04d}",
                 "execution_time": elapsed_time,
@@ -274,8 +343,15 @@ class SupervisorAgent:
             "parallel_tasks_count": sum(
                 1 for t in self.task_history if t.get("parallel", False)
             ),
+            "tasks_with_memory_recall": sum(
+                1 for t in self.task_history if t.get("recalled_memories", 0) > 0
+            ),
             "latest_tasks": self.task_history[-5:] if self.task_history else [],
         }
+
+        if self.memory.is_available():
+            stats["memory"] = self.memory.get_stats()
+
         MetricsCollector.set_total_agents(
             {tribunal: 1 for tribunal in self.active_delegates}
         )

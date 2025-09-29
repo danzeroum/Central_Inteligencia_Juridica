@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  # Placeholder for existing services (agent-system, redis, etc.)
+  chromadb:
+    image: chromadb/chroma:0.5.0
+    container_name: tribunal-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+      - ALLOW_RESET=TRUE
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  chromadb_data:
