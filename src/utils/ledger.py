@@ -29,3 +29,27 @@ class DecisionLedger:
 
     def list_records(self) -> List[DecisionRecord]:
         return list(self._records)
+
+    def get_entries(
+        self,
+        *,
+        agent_type: str | None = None,
+        decision_type: str | None = None,
+    ) -> List[Dict[str, Any]]:
+        """Retorna registros como dicionários filtrados por tipo de agente/decisão."""
+
+        filtered = []
+        for record in self._records:
+            if agent_type and record.agent_type != agent_type:
+                continue
+            if decision_type and record.decision_type != decision_type:
+                continue
+            filtered.append(
+                {
+                    "agent_type": record.agent_type,
+                    "decision_type": record.decision_type,
+                    "metadata": record.metadata,
+                    "timestamp": record.timestamp,
+                }
+            )
+        return filtered
