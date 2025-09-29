@@ -7,186 +7,193 @@ echo "================================================================"
 PASS=0
 FAIL=0
 
-pass() {
-  echo "✅ $1"
-  PASS=$((PASS + 1))
-}
+pass() { echo "✅ $1"; ((PASS++)); }
+fail() { echo "❌ $1"; ((FAIL++)); exit 1; }
 
-fail() {
-  echo "❌ $1"
-  FAIL=$((FAIL + 1))
-  exit 1
-}
-
-maybe_warn() {
-  echo "⚠️  $1"
-}
-
-needs_command() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    fail "Comando obrigatório não encontrado: $1"
-  fi
-}
-
-echo
+# Gate 1: Pré-requisitos
+echo ""
 echo "📋 Gate 1: Environment Prerequisites"
 echo "------------------------------------"
 
-needs_command docker
-needs_command curl
-
-if ! docker ps >/dev/null 2>&1; then
-  fail "Docker não está acessível. Verifique instalação/permissões."
-fi
-
 if docker ps | grep -q "tribunal-chromadb"; then
-  pass "ChromaDB container em execução"
+    pass "ChromaDB container running"
 else
-  fail "ChromaDB NÃO está rodando. Execute: docker-compose up -d chromadb"
+    fail "ChromaDB NOT running. Execute: docker-compose up -d chromadb"
 fi
 
-if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-  fail "OPENAI_API_KEY não configurada. Exporte a variável antes do script."
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+    pass "OPENAI_API_KEY configured"
 else
-  pass "OPENAI_API_KEY configurada"
+    fail "OPENAI_API_KEY not set. Execute: export OPENAI_API_KEY='sk-...'"
 fi
 
-if curl -sf http://localhost:8000/api/v1/heartbeat >/dev/null 2>&1; then
-  pass "ChromaDB responde heartbeat"
+if curl -sf http://localhost:8000/api/v1/heartbeat > /dev/null 2>&1; then
+    pass "ChromaDB responding to heartbeat"
 else
-  fail "ChromaDB não responde em http://localhost:8000/api/v1/heartbeat"
+    fail "ChromaDB not responding. Check: docker-compose logs chromadb"
 fi
 
-echo
+# Gate 2: Code Structure
+echo ""
 echo "📁 Gate 2: Code Structure"
 echo "-------------------------"
 
 required_files=(
-  "src/memory/vector_memory.py"
-  "tests/integration/test_vector_memory.py"
-  "tests/emergent/test_memory_learning.py"
-  "docs/ADRs/ADR-007-vector-memory.md"
+    "src/memory/vector_memory.py"
+    "tests/integration/test_vector_memory.py"
+    "tests/emergent/test_memory_learning.py"
+    "docs/ADRs/ADR-007-vector-memory.md"
 )
 
 for file in "${required_files[@]}"; do
-  if [[ -f "$file" ]]; then
-    pass "Arquivo presente: $file"
-  else
-    fail "Arquivo obrigatório ausente: $file"
-  fi
+    if [ -f "$file" ]; then
+        pass "File exists: $file"
+    else
+        fail "Missing file: $file"
+    fi
 done
 
-echo
+# Gate 3: Integration Tests
+echo ""
 echo "🧪 Gate 3: Integration Tests"
 echo "-----------------------------"
 
-needs_command pytest
-
 if pytest tests/integration/test_vector_memory.py -v --tb=short; then
-  pass "Testes de integração concluídos"
+    pass "Integration tests passed"
 else
-  fail "Falha nos testes de integração"
+    fail "Integration tests failed"
 fi
 
-echo
+# Gate 4: Emergent Behavior Tests
+echo ""
 echo "🧠 Gate 4: Emergent Learning Validation"
 echo "----------------------------------------"
 
 if pytest tests/emergent/test_memory_learning.py -v --tb=short -k "test_learning_effect_latency_reduction"; then
-  pass "Efeito de aprendizado (latência) validado"
+    pass "Learning effect validated (latency reduction)"
 else
-  fail "Efeito de aprendizado não observado"
+    fail "Learning effect NOT observed"
 fi
 
-echo
+# Gate 5: Memory System Health
+echo ""
 echo "💾 Gate 5: Memory System Health"
 echo "--------------------------------"
 
-python - <<'PYCODE'
+python - <<'PYTHON'
+import sys
 from src.memory.vector_memory import VectorMemory
 
 memory = VectorMemory()
 
 if not memory.is_available():
-    raise SystemExit("VectorMemory indisponível")
+    print("❌ VectorMemory not available")
+    sys.exit(1)
 
 stats = memory.get_stats()
 
-if stats.get("status") != "healthy":
-    raise SystemExit(f"Estado inesperado: {stats}")
+if stats["status"] != "healthy":
+    print(f"❌ Memory status: {stats['status']}")
+    sys.exit(1)
 
-print(f"✅ Memory system healthy (total={stats.get('total_memories')})")
-PYCODE
+print(f"✅ Memory system healthy (total={stats['total_memories']})")
+PYTHON
 
-echo
+if [ $? -eq 0 ]; then
+    ((PASS++))
+else
+    fail "Memory system unhealthy"
+fi
+
+# Gate 6: Performance Benchmarks
+echo ""
 echo "⚡ Gate 6: Performance Benchmarks"
 echo "----------------------------------"
 
-python - <<'PYCODE'
+python - <<'PYTHON'
+import sys
 import time
 from src.memory.vector_memory import VectorMemory
 
 memory = VectorMemory()
 
-if not memory.is_available():
-    raise SystemExit("VectorMemory indisponível para benchmark")
-
+# Benchmark 1: Recall latency
 start = time.perf_counter()
-memory.recall_similar("benchmark query", k=3)
+recalled = memory.recall_similar("test query", k=3)
 recall_latency = time.perf_counter() - start
 
 if recall_latency > 0.3:
-    raise SystemExit(f"Recall muito lento: {recall_latency:.3f}s (target <300ms)")
+    print(f"❌ Recall too slow: {recall_latency:.3f}s (target <300ms)")
+    sys.exit(1)
 
 print(f"✅ Recall latency OK: {recall_latency*1000:.0f}ms")
 
+# Benchmark 2: Remember latency
 start = time.perf_counter()
-ok = memory.remember("benchmark task", {"benchmark": True}, {"tribunals": ["TJB"]})
+success = memory.remember(
+    "test task",
+    {"test": True},
+    {"tribunals": ["TEST"]}
+)
 remember_latency = time.perf_counter() - start
 
-if not ok or remember_latency > 0.5:
-    raise SystemExit(f"Remember falhou ou lento: {remember_latency:.3f}s")
+if not success or remember_latency > 0.5:
+    print(f"❌ Remember failed or too slow: {remember_latency:.3f}s")
+    sys.exit(1)
 
 print(f"✅ Remember latency OK: {remember_latency*1000:.0f}ms")
-PYCODE
+PYTHON
 
-echo
+if [ $? -eq 0 ]; then
+    ((PASS++))
+else
+    fail "Performance benchmarks failed"
+fi
+
+# Gate 7: API Integration
+echo ""
 echo "🌐 Gate 7: API Integration (End-to-End)"
 echo "----------------------------------------"
 
-if ! command -v jq >/dev/null 2>&1; then
-  maybe_warn "jq não encontrado; validação E2E parcial."
-else
-  if ! curl -sf http://localhost:8000/health >/dev/null 2>&1; then
-    maybe_warn "API principal não respondeu /health. Tente iniciar com docker-compose up -d agent-system"
-  fi
-
-  response=$(curl -sf -X POST http://localhost:8000/api/v1/tasks \
-    -H "Content-Type: application/json" \
-    -d '{"task_description": "Status do TJSP"}' || true)
-
-  if [[ -n "$response" ]] && echo "$response" | jq -e '.memory.recalled_count >= 0' >/dev/null 2>&1; then
-    pass "API retornou métricas de memória"
-  else
-    maybe_warn "Não foi possível validar API end-to-end"
-  fi
+# Inicia a API em background (se não estiver rodando)
+if ! curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+    echo "   Starting API server..."
+    docker-compose up -d agent-system
+    sleep 10
 fi
 
-echo
+# Teste E2E: Task com memória
+response=$(curl -sf -X POST http://localhost:8000/api/v1/tasks \
+    -H "Content-Type: application/json" \
+    -d '{"task_description": "Status do TJSP"}')
+
+if echo "$response" | jq -e '.memory.recalled_count >= 0' > /dev/null 2>&1; then
+    pass "API returning memory metrics"
+else
+    fail "API not returning memory metrics"
+fi
+
+# Resultado Final
+echo ""
 echo "================================================================"
 echo "🎯 VALIDATION SUMMARY"
 echo "================================================================"
 echo "✅ Passed: $PASS"
 echo "❌ Failed: $FAIL"
 
-if [[ $FAIL -eq 0 ]]; then
-  echo
-  echo "🎉 ONDA 2.2 VALIDATED SUCCESSFULLY!"
-  echo "   Vector Memory operacional e pronto para merge."
-  exit 0
+if [ $FAIL -eq 0 ]; then
+    echo ""
+    echo "🎉 ONDA 2.2 VALIDATED SUCCESSFULLY!"
+    echo "   Vector Memory está funcionando conforme esperado."
+    echo ""
+    echo "📊 Next Steps:"
+    echo "   1. Monitor memory growth: docker-compose logs chromadb"
+    echo "   2. Test in production staging"
+    echo "   3. Merge to main: git checkout main && git merge feature/standard-upgrade-wave2.2-vector-memory"
+    exit 0
 else
-  echo
-  echo "💥 VALIDATION FAILED"
-  echo "   Revise as mensagens acima antes de prosseguir."
-  exit 1
+    echo ""
+    echo "💥 VALIDATION FAILED"
+    echo "   Review errors above and retry."
+    exit 1
 fi
