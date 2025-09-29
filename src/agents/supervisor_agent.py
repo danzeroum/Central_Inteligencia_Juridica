@@ -157,7 +157,17 @@ class SupervisorAgent:
                     similarity = float(best_memory.get("similarity_score", 0.0))
                     snapshot = best_memory.get("result_snapshot")
 
-                    if snapshot and similarity >= 0.85:
+                    cache_threshold = 0.85
+                    if self.memory.using_manual_embeddings:
+                        cache_threshold = 0.1
+
+                    tribunals_from_memory = best_memory.get("tribunals") or []
+
+                    if (
+                        snapshot
+                        and similarity >= cache_threshold
+                        and tribunals_from_memory
+                    ):
                         try:
                             cached_result = json.loads(snapshot)
                         except (TypeError, ValueError) as exc:
@@ -180,6 +190,25 @@ class SupervisorAgent:
                                 cached_result = None
 
             intent = await self._classify_intent(sanitized_task)
+
+            if recalled_memories:
+                best_memory = recalled_memories[0]
+                memory_similarity = float(best_memory.get("similarity_score", 0.0))
+                memory_tribunals = best_memory.get("tribunals") or []
+
+                if memory_tribunals:
+                    similarity_override_threshold = 0.5
+                    if self.memory.using_manual_embeddings:
+                        similarity_override_threshold = 0.1
+
+                    if (
+                        memory_similarity >= similarity_override_threshold
+                        and (
+                            not intent.tribunais
+                            or intent.tribunais == ["TJSP"]
+                        )
+                    ):
+                        intent.tribunais = list(dict.fromkeys(memory_tribunals))
 
             tribunal_codes = intent.tribunais if intent.tribunais else ["TJSP"]
 
