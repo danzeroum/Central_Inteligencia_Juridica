@@ -210,6 +210,7 @@ def test_auth_headers_for_tjmg(mock_tjmg_api: respx.Router, monkeypatch: pytest.
     assert request.headers.get("X-API-Key") == "test-api-key-456"
 
 
+
 def test_rate_limiter_respects_config(
     mock_tjsp_api: respx.Router, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -241,7 +242,6 @@ def test_rate_limiter_respects_config(
     adapter.close()
 
     assert elapsed >= 0.2
-
 
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__, "-v", "-s"])

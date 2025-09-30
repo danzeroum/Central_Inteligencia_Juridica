@@ -9,6 +9,7 @@ from collections import deque
 from threading import Lock
 from typing import Any, Deque, Dict, Optional
 
+
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -19,6 +20,7 @@ from src.tools.schemas.tribunal_schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 
 class RateLimiter:
@@ -57,6 +59,7 @@ class RateLimiter:
                 time.sleep(sleep_time)
 
 
+
 class TribunalAPIAdapter:
     """Adaptador para APIs reais com fallback automático."""
 
@@ -79,6 +82,7 @@ class TribunalAPIAdapter:
         self.tribunal_code = tribunal_code
         self.config = self.API_CONFIGS.get(tribunal_code)
 
+
         failure_threshold = int(os.getenv("CIRCUIT_BREAKER_FAILURE_THRESHOLD", "3"))
         timeout_seconds = int(os.getenv("CIRCUIT_BREAKER_TIMEOUT_SECONDS", "60"))
 
@@ -96,7 +100,6 @@ class TribunalAPIAdapter:
                 timeout=timeout,
                 headers=self._get_auth_headers(),
             )
-
             rate_limit_conf = self.config.get("rate_limit")
             if rate_limit_conf:
                 self.rate_limiter = RateLimiter(
