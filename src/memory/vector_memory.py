@@ -16,7 +16,7 @@ try:  # pragma: no cover - import guard for optional dependency
     import chromadb
     from chromadb.config import Settings
     from chromadb.utils import embedding_functions
-except ImportError:  # pragma: no cover - handled gracefully at runtime
+except (ImportError, AttributeError):  # pragma: no cover - handled gracefully at runtime
     chromadb = None
     Settings = None
     embedding_functions = None

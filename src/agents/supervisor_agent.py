@@ -343,9 +343,11 @@ class SupervisorAgent(A2ACapable):
                 identified.extend([t for t in tribunals if t in tribunal_keywords])
 
         for tribunal, keywords in tribunal_keywords.items():
-            if any(keyword in task_lower for keyword in keywords):
-                if tribunal not in identified:
-                    identified.append(tribunal)
+            for keyword in keywords:
+                if re.search(rf"\b{re.escape(keyword)}\b", task_lower):
+                    if tribunal not in identified:
+                        identified.append(tribunal)
+                    break
 
         if not identified:
             identified = [self._identify_tribunal(task)]
@@ -496,7 +498,11 @@ class SupervisorAgent(A2ACapable):
                         dict.fromkeys(code.upper() for code in explicit_mentions)
                     )
 
-            if len(tribunal_codes) == 1:
+            requires_consensus = self._is_multi_tribunal_query(
+                sanitized_task
+            ) or len(tribunal_codes) > 1
+
+            if len(tribunal_codes) == 1 and not requires_consensus:
                 single_code = tribunal_codes[0]
                 self.logger.info(
                     "Single tribunal (%s) identified, skipping consensus",
@@ -613,10 +619,6 @@ class SupervisorAgent(A2ACapable):
                     "consensus_decision": None,
                 }
 
-            requires_consensus = self._is_multi_tribunal_query(
-                sanitized_task
-            ) or len(tribunal_codes) > 1
-
             if requires_consensus:
                 suggested = self._identify_relevant_tribunals(sanitized_task)
                 if suggested:
@@ -687,6 +689,19 @@ class SupervisorAgent(A2ACapable):
                     consensus_payload.get("consensus_strength", 0.0)
                 )
                 consensus_details = consensus_payload.get("consensus", {}) or {}
+
+                self.ledger.log_decision(
+                    agent_type="SupervisorAgent",
+                    decision_type="CONSENSUS_REACHED",
+                    metadata={
+                        "tribunals": tribunal_codes,
+                        "consensus_strength": consensus_payload.get(
+                            "consensus_strength"
+                        ),
+                        "decision_maker": consensus_details.get("decision_maker"),
+                        "task": sanitized_task[:100],
+                    },
+                )
                 dissenting = consensus_details.get("dissenting_opinions") or []
                 participants = (
                     len(dissenting) + 1 if consensus_details else len(tribunal_codes)
