@@ -17,6 +17,7 @@ from src.memory.vector_memory import VectorMemory
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
 from src.utils.metrics_collector import MetricsCollector
+from src.utils.decision_metrics import DecisionMetricsCollector
 
 
 class SupervisorAgent(A2ACapable):
@@ -223,6 +224,9 @@ class SupervisorAgent(A2ACapable):
         EVOLUÇÃO STANDARD: Usa LLM-based intent classification.
         """
 
+        start_time = time.time()
+        consensus_strength_value: float | None = None
+
         try:
             sanitized_task = self.sanitizer.sanitize_text(task_description)
 
@@ -388,6 +392,47 @@ class SupervisorAgent(A2ACapable):
                     sanitized_task, tribunal_codes, consultation_responses
                 )
                 consensus_used = True
+                consensus_strength_value = float(
+                    consensus_payload.get("consensus_strength", 0.0)
+                )
+                consensus_details = consensus_payload.get("consensus", {}) or {}
+                dissenting = consensus_details.get("dissenting_opinions") or []
+                participants = (
+                    len(dissenting) + 1 if consensus_details else len(tribunal_codes)
+                )
+                DecisionMetricsCollector.record_consensus(
+                    decision_type="tribunal_operation",
+                    strength=consensus_strength_value,
+                    participants=participants,
+                    winning_agent=consensus_details.get("decision_maker", "unknown"),
+                    outcome="weak"
+                    if consensus_strength_value < 0.6
+                    else "strong",
+                )
+
+                if consensus_strength_value < 0.6:
+                    DecisionMetricsCollector.record_hitl_request(
+                        agent="SupervisorAgent",
+                        status="pending",
+                    )
+
+                    self.ledger.log_decision(
+                        agent_type="SupervisorAgent",
+                        decision_type="HITL_REQUIRED",
+                        metadata={
+                            "reason": "weak_consensus",
+                            "strength": consensus_strength_value,
+                        },
+                    )
+
+                    return {
+                        "status": "pending_human_review",
+                        "message": "Consenso insuficiente. Revisão humana necessária.",
+                        "consensus_strength": consensus_strength_value,
+                        "consensus_details": consensus_details,
+                        "tribunals_consulted": tribunal_codes,
+                        "timestamp": self._get_timestamp(),
+                    }
             else:
                 start_time = asyncio.get_running_loop().time()
                 delegated_tasks = [
@@ -521,10 +566,37 @@ class SupervisorAgent(A2ACapable):
                 response_payload["consensus"] = None
                 response_payload["consensus_decision"] = None
 
+            total_duration = time.time() - start_time
+
+            if consensus_used:
+                DecisionMetricsCollector.record_decision(
+                    agent="SupervisorAgent",
+                    decision_type="consensus_task",
+                    outcome="success",
+                    confidence=consensus_strength_value or 0.0,
+                    duration_seconds=total_duration,
+                )
+            else:
+                DecisionMetricsCollector.record_decision(
+                    agent="SupervisorAgent",
+                    decision_type="standard_task",
+                    outcome="success",
+                    confidence=0.8,
+                    duration_seconds=total_duration,
+                )
+
             return response_payload
         except Exception as exc:  # pragma: no cover - defensive
             error_msg = f"Supervisor processing error: {exc}"
             self.logger.error(error_msg, exc_info=True)
+            error_duration = time.time() - start_time
+            DecisionMetricsCollector.record_decision(
+                agent="SupervisorAgent",
+                decision_type="error",
+                outcome="failure",
+                confidence=0.0,
+                duration_seconds=error_duration,
+            )
             self.ledger.log_decision(
                 agent_type="SupervisorAgent",
                 decision_type="TASK_ERROR",

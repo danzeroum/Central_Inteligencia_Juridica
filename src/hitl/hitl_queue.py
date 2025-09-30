@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+from src.utils.decision_metrics import DecisionMetricsCollector
+
 
 @dataclass
 class HITLRequest:
@@ -58,6 +60,14 @@ class HITLQueue:
         self._queue[request.request_id] = request
         self._events[request.request_id] = asyncio.Event()
 
+        DecisionMetricsCollector.record_hitl_request(
+            agent=agent,
+            status="pending",
+        )
+        DecisionMetricsCollector.update_hitl_queue_depth(
+            len(self.get_pending_requests())
+        )
+
         # Notificar WebSocket
         self._notify_websockets("new_request", request.to_dict())
 
@@ -105,14 +115,27 @@ class HITLQueue:
             return False
 
         request = self._queue[request_id]
+        created = datetime.fromisoformat(request.created_at.replace("Z", "+00:00"))
+        decided = datetime.now(timezone.utc)
+        response_time = (decided - created).total_seconds()
+
         request.status = "approved" if approved else "rejected"
         request.decision = {
             "approved": approved,
             "modifications": modifications,
             "feedback": feedback,
         }
-        request.decided_at = datetime.now(timezone.utc).isoformat()
+        request.decided_at = decided.isoformat()
         request.decided_by = operator_id
+
+        DecisionMetricsCollector.record_hitl_request(
+            agent=request.agent,
+            status="approved" if approved else "rejected",
+            response_time_seconds=response_time,
+        )
+        DecisionMetricsCollector.update_hitl_queue_depth(
+            len(self.get_pending_requests())
+        )
 
         # Liberar agente aguardando
         if request_id in self._events:

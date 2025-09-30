@@ -1,42 +1,70 @@
-version: "3.9"
+version: '3.8'
 
 services:
   agent-system:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: multi-agent-system
-    working_dir: /app
-    command: ["sleep", "infinity"]
-    ports:
-      - "8080:8000"
-    volumes:
-      - .:/app
-    environment:
-      - PYTHONPATH=/app
-      - PYTHONUNBUFFERED=1
-      - TJSP_API_TOKEN=${TJSP_API_TOKEN:-}
-      - TJMG_API_KEY=${TJMG_API_KEY:-}
-      - CIRCUIT_BREAKER_FAILURE_THRESHOLD=${CIRCUIT_BREAKER_FAILURE_THRESHOLD:-3}
-      - CIRCUIT_BREAKER_TIMEOUT_SECONDS=${CIRCUIT_BREAKER_TIMEOUT_SECONDS:-60}
-    depends_on:
-      - chromadb
-
-  chromadb:
-    image: chromadb/chroma:0.5.0
-    container_name: tribunal-chromadb
     ports:
       - "8000:8000"
     volumes:
-      - chromadb_data:/chroma/chroma
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./logs:/app/logs
+    working_dir: /app
     environment:
-      - IS_PERSISTENT=TRUE
-      - ANONYMIZED_TELEMETRY=FALSE
-      - ALLOW_RESET=TRUE
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - prometheus
+
+  redis:
+    image: redis:7-alpine
+    container_name: tribunal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tribunal-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tribunal-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/dashboards:/etc/grafana/provisioning/dashboards/json:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=
+    depends_on:
+      - prometheus
     restart: unless-stopped
 
 volumes:
-  chromadb_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
