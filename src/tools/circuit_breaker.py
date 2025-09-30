@@ -142,6 +142,27 @@ class CircuitBreaker:
 
         self._update_state_metric()
 
+    @property
+    def state(self) -> CircuitState:
+        """Return the current circuit breaker state in a thread-safe way."""
+
+        with self._lock:
+            return self._state
+
+    @property
+    def timeout_seconds(self) -> float:
+        """Expose the configured recovery timeout in seconds."""
+
+        with self._lock:
+            return float(self.config.recovery_timeout)
+
+    @timeout_seconds.setter
+    def timeout_seconds(self, value: float) -> None:
+        """Allow dynamic adjustments of the recovery timeout."""
+
+        with self._lock:
+            self.config.recovery_timeout = max(0.0, float(value))
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------

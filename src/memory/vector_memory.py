@@ -21,6 +21,8 @@ except ImportError:  # pragma: no cover - handled gracefully at runtime
     Settings = None
     embedding_functions = None
 
+logging.getLogger("chromadb.telemetry.product.posthog").setLevel(logging.CRITICAL)
+
 logger = logging.getLogger(__name__)
 
 
