@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Any, Dict, List
@@ -32,6 +33,22 @@ class SupervisorAgent(A2ACapable):
         self.ledger = ledger or DecisionLedger()
         self.active_delegates: Dict[str, TribunalAgent] = {}
         self.task_history: List[Dict[str, Any]] = []
+
+        # Keywords para identificação direta de tribunais citados em tarefas
+        self._tribunal_keywords: Dict[str, List[str]] = {
+            "TJSP": ["tjsp", "são paulo", "sao paulo", "sp"],
+            "TJMG": ["tjmg", "minas gerais", "minas", "mg"],
+            "TJRS": ["tjrs", "rio grande do sul", "gaúcho", "gaucho", "rs"],
+            "TJRJ": ["tjrj", "rio de janeiro", "fluminense", "rj"],
+            "STF": ["stf", "supremo", "federal"],
+        }
+
+        # Regiões ajudam a identificar tribunais relacionados implicitamente
+        self._region_to_tribunals: Dict[str, List[str]] = {
+            "sudeste": ["TJSP", "TJMG", "TJRJ"],
+            "sul": ["TJRS"],
+            "federal": ["STF"],
+        }
 
         # Consensus coordination
         self.consensus_engine = WeightedConsensusEngine()
@@ -305,25 +322,11 @@ class SupervisorAgent(A2ACapable):
         task_lower = task.lower()
         relevant: List[str] = []
 
-        regions: Dict[str, List[str]] = {
-            "sudeste": ["TJSP", "TJMG", "TJRJ"],
-            "sul": ["TJRS"],
-            "federal": ["STF"],
-        }
-
-        for region, tribunals in regions.items():
-            if region in task_lower:
+        for region, tribunals in self._region_to_tribunals.items():
+            if re.search(rf"\\b{re.escape(region)}\\b", task_lower):
                 relevant.extend(tribunals)
 
-        tribunal_keywords: Dict[str, List[str]] = {
-            "TJSP": ["tjsp", "são paulo", "sao paulo", "sp"],
-            "TJMG": ["tjmg", "minas gerais", "minas", "mg"],
-            "TJRS": ["tjrs", "rio grande do sul", "gaúcho", "gaucho", "rs"],
-            "TJRJ": ["tjrj", "rio de janeiro", "fluminense", "rj"],
-            "STF": ["stf", "supremo", "federal"],
-        }
-
-        for tribunal, keywords in tribunal_keywords.items():
+        for tribunal, keywords in self._tribunal_keywords.items():
             if any(keyword in task_lower for keyword in keywords):
                 if tribunal not in relevant:
                     relevant.append(tribunal)
@@ -466,6 +469,16 @@ class SupervisorAgent(A2ACapable):
                     tribunal_codes = list(dict.fromkeys(code.upper() for code in merged))
                 memory_cache_hit = False
                 cached_result = None
+
+            if len(tribunal_codes) > 1:
+                self.ledger.log_decision(
+                    agent_type="SupervisorAgent",
+                    decision_type="MULTI_TRIBUNAL_DECOMPOSITION",
+                    metadata={
+                        "tribunals": tribunal_codes,
+                        "task_preview": sanitized_task[:100],
+                    },
+                )
 
             parallel_execution = len(tribunal_codes) > 1
 
@@ -689,6 +702,11 @@ class SupervisorAgent(A2ACapable):
                 response_payload["consensus"] = None
                 response_payload["consensus_decision"] = None
 
+            if parallel_execution:
+                response_payload["multi_tribunal"] = True
+            else:
+                response_payload["tribunal_used"] = tribunal_codes[0]
+
             total_duration = time.time() - start_time
 
             if consensus_used:
@@ -732,26 +750,33 @@ class SupervisorAgent(A2ACapable):
             }
 
     def _identify_all_tribunals(self, task: str) -> List[str]:
-        """
-        NOVO MÉTODO: Identifica TODOS os tribunais mencionados na tarefa.
-        Substitui o antigo _identify_tribunal que retornava apenas um.
-        """
+        """Retorna todos os tribunais mencionados preservando ordem de aparição."""
 
         task_lower = task.lower()
-        tribunal_keywords: Dict[str, List[str]] = {
-            "TJSP": ["tjsp", "são paulo", "sao paulo", "sp"],
-            "TJMG": ["tjmg", "minas gerais", "minas", "mg"],
-            "TJRS": ["tjrs", "rio grande do sul", "gaúcho", "gaucho", "rs"],
-            "TJRJ": ["tjrj", "rio de janeiro", "fluminense", "rj"],
-            "STF": ["stf", "supremo", "federal"],
-        }
+        matches: List[tuple[int, str]] = []
 
-        found_tribunals = []
-        for tribunal, keywords in tribunal_keywords.items():
-            if any(keyword in task_lower for keyword in keywords):
-                found_tribunals.append(tribunal)
+        for tribunal, keywords in self._tribunal_keywords.items():
+            first_index: int | None = None
+            for keyword in keywords:
+                idx = task_lower.find(keyword)
+                if idx != -1 and (first_index is None or idx < first_index):
+                    first_index = idx
 
-        return list(dict.fromkeys(found_tribunals))
+            if first_index is not None:
+                matches.append((first_index, tribunal))
+
+        matches.sort(key=lambda item: item[0])
+        ordered = [tribunal for _, tribunal in matches]
+
+        # Remover duplicados mantendo ordem resultante
+        seen: set[str] = set()
+        ordered_unique: List[str] = []
+        for tribunal in ordered:
+            if tribunal not in seen:
+                seen.add(tribunal)
+                ordered_unique.append(tribunal)
+
+        return ordered_unique
 
     def _get_or_create_tribunal_agent(self, tribunal_code: str) -> TribunalAgent:
         """Retorna agente existente ou cria novo delegado para o tribunal."""
@@ -981,6 +1006,9 @@ class SupervisorAgent(A2ACapable):
             "total_tasks_processed": len(self.task_history),
             "parallel_tasks_count": sum(
                 1 for t in self.task_history if t.get("parallel", False)
+            ),
+            "multi_tribunal_tasks": sum(
+                1 for t in self.task_history if len(t.get("tribunals", [])) > 1
             ),
             "tasks_with_memory_recall": sum(
                 1 for t in self.task_history if t.get("recalled_memories", 0) > 0
