@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from src.agents.supervisor_agent import SupervisorAgent
 from src.protocols.agent_card import AgentCard, AgentRegistry
+from src.protocols.a2a_channel import get_a2a_channel
+from src.utils.metrics_collector import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,26 @@ class SuccessfulTaskResponse(BaseModel):
     timestamp: str
 
 
+class A2AMessageRequest(BaseModel):
+    """Payload para envio de mensagens A2A."""
+
+    receiver_id: str = Field(..., description="Identificador do agente de destino")
+    message_type: str = Field(..., description="Tipo da mensagem a ser enviada")
+    payload: Dict[str, Any] = Field(..., description="Dados da mensagem")
+    priority: int = Field(1, ge=1, le=3, description="Prioridade da mensagem (1-3)")
+    requires_response: bool = Field(False, description="Se é necessário aguardar resposta")
+
+
+class A2ABroadcastRequest(BaseModel):
+    """Payload para broadcast de mensagens A2A."""
+
+    sender_id: str = Field(..., description="Agente emissor da mensagem")
+    receiver_ids: List[str] = Field(..., description="Lista de agentes destinatários")
+    message_type: str = Field(..., description="Tipo da mensagem a ser enviada")
+    payload: Dict[str, Any] = Field(..., description="Conteúdo da mensagem")
+    priority: int = Field(1, ge=1, le=3, description="Prioridade da mensagem (1-3)")
+
+
 class AuthManager:
     @staticmethod
     async def verify_token() -> str:
@@ -42,6 +64,7 @@ async def enforce_rate_limit() -> None:  # pragma: no cover - placeholder
 
 
 supervisor_agent = SupervisorAgent()
+a2a_channel = get_a2a_channel()
 
 # Initialize MCP Agent Registry
 agent_registry = AgentRegistry()
@@ -97,6 +120,124 @@ async def list_agents() -> Dict[str, Any]:
             for card in agent_registry.get_all()
         ],
     }
+
+
+@app.post(
+    "/api/v1/a2a/send",
+    tags=["A2A"],
+    summary="Envia mensagem entre agentes",
+    description="Permite enviar mensagem direta de um agente para outro.",
+)
+async def send_a2a_message(
+    sender_id: str,
+    message: A2AMessageRequest,
+    user_id: str = Depends(AuthManager.verify_token),
+) -> Dict[str, Any]:
+    """Envia mensagem entre agentes utilizando o canal A2A."""
+
+    message_id = await a2a_channel.send_message(
+        sender_id=sender_id,
+        receiver_id=message.receiver_id,
+        message_type=message.message_type,
+        payload=message.payload,
+        priority=message.priority,
+        requires_response=message.requires_response,
+    )
+
+    return {
+        "status": "sent",
+        "message_id": message_id,
+        "sender": sender_id,
+        "receiver": message.receiver_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get(
+    "/api/v1/a2a/messages/{agent_id}",
+    tags=["A2A"],
+    summary="Recebe mensagens pendentes de um agente",
+    description="Retorna lista de mensagens A2A pendentes para um agente.",
+)
+async def get_agent_messages(
+    agent_id: str,
+    limit: int = Query(10, ge=1, le=100),
+) -> Dict[str, Any]:
+    """Recupera mensagens pendentes para um agente específico."""
+
+    messages = await a2a_channel.receive_messages(agent_id, limit)
+
+    return {
+        "agent_id": agent_id,
+        "message_count": len(messages),
+        "messages": [msg.to_dict() for msg in messages],
+    }
+
+
+@app.get(
+    "/api/v1/a2a/history/{agent_id}",
+    tags=["A2A"],
+    summary="Histórico de mensagens A2A",
+    description="Retorna histórico de mensagens enviadas/recebidas por um agente.",
+)
+async def get_a2a_history(
+    agent_id: str,
+    limit: int = Query(50, ge=1, le=200),
+) -> Dict[str, Any]:
+    """Retorna histórico de mensagens para o agente informado."""
+
+    history = a2a_channel.get_message_history(agent_id, limit)
+
+    return {
+        "agent_id": agent_id,
+        "total_messages": len(history),
+        "messages": [msg.to_dict() for msg in history],
+    }
+
+
+@app.post(
+    "/api/v1/a2a/broadcast",
+    tags=["A2A"],
+    summary="Broadcast para múltiplos agentes",
+    description="Envia mensagem para múltiplos agentes simultaneamente.",
+)
+async def broadcast_a2a_message(
+    request: A2ABroadcastRequest,
+    user_id: str = Depends(AuthManager.verify_token),
+) -> Dict[str, Any]:
+    """Realiza broadcast de mensagens para múltiplos agentes."""
+
+    message_ids = []
+
+    for receiver_id in request.receiver_ids:
+        msg_id = await a2a_channel.send_message(
+            sender_id=request.sender_id,
+            receiver_id=receiver_id,
+            message_type=request.message_type,
+            payload=request.payload,
+            priority=request.priority,
+        )
+        message_ids.append(msg_id)
+
+    return {
+        "status": "broadcasted",
+        "sender": request.sender_id,
+        "receivers": request.receiver_ids,
+        "message_ids": message_ids,
+        "total_sent": len(message_ids),
+    }
+
+
+@app.get(
+    "/api/v1/a2a/health",
+    tags=["A2A"],
+    summary="Status do canal A2A",
+    description="Verifica saúde do sistema de comunicação A2A.",
+)
+async def a2a_health_check() -> Dict[str, Any]:
+    """Retorna informações de saúde do canal A2A."""
+
+    return await a2a_channel.health_check()
 
 
 @app.get(
@@ -248,3 +389,32 @@ async def process_task_v1(
     """Processa tarefa jurídica utilizando o padrão MCP."""
 
     return await _process_task_internal(task_request, user_id)
+
+
+@app.get("/health")
+async def health_check(verbose: bool = Query(False, description="Inclui detalhes completos")) -> Dict[str, Any]:
+    """Endpoint simples de saúde da aplicação."""
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    overall_status = "ok"
+
+    if not verbose:
+        return {"status": overall_status, "timestamp": timestamp}
+
+    agent_stats = {
+        "supervisor_active": True,
+        "active_delegates": list(supervisor_agent.active_delegates.keys()),
+    }
+
+    metrics_snapshot = MetricsCollector.snapshot()
+    a2a_status = await a2a_channel.health_check()
+
+    return {
+        "status": overall_status,
+        "timestamp": timestamp,
+        "details": {
+            "agents": agent_stats,
+            "metrics": metrics_snapshot,
+            "a2a": a2a_status,
+        },
+    }
