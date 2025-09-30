@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -208,6 +209,39 @@ def test_auth_headers_for_tjmg(mock_tjmg_api: respx.Router, monkeypatch: pytest.
     request = mock_tjmg_api.calls[0].request
     assert request.headers.get("X-API-Key") == "test-api-key-456"
 
+
+
+def test_rate_limiter_respects_config(
+    mock_tjsp_api: respx.Router, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(
+        TribunalAPIAdapter.API_CONFIGS["TJSP"],
+        "rate_limit",
+        {"requests": 2, "per_seconds": 0.2},
+    )
+
+    mock_tjsp_api.get("/status").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": "operacional",
+                "ultima_atualizacao": "2025-09-29T20:00:00Z",
+                "mensagem": "OK",
+                "servicos_ativos": 95,
+            },
+        )
+    )
+
+    adapter = TribunalAPIAdapter("TJSP")
+
+    start = time.perf_counter()
+    for _ in range(3):
+        adapter.get_status()
+    elapsed = time.perf_counter() - start
+
+    adapter.close()
+
+    assert elapsed >= 0.2
 
 if __name__ == "__main__":  # pragma: no cover
     pytest.main([__file__, "-v", "-s"])

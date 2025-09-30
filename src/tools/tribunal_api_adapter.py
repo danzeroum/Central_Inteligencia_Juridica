@@ -5,7 +5,10 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Dict, Optional
+from collections import deque
+from threading import Lock
+from typing import Any, Deque, Dict, Optional
+
 
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -19,6 +22,44 @@ from src.tools.schemas.tribunal_schemas import (
 logger = logging.getLogger(__name__)
 
 
+
+class RateLimiter:
+    """Simple thread-safe rate limiter using a sliding time window."""
+
+    def __init__(self, max_calls: int, period_seconds: float = 60.0) -> None:
+        self.max_calls = max_calls
+        self.period_seconds = period_seconds
+        self._timestamps: Deque[float] = deque()
+        self._lock = Lock()
+
+    def acquire(self) -> None:
+        """Blocks until a slot is available respecting the configured rate."""
+
+        if self.max_calls <= 0:
+            return
+
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                window_start = now - self.period_seconds
+
+                while self._timestamps and self._timestamps[0] <= window_start:
+                    self._timestamps.popleft()
+
+                if len(self._timestamps) < self.max_calls:
+                    self._timestamps.append(now)
+                    return
+
+                oldest = self._timestamps[0]
+                sleep_time = self.period_seconds - (now - oldest)
+
+            if sleep_time <= 0:
+                time.sleep(0)
+            else:
+                time.sleep(sleep_time)
+
+
+
 class TribunalAPIAdapter:
     """Adaptador para APIs reais com fallback automático."""
 
@@ -27,11 +68,13 @@ class TribunalAPIAdapter:
             "base_url": "https://api.tjsp.jus.br/v2",
             "auth_type": "bearer",
             "timeout": 10.0,
+            "rate_limit": {"requests": 100, "per_seconds": 60.0},
         },
         "TJMG": {
             "base_url": "https://api5.tjmg.jus.br",
             "auth_type": "api_key",
             "timeout": 10.0,
+            "rate_limit": {"requests": 60, "per_seconds": 60.0},
         },
     }
 
@@ -39,9 +82,17 @@ class TribunalAPIAdapter:
         self.tribunal_code = tribunal_code
         self.config = self.API_CONFIGS.get(tribunal_code)
 
-        self.circuit_breaker = CircuitBreaker(failure_threshold=3, timeout_seconds=60)
+
+        failure_threshold = int(os.getenv("CIRCUIT_BREAKER_FAILURE_THRESHOLD", "3"))
+        timeout_seconds = int(os.getenv("CIRCUIT_BREAKER_TIMEOUT_SECONDS", "60"))
+
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=failure_threshold,
+            timeout_seconds=timeout_seconds,
+        )
 
         self.client: Optional[httpx.Client] = None
+        self.rate_limiter: Optional[RateLimiter] = None
         if self.config:
             timeout = httpx.Timeout(self.config.get("timeout", 10.0))
             self.client = httpx.Client(
@@ -49,6 +100,12 @@ class TribunalAPIAdapter:
                 timeout=timeout,
                 headers=self._get_auth_headers(),
             )
+            rate_limit_conf = self.config.get("rate_limit")
+            if rate_limit_conf:
+                self.rate_limiter = RateLimiter(
+                    max_calls=int(rate_limit_conf.get("requests", 0)),
+                    period_seconds=float(rate_limit_conf.get("per_seconds", 60.0)),
+                )
 
     def get_status(self) -> Dict[str, Any]:
         """Obtém status do tribunal com fallback para mock."""
@@ -131,9 +188,7 @@ class TribunalAPIAdapter:
             raise RuntimeError("HTTP client not initialized")
 
         endpoint = "/status" if self.tribunal_code == "TJSP" else "/api/status"
-        response = self.client.get(endpoint)
-        response.raise_for_status()
-        return response.json()
+        return self._perform_request(endpoint)
 
     @retry(
         stop=stop_after_attempt(3),
@@ -145,7 +200,16 @@ class TribunalAPIAdapter:
             raise RuntimeError("HTTP client not initialized")
 
         endpoint = "/processos/{numero}" if self.tribunal_code == "TJSP" else "/api/processos/{numero}"
-        response = self.client.get(endpoint.format(numero=numero_processo))
+        return self._perform_request(endpoint.format(numero=numero_processo))
+
+    def _perform_request(self, endpoint: str) -> Dict[str, Any]:
+        if not self.client:
+            raise RuntimeError("HTTP client not initialized")
+
+        if self.rate_limiter:
+            self.rate_limiter.acquire()
+
+        response = self.client.get(endpoint)
         response.raise_for_status()
         return response.json()
 
