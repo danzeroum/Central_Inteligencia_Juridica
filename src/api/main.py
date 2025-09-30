@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from src.agents.supervisor_agent import SupervisorAgent
+from src.api.hitl_endpoints import router as hitl_router
 from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.protocols.a2a_channel import get_a2a_channel
 from src.utils.metrics_collector import MetricsCollector
@@ -15,6 +18,8 @@ from src.utils.metrics_collector import MetricsCollector
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Central Inteligência Jurídica")
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
 
 AUTH_REQUIRED = False
 
@@ -70,6 +75,8 @@ a2a_channel = get_a2a_channel()
 agent_registry = AgentRegistry()
 
 
+app.include_router(hitl_router)
+
 def initialize_agent_registry() -> None:
     """Populate agent registry with supervisor and active delegates."""
 
@@ -81,6 +88,16 @@ def initialize_agent_registry() -> None:
     for tribunal_code, tribunal_agent in supervisor_agent.active_delegates.items():
         tribunal_card = AgentCard.from_tribunal_agent(tribunal_agent)
         agent_registry.register(tribunal_card)
+
+
+@app.get("/hitl", response_class=HTMLResponse, include_in_schema=False)
+async def hitl_console() -> HTMLResponse:
+    """Serve a UI do console HITL."""
+    hitl_path = os.path.join(static_dir, "hitl.html")
+    if os.path.exists(hitl_path):
+        with open(hitl_path, "r", encoding="utf-8") as file:
+            return HTMLResponse(content=file.read())
+    return HTMLResponse(content="<h1>HITL UI não encontrada.</h1>", status_code=404)
 
 
 @app.get(
