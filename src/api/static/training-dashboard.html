@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Dashboard - Central de Inteligência Jurídica</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2C5AA0;
+            --success-color: #28A745;
+            --warning-color: #FFC107;
+            --danger-color: #DC3545;
+            --background-color: #F8F9FA;
+            --card-background: #FFFFFF;
+            --text-color: #333333;
+            --border-color: #DDDDDD;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: var(--card-background);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-background);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .metric-value.positive {
+            color: var(--success-color);
+        }
+
+        .metric-value.negative {
+            color: var(--danger-color);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #E9ECEF;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .agent-list {
+            list-style: none;
+        }
+
+        .agent-item {
+            padding: 12px;
+            background: #F8F9FA;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .agent-item:hover {
+            background: #E9ECEF;
+            transform: translateX(4px);
+        }
+
+        .agent-item.selected {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .history-item {
+            padding: 16px;
+            background: #F8F9FA;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .history-item.failed {
+            border-left-color: var(--danger-color);
+        }
+
+        .history-item.completed {
+            border-left-color: var(--success-color);
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .history-timestamp {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.running {
+            background: var(--warning-color);
+            color: #000;
+        }
+
+        .status-badge.completed {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .status-badge.failed {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1E3F73;
+        }
+
+        button:disabled {
+            background: #CCCCCC;
+            cursor: not-allowed;
+        }
+
+        .refresh-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #FFE5E5;
+            color: var(--danger-color);
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎓 Training Dashboard</h1>
+            <p class="subtitle">Monitoramento de Aprendizado Contínuo dos Agentes</p>
+        </header>
+
+        <div id="error-container"></div>
+
+        <div class="grid">
+            <!-- Global Stats -->
+            <div class="card">
+                <h2>
+                    📊 Estatísticas Globais
+                    <button onclick="refreshData()" title="Atualizar">
+                        <span class="refresh-icon"></span>
+                    </button>
+                </h2>
+                <div class="metric">
+                    <span class="metric-label">Total de Sessões</span>
+                    <span class="metric-value" id="total-sessions">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Feedback Recebido</span>
+                    <span class="metric-value" id="total-feedback">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Sessões Ativas</span>
+                    <span class="metric-value" id="active-sessions">-</span>
+                </div>
+            </div>
+
+            <!-- Agent Selector -->
+            <div class="card">
+                <h2>🤖 Agentes</h2>
+                <ul class="agent-list" id="agent-list">
+                    <li class="loading">Carregando agentes...</li>
+                </ul>
+            </div>
+
+            <!-- Selected Agent Stats -->
+            <div class="card">
+                <h2>📈 Performance do Agente</h2>
+                <div id="agent-stats">
+                    <p class="loading">Selecione um agente</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training History -->
+        <div class="card">
+            <h2>📚 Histórico de Treinamento</h2>
+            <div id="training-history">
+                <div class="loading">Carregando histórico...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        let selectedAgent = null;
+
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                showError(`Erro ao buscar dados: ${error.message}`);
+                throw error;
+            }
+        }
+
+        function showError(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+
+        async function loadGlobalStats() {
+            try {
+                const stats = await fetchData('/training/stats');
+                const history = await fetchData('/training/history?limit=100');
+                const active = await fetchData('/training/active-sessions');
+
+                const totalSessions = Object.values(stats.stats || {})
+                    .reduce((sum, agent) => sum + (agent.total_sessions || 0), 0);
+
+                const totalFeedback = Object.values(stats.stats || {})
+                    .reduce((sum, agent) => sum + (agent.total_feedback || 0), 0);
+
+                document.getElementById('total-sessions').textContent = totalSessions;
+                document.getElementById('total-feedback').textContent = totalFeedback;
+                document.getElementById('active-sessions').textContent = active.active_count || 0;
+            } catch (error) {
+                console.error('Failed to load global stats:', error);
+            }
+        }
+
+        async function loadAgents() {
+            try {
+                const stats = await fetchData('/training/stats');
+                const agentList = document.getElementById('agent-list');
+
+                const agents = Object.keys(stats.stats || {});
+
+                if (agents.length === 0) {
+                    agentList.innerHTML = '<li class="loading">Nenhum agente treinado ainda</li>';
+                    return;
+                }
+
+                agentList.innerHTML = agents.map(agent => 
+                    `<li class="agent-item" onclick="selectAgent('${agent}')">${agent}</li>`
+                ).join('');
+            } catch (error) {
+                console.error('Failed to load agents:', error);
+            }
+        }
+
+        async function selectAgent(agentType) {
+            selectedAgent = agentType;
+
+            document.querySelectorAll('.agent-item').forEach(item => {
+                item.classList.toggle('selected', item.textContent === agentType);
+            });
+
+            await loadAgentStats(agentType);
+        }
+
+        async function loadAgentStats(agentType) {
+            try {
+                const stats = await fetchData(`/training/stats?agent_type=${agentType}`);
+                const agentData = stats.stats[agentType] || stats.stats;
+
+                const statsContainer = document.getElementById('agent-stats');
+
+                const improvements = agentData.improvements || {};
+                const improvementHTML = Object.entries(improvements)
+                    .map(([metric, value]) => {
+                        const className = value >= 0 ? 'positive' : 'negative';
+                        const sign = value >= 0 ? '+' : '';
+                        return `
+                            <div class="metric">
+                                <span class="metric-label">${metric}</span>
+                                <span class="metric-value ${className}">${sign}${value.toFixed(2)}%</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                statsContainer.innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">Sessões de Treino</span>
+                        <span class="metric-value">${agentData.total_sessions || 0}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Feedback Acumulado</span>
+                        <span class="metric-value">${agentData.total_feedback || 0}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Feedback Pendente</span>
+                        <span class="metric-value">${agentData.pending_feedback || 0}</span>
+                    </div>
+                    ${improvementHTML || '<p style="color: #666; margin-top: 12px;">Nenhuma melhoria registrada ainda</p>'}
+                    <div style="margin-top: 16px;">
+                        <button onclick="triggerTraining('${agentType}')">
+                            Treinar Agora
+                        </button>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load agent stats:', error);
+            }
+        }
+
+        async function loadTrainingHistory() {
+            try {
+                const history = await fetchData('/training/history?limit=20');
+                const container = document.getElementById('training-history');
+
+                if (!history.sessions || history.sessions.length === 0) {
+                    container.innerHTML = '<p class="loading">Nenhuma sessão de treinamento registrada</p>';
+                    return;
+                }
+
+                container.innerHTML = history.sessions.map(session => `
+                    <div class="history-item ${session.status}">
+                        <div class="history-header">
+                            <strong>${session.agent_type}</strong>
+                            <span class="status-badge ${session.status}">${session.status}</span>
+                        </div>
+                        <div class="history-timestamp">
+                            ${new Date(session.start_time).toLocaleString('pt-BR')}
+                            ${session.end_time ? ' - ' + new Date(session.end_time).toLocaleString('pt-BR') : ''}
+                        </div>
+                        <div class="metric" style="margin-top: 8px;">
+                            <span>Feedback Processado:</span>
+                            <span>${session.feedback_count || 0}</span>
+                        </div>
+                        ${session.improvements && Object.keys(session.improvements).length > 0 ? `
+                            <div style="margin-top: 8px; font-size: 0.85rem;">
+                                <strong>Melhorias:</strong> ${Object.entries(session.improvements)
+                                    .map(([k, v]) => `${k}: ${v >= 0 ? '+' : ''}${v.toFixed(2)}%`)
+                                    .join(', ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load training history:', error);
+            }
+        }
+
+        async function triggerTraining(agentType) {
+            if (!confirm(`Iniciar treinamento para ${agentType}?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/training/train`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent_type: agentType, force: false })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Training failed');
+                }
+
+                const result = await response.json();
+                alert(`Treinamento concluído!\nMelhorias: ${JSON.stringify(result.improvements, null, 2)}`);
+                await refreshData();
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function refreshData() {
+            await Promise.all([
+                loadGlobalStats(),
+                loadAgents(),
+                loadTrainingHistory(),
+            ]);
+
+            if (selectedAgent) {
+                await loadAgentStats(selectedAgent);
+            }
+        }
+
+        setInterval(refreshData, 30000);
+
+        refreshData();
+    </script>
+</body>
+</html>

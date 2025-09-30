@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from src.agents.supervisor_agent import SupervisorAgent
 from src.api.hitl_endpoints import router as hitl_router
+from src.api.training_endpoints import router as training_router
 from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.protocols.a2a_channel import get_a2a_channel
 from src.utils.metrics_collector import MetricsCollector
@@ -22,6 +23,10 @@ app = FastAPI(title="Central Inteligência Jurídica")
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 
 AUTH_REQUIRED = False
+
+
+app.include_router(hitl_router)
+app.include_router(training_router)
 
 
 class TaskRequest(BaseModel):
@@ -75,8 +80,6 @@ a2a_channel = get_a2a_channel()
 agent_registry = AgentRegistry()
 
 
-app.include_router(hitl_router)
-
 def initialize_agent_registry() -> None:
     """Populate agent registry with supervisor and active delegates."""
 
@@ -98,6 +101,16 @@ async def hitl_console() -> HTMLResponse:
         with open(hitl_path, "r", encoding="utf-8") as file:
             return HTMLResponse(content=file.read())
     return HTMLResponse(content="<h1>HITL UI não encontrada.</h1>", status_code=404)
+
+
+@app.get("/training-dashboard", response_class=HTMLResponse, include_in_schema=False)
+async def training_dashboard() -> HTMLResponse:
+    """Serve o dashboard de treinamento contínuo."""
+    dashboard_path = os.path.join(static_dir, "training-dashboard.html")
+    if os.path.exists(dashboard_path):
+        with open(dashboard_path, "r", encoding="utf-8") as file:
+            return HTMLResponse(content=file.read())
+    return HTMLResponse(content="<h1>Training Dashboard não encontrado.</h1>", status_code=404)
 
 
 @app.get(
