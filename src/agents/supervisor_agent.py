@@ -317,24 +317,53 @@ class SupervisorAgent(A2ACapable):
         )
 
     def _identify_relevant_tribunals(self, task: str) -> List[str]:
-        """Identifica tribunais que devem ser consultados para a tarefa."""
+        """Identify tribunals that should be consulted for the task."""
 
         task_lower = task.lower()
-        relevant: List[str] = []
+        identified: List[str] = []
 
-        for region, tribunals in self._region_to_tribunals.items():
-            if re.search(rf"\\b{re.escape(region)}\\b", task_lower):
-                relevant.extend(tribunals)
+        tribunal_keywords: Dict[str, List[str]] = {
+            "TJSP": ["tjsp", "são paulo", "sao paulo", "sp", "paulista"],
+            "TJMG": ["tjmg", "minas gerais", "minas", "mg", "mineiro"],
+            "TJRS": ["tjrs", "rio grande do sul", "gaúcho", "gaucho", "rs", "sul"],
+            "TJRJ": ["tjrj", "rio de janeiro", "fluminense", "rj"],
+            "STF": ["stf", "supremo", "federal"],
+            "STJ": ["stj", "superior tribunal de justiça", "superior"],
+            "TST": ["tst", "tribunal superior do trabalho", "trabalho"],
+        }
 
-        for tribunal, keywords in self._tribunal_keywords.items():
+        region_keywords: Dict[str, List[str]] = {
+            "sudeste": ["TJSP", "TJMG", "TJRJ"],
+            "sul": ["TJRS"],
+            "nordeste": ["TJBA", "TJPE", "TJCE"],
+        }
+
+        for region, tribunals in region_keywords.items():
+            if re.search(rf"\b{re.escape(region)}\b", task_lower):
+                identified.extend([t for t in tribunals if t in tribunal_keywords])
+
+        for tribunal, keywords in tribunal_keywords.items():
             if any(keyword in task_lower for keyword in keywords):
-                if tribunal not in relevant:
-                    relevant.append(tribunal)
+                if tribunal not in identified:
+                    identified.append(tribunal)
 
-        if not relevant and self._is_multi_tribunal_query(task):
-            relevant = ["TJSP", "TJMG", "TJRS"]
+        if not identified:
+            identified = [self._identify_tribunal(task)]
 
-        return relevant if relevant else [self._identify_tribunal(task)]
+        seen: set[str] = set()
+        unique_identified: List[str] = []
+        for tribunal in identified:
+            if tribunal not in seen:
+                seen.add(tribunal)
+                unique_identified.append(tribunal)
+
+        self.logger.debug(
+            "Identified tribunals for task '%s': %s",
+            task[:50],
+            unique_identified,
+        )
+
+        return unique_identified
 
     def _identify_tribunal(self, task: str) -> str:
         """Retorna um único tribunal mais provável para a tarefa."""
@@ -457,6 +486,132 @@ class SupervisorAgent(A2ACapable):
 
             tribunal_codes_raw = intent.tribunais if intent.tribunais else ["TJSP"]
             tribunal_codes = [code.upper() for code in tribunal_codes_raw]
+
+            explicit_mentions = self._identify_all_tribunals(sanitized_task)
+            if explicit_mentions:
+                if len(explicit_mentions) == 1:
+                    tribunal_codes = [explicit_mentions[0].upper()]
+                else:
+                    tribunal_codes = list(
+                        dict.fromkeys(code.upper() for code in explicit_mentions)
+                    )
+
+            if len(tribunal_codes) == 1:
+                single_code = tribunal_codes[0]
+                self.logger.info(
+                    "Single tribunal (%s) identified, skipping consensus",
+                    single_code,
+                )
+
+                if memory_cache_hit and cached_result is not None:
+                    cached_tribunals = cached_result.get("tribunals")
+                    if isinstance(cached_tribunals, dict) and len(cached_tribunals) > 1:
+                        memory_cache_hit = False
+                        cached_result = None
+                    else:
+                        final_result = cached_result
+                        elapsed_time = 0.0
+
+                if not memory_cache_hit or cached_result is None:
+                    start_exec = asyncio.get_running_loop().time()
+                    final_result = await self._delegate_to_tribunal_agent(
+                        single_code,
+                        sanitized_task,
+                    )
+                    elapsed_time = asyncio.get_running_loop().time() - start_exec
+
+                if (
+                    self.memory.is_available()
+                    and not memory_cache_hit
+                    and isinstance(final_result, dict)
+                ):
+                    remember_success = self.memory.remember(
+                        task=sanitized_task,
+                        result=final_result,
+                        metadata={
+                            "tribunals": tribunal_codes,
+                            "intent_operacao": intent.operacao,
+                            "intent_confidence": intent.confidence,
+                            "execution_time": elapsed_time,
+                            "recalled_count": len(recalled_memories),
+                            "timestamp": self._get_timestamp(),
+                        },
+                    )
+
+                    if remember_success:
+                        self.ledger.log_decision(
+                            agent_type="SupervisorAgent",
+                            decision_type="MEMORY_STORED",
+                            metadata={"task": sanitized_task[:100]},
+                        )
+
+                task_record = {
+                    "task": sanitized_task,
+                    "tribunals": tribunal_codes,
+                    "intent": intent.model_dump(),
+                    "recalled_memories": len(recalled_memories),
+                    "result": final_result,
+                    "execution_time": elapsed_time,
+                    "recall_time": recall_time,
+                    "parallel": False,
+                    "memory_cache_hit": memory_cache_hit,
+                    "consensus_used": False,
+                    "consensus": None,
+                    "consensus_strength": None,
+                    "consensus_decision": None,
+                    "consensus_acceptable": None,
+                    "timestamp": self._get_timestamp(),
+                }
+                self.task_history.append(task_record)
+
+                self.ledger.log_decision(
+                    agent_type="SupervisorAgent",
+                    decision_type="TASK_COMPLETED",
+                    metadata={
+                        "tribunals": tribunal_codes,
+                        "intent_confidence": intent.confidence,
+                        "recalled_count": len(recalled_memories),
+                        "result_status": final_result.get("status", "unknown")
+                        if isinstance(final_result, dict)
+                        else "unknown",
+                        "execution_time": elapsed_time,
+                        "consensus_used": False,
+                        "consensus_strength": None,
+                    },
+                )
+
+                total_duration = time.time() - start_time
+                DecisionMetricsCollector.record_decision(
+                    agent="SupervisorAgent",
+                    decision_type="standard_task",
+                    outcome="success",
+                    confidence=0.8,
+                    duration_seconds=total_duration,
+                )
+
+                return {
+                    "status": "success",
+                    "supervisor_result": final_result,
+                    "tribunals_used": tribunal_codes,
+                    "intent": {
+                        "operacao": intent.operacao,
+                        "confidence": intent.confidence,
+                    },
+                    "memory": {
+                        "recalled_count": len(recalled_memories),
+                        "recall_time": recall_time,
+                        "cache_hit": memory_cache_hit,
+                    },
+                    "task_id": f"task_{len(self.task_history):04d}",
+                    "execution_time": elapsed_time,
+                    "parallel": False,
+                    "timestamp": self._get_timestamp(),
+                    "consensus_used": False,
+                    "tribunals_consulted": tribunal_codes,
+                    "tribunal_used": tribunal_codes[0],
+                    "consensus": None,
+                    "consensus_decision": None,
+                }
 
             requires_consensus = self._is_multi_tribunal_query(
                 sanitized_task
