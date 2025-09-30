@@ -12,6 +12,7 @@ services:
       - ./src:/app/src
       - ./tests:/app/tests
       - ./logs:/app/logs
+      - ./.buildtoflip:/app/.buildtoflip
     working_dir: /app
     environment:
       - PYTHONPATH=/app
