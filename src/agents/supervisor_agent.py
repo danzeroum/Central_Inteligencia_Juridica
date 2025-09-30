@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from src.agents.tribunal_agent import TribunalAgent
+from src.consensus.weighted_voting import WeightedConsensusEngine
+from src.protocols.a2a_mixin import A2ACapable
 from src.routing.intent_classifier import ClassifiedIntent, IntentClassifier
 from src.memory.vector_memory import VectorMemory
 from src.utils.input_sanitizer import InputSanitizer
@@ -17,15 +19,34 @@ from src.utils.ledger import DecisionLedger
 from src.utils.metrics_collector import MetricsCollector
 
 
-class SupervisorAgent:
+class SupervisorAgent(A2ACapable):
     """Coordinate specialized tribunal agents and maintain decision history."""
 
     def __init__(self, ledger: DecisionLedger | None = None) -> None:
+        super().__init__()
         self.logger = logging.getLogger(__name__)
         self.sanitizer = InputSanitizer()
         self.ledger = ledger or DecisionLedger()
         self.active_delegates: Dict[str, TribunalAgent] = {}
         self.task_history: List[Dict[str, Any]] = []
+
+        # Consensus coordination
+        self.consensus_engine = WeightedConsensusEngine()
+        self.consensus_threshold = 0.7
+        self.requires_consensus_keywords = [
+            "crítico",
+            "critico",
+            "comparar",
+            "comparação",
+            "comparacao",
+            "todos os tribunais",
+            "multiplos",
+            "múltiplos",
+            "vários",
+            "diversos",
+            "colegiado",
+            "consenso",
+        ]
 
         # NOVO: Intent Classifier para routing inteligente
         self.intent_classifier = IntentClassifier(confidence_threshold=0.7)
@@ -101,6 +122,100 @@ class SupervisorAgent:
             },
         )
         return intent
+
+    def _is_multi_tribunal_query(self, task: str) -> bool:
+        """Detecta se a tarefa exige múltiplos tribunais ou consenso."""
+
+        task_lower = task.lower()
+        normalized = (
+            task_lower.replace(",", " ")
+            .replace(";", " ")
+            .replace("-", " ")
+        )
+        words = {word for word in normalized.split() if word}
+
+        tribunal_codes = ["tjsp", "tjmg", "tjrs", "tjrj", "stf"]
+        mentioned_tribunals = sum(1 for code in tribunal_codes if code in task_lower)
+
+        word_indicators = {
+            "tribunais",
+            "sudeste",
+            "sul",
+            "nordeste",
+            "comparar",
+            "comparação",
+            "comparacao",
+            "múltiplos",
+            "multiplos",
+            "diversos",
+            "vários",
+            "varios",
+            "região",
+            "regiao",
+        }
+        word_match = any(indicator in words for indicator in word_indicators)
+
+        phrase_indicators = [
+            "jurisprudência",
+            "jurisprudencia",
+            "todos os tribunais",
+            "multi tribunal",
+            "multi-tribunal",
+        ]
+        phrase_match = any(phrase in task_lower for phrase in phrase_indicators)
+
+        consensus_keyword = any(
+            keyword in task_lower for keyword in self.requires_consensus_keywords
+        )
+
+        return (
+            mentioned_tribunals > 1
+            or word_match
+            or phrase_match
+            or consensus_keyword
+        )
+
+    def _identify_relevant_tribunals(self, task: str) -> List[str]:
+        """Identifica tribunais que devem ser consultados para a tarefa."""
+
+        task_lower = task.lower()
+        relevant: List[str] = []
+
+        regions: Dict[str, List[str]] = {
+            "sudeste": ["TJSP", "TJMG", "TJRJ"],
+            "sul": ["TJRS"],
+            "federal": ["STF"],
+        }
+
+        for region, tribunals in regions.items():
+            if region in task_lower:
+                relevant.extend(tribunals)
+
+        tribunal_keywords: Dict[str, List[str]] = {
+            "TJSP": ["tjsp", "são paulo", "sao paulo", "sp"],
+            "TJMG": ["tjmg", "minas gerais", "minas", "mg"],
+            "TJRS": ["tjrs", "rio grande do sul", "gaúcho", "gaucho", "rs"],
+            "TJRJ": ["tjrj", "rio de janeiro", "fluminense", "rj"],
+            "STF": ["stf", "supremo", "federal"],
+        }
+
+        for tribunal, keywords in tribunal_keywords.items():
+            if any(keyword in task_lower for keyword in keywords):
+                if tribunal not in relevant:
+                    relevant.append(tribunal)
+
+        if not relevant and self._is_multi_tribunal_query(task):
+            relevant = ["TJSP", "TJMG", "TJRS"]
+
+        return relevant if relevant else [self._identify_tribunal(task)]
+
+    def _identify_tribunal(self, task: str) -> str:
+        """Retorna um único tribunal mais provável para a tarefa."""
+
+        tribunals = self._identify_all_tribunals(task)
+        if tribunals:
+            return tribunals[0]
+        return "TJSP"
 
     async def process_task(self, task_description: str) -> Dict[str, Any]:
         """
@@ -210,24 +325,71 @@ class SupervisorAgent:
                     ):
                         intent.tribunais = list(dict.fromkeys(memory_tribunals))
 
-            tribunal_codes = intent.tribunais if intent.tribunais else ["TJSP"]
+            tribunal_codes_raw = intent.tribunais if intent.tribunais else ["TJSP"]
+            tribunal_codes = [code.upper() for code in tribunal_codes_raw]
+
+            requires_consensus = self._is_multi_tribunal_query(
+                sanitized_task
+            ) or len(tribunal_codes) > 1
+
+            if requires_consensus:
+                suggested = self._identify_relevant_tribunals(sanitized_task)
+                if suggested:
+                    merged = tribunal_codes + suggested
+                    tribunal_codes = list(dict.fromkeys(code.upper() for code in merged))
+                memory_cache_hit = False
+                cached_result = None
+
+            parallel_execution = len(tribunal_codes) > 1
 
             self.logger.info(
-                "Processing task with %d tribunals: %s (op=%s, confidence=%.2f, recalled=%d)",
+                "Processing task with %d tribunals: %s (op=%s, confidence=%.2f, recalled=%d, consensus=%s)",
                 len(tribunal_codes),
                 tribunal_codes,
                 intent.operacao,
                 intent.confidence,
                 len(recalled_memories),
+                requires_consensus,
             )
+
+            consensus_payload: Dict[str, Any] | None = None
+            consensus_used = False
+            consultation_responses: Dict[str, Dict[str, Any]] = {}
+            valid_results: List[Dict[str, Any]] = []
 
             if memory_cache_hit and cached_result is not None:
                 elapsed_time = 0.0
                 final_result = cached_result
-                valid_results: List[Dict[str, Any]] = [cached_result]
-            else:
-                start_time = asyncio.get_event_loop().time()
+                valid_results = [cached_result]
+            elif requires_consensus:
+                start_time = asyncio.get_running_loop().time()
+                consultation_responses = await self._parallel_tribunal_consultation(
+                    tribunal_codes, sanitized_task
+                )
+                valid_results = [
+                    payload.get("response", {})
+                    for payload in consultation_responses.values()
+                    if isinstance(payload.get("response"), dict)
+                ]
+                final_result = self._aggregate_results(valid_results, tribunal_codes)
+                elapsed_time = asyncio.get_running_loop().time() - start_time
 
+                missing = [
+                    code
+                    for code in tribunal_codes
+                    if code not in consultation_responses
+                ]
+                if missing:
+                    self.logger.warning(
+                        "Missing responses from tribunals during consensus: %s", missing
+                    )
+
+                consensus_payload = await self._process_with_consensus(
+                    sanitized_task, tribunal_codes, consultation_responses
+                )
+                consensus_used = True
+            else:
+                start_time = asyncio.get_running_loop().time()
                 delegated_tasks = [
                     self._delegate_to_tribunal_agent(code, sanitized_task)
                     for code in tribunal_codes
@@ -236,7 +398,7 @@ class SupervisorAgent:
                     *delegated_tasks, return_exceptions=True
                 )
 
-                elapsed_time = asyncio.get_event_loop().time() - start_time
+                elapsed_time = asyncio.get_running_loop().time() - start_time
 
                 valid_results = [
                     r
@@ -250,26 +412,41 @@ class SupervisorAgent:
 
                 final_result = self._aggregate_results(valid_results, tribunal_codes)
 
-                if valid_results and self.memory.is_available():
-                    remember_success = self.memory.remember(
-                        task=sanitized_task,
-                        result=final_result,
-                        metadata={
-                            "tribunals": tribunal_codes,
-                            "intent_operacao": intent.operacao,
-                            "intent_confidence": intent.confidence,
-                            "execution_time": elapsed_time,
-                            "recalled_count": len(recalled_memories),
-                            "timestamp": self._get_timestamp(),
-                        },
+            if valid_results and self.memory.is_available() and not memory_cache_hit:
+                remember_success = self.memory.remember(
+                    task=sanitized_task,
+                    result=final_result,
+                    metadata={
+                        "tribunals": tribunal_codes,
+                        "intent_operacao": intent.operacao,
+                        "intent_confidence": intent.confidence,
+                        "execution_time": elapsed_time,
+                        "recalled_count": len(recalled_memories),
+                        "timestamp": self._get_timestamp(),
+                    },
+                )
+
+                if remember_success:
+                    self.ledger.log_decision(
+                        agent_type="SupervisorAgent",
+                        decision_type="MEMORY_STORED",
+                        metadata={"task": sanitized_task[:100]},
                     )
 
-                    if remember_success:
-                        self.ledger.log_decision(
-                            agent_type="SupervisorAgent",
-                            decision_type="MEMORY_STORED",
-                            metadata={"task": sanitized_task[:100]},
-                        )
+            consensus_info = (
+                consensus_payload.get("consensus") if consensus_payload else None
+            )
+            consensus_strength = (
+                consensus_payload.get("consensus_strength") if consensus_payload else None
+            )
+            consensus_decision = (
+                consensus_payload.get("winning_proposal") if consensus_payload else None
+            )
+            consensus_acceptable = (
+                consensus_payload.get("consensus_acceptable")
+                if consensus_payload
+                else None
+            )
 
             task_record = {
                 "task": sanitized_task,
@@ -281,6 +458,11 @@ class SupervisorAgent:
                 "recall_time": recall_time,
                 "parallel": len(tribunal_codes) > 1,
                 "memory_cache_hit": memory_cache_hit,
+                "consensus_used": consensus_used,
+                "consensus": consensus_info,
+                "consensus_strength": consensus_strength,
+                "consensus_decision": consensus_decision,
+                "consensus_acceptable": consensus_acceptable,
                 "timestamp": self._get_timestamp(),
             }
             self.task_history.append(task_record)
@@ -294,10 +476,12 @@ class SupervisorAgent:
                     "recalled_count": len(recalled_memories),
                     "result_status": final_result.get("status", "unknown"),
                     "execution_time": elapsed_time,
+                    "consensus_used": consensus_used,
+                    "consensus_strength": consensus_strength,
                 },
             )
 
-            return {
+            response_payload: Dict[str, Any] = {
                 "status": "success",
                 "supervisor_result": final_result,
                 "tribunals_used": tribunal_codes,
@@ -312,9 +496,32 @@ class SupervisorAgent:
                 },
                 "task_id": f"task_{len(self.task_history):04d}",
                 "execution_time": elapsed_time,
-                "parallel": len(tribunal_codes) > 1,
+                "parallel": parallel_execution,
                 "timestamp": self._get_timestamp(),
+                "consensus_used": consensus_used,
+                "tribunals_consulted": tribunal_codes,
             }
+
+            if consensus_used and consensus_payload:
+                consensus_details = consensus_payload.get("consensus", {})
+                response_payload["consensus"] = {
+                    "strength": consensus_strength,
+                    "decision_maker": consensus_details.get("decision_maker"),
+                    "dissenting_opinions": consensus_details.get(
+                        "dissenting_opinions", []
+                    ),
+                    "acceptable": consensus_acceptable,
+                    "decision": consensus_details.get("decision"),
+                }
+                response_payload["consensus_decision"] = consensus_decision
+
+                if not consensus_acceptable:
+                    response_payload["status"] = "weak_consensus"
+            else:
+                response_payload["consensus"] = None
+                response_payload["consensus_decision"] = None
+
+            return response_payload
         except Exception as exc:  # pragma: no cover - defensive
             error_msg = f"Supervisor processing error: {exc}"
             self.logger.error(error_msg, exc_info=True)
@@ -351,16 +558,12 @@ class SupervisorAgent:
 
         return list(dict.fromkeys(found_tribunals))
 
-    async def _delegate_to_tribunal_agent(
-        self, tribunal_code: str, task: str
-    ) -> Dict[str, Any]:
-        """Delega tarefa ao agente especializado."""
+    def _get_or_create_tribunal_agent(self, tribunal_code: str) -> TribunalAgent:
+        """Retorna agente existente ou cria novo delegado para o tribunal."""
 
         if tribunal_code not in self.active_delegates:
-            self.active_delegates[tribunal_code] = TribunalAgent(
-                tribunal_code=tribunal_code,
-                ledger=self.ledger,
-            )
+            agent = TribunalAgent(tribunal_code=tribunal_code, ledger=self.ledger)
+            self.active_delegates[tribunal_code] = agent
             self.ledger.log_decision(
                 agent_type="SupervisorAgent",
                 decision_type="AGENT_CREATED",
@@ -371,10 +574,169 @@ class SupervisorAgent:
             )
             MetricsCollector.set_agent_active(tribunal_code, True)
 
-        agent = self.active_delegates[tribunal_code]
+        return self.active_delegates[tribunal_code]
 
-        loop = asyncio.get_event_loop()
+    async def _delegate_to_tribunal_agent(
+        self, tribunal_code: str, task: str
+    ) -> Dict[str, Any]:
+        """Delega tarefa ao agente especializado."""
+
+        agent = self._get_or_create_tribunal_agent(tribunal_code)
+
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, agent.execute_task, task)
+
+    async def _parallel_tribunal_consultation(
+        self, tribunals: List[str], task: str
+    ) -> Dict[str, Dict[str, Any]]:
+        """Consulta múltiplos tribunais em paralelo com suporte A2A."""
+
+        if not tribunals:
+            return {}
+
+        unique_tribunals: List[str] = []
+        seen = set()
+        for code in tribunals:
+            code_upper = code.upper()
+            if code_upper not in seen:
+                seen.add(code_upper)
+                unique_tribunals.append(code_upper)
+
+        self.logger.info(
+            "Parallel consultation initiated for %d tribunals: %s",
+            len(unique_tribunals),
+            unique_tribunals,
+        )
+
+        # Ensure delegates exist and send A2A notifications
+        send_tasks = []
+        for tribunal_code in unique_tribunals:
+            self._get_or_create_tribunal_agent(tribunal_code)
+            agent_id = f"{tribunal_code.lower()}_agent"
+            send_tasks.append(
+                self.send_to_agent(
+                    target_agent_id=agent_id,
+                    message_type="consultation_request",
+                    payload={
+                        "query": task,
+                        "consultation_id": f"consult_{len(self.task_history)}",
+                        "requires_response": True,
+                    },
+                    priority=3,
+                    requires_response=True,
+                )
+            )
+
+        if send_tasks:
+            await asyncio.gather(*send_tasks, return_exceptions=True)
+
+        consultation_tasks = [
+            self._delegate_to_tribunal_agent(code, task) for code in unique_tribunals
+        ]
+        results = await asyncio.gather(*consultation_tasks, return_exceptions=True)
+
+        responses: Dict[str, Dict[str, Any]] = {}
+        for tribunal_code, result in zip(unique_tribunals, results):
+            if isinstance(result, Exception):
+                self.logger.error(
+                    "Error during consultation with %s: %s", tribunal_code, result
+                )
+                self.ledger.log_decision(
+                    agent_type="SupervisorAgent",
+                    decision_type="CONSULTATION_ERROR",
+                    metadata={"tribunal": tribunal_code, "error": str(result)},
+                )
+                continue
+
+            confidence = self._estimate_response_confidence(result)
+            responses[tribunal_code] = {
+                "response": result,
+                "confidence": confidence,
+                "agent": tribunal_code,
+            }
+
+        return responses
+
+    def _estimate_response_confidence(self, result: Dict[str, Any]) -> float:
+        """Estima confiança na resposta do tribunal consultado."""
+
+        confidence = 0.8
+        status = result.get("status", "")
+
+        if status == "success":
+            confidence += 0.1
+        elif status == "simulated":
+            confidence -= 0.05
+        elif status == "error":
+            confidence -= 0.2
+
+        if result.get("data"):
+            confidence += 0.05
+
+        meta = result.get("meta") or result.get("metadata") or {}
+        source = meta.get("source")
+        if source == "real_api":
+            confidence += 0.05
+        elif meta.get("fallback") or source == "simulated":
+            confidence -= 0.1
+
+        return min(1.0, max(0.0, confidence))
+
+    async def _process_with_consensus(
+        self,
+        task: str,
+        tribunals: List[str],
+        responses: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Processa respostas de múltiplos tribunais usando consenso ponderado."""
+
+        proposals: Dict[str, Dict[str, Any]] = {}
+        for tribunal_code, payload in responses.items():
+            proposals[tribunal_code.lower()] = {
+                "confidence": payload.get("confidence", 0.0),
+                "proposal": payload.get("response", {}),
+            }
+
+        consensus_result = self.consensus_engine.reach_consensus(
+            proposals, "jurisprudence_analysis"
+        )
+
+        consensus_strength = float(consensus_result.get("consensus_strength", 0.0))
+        consensus_acceptable = consensus_strength >= self.consensus_threshold
+
+        self.ledger.log_decision(
+            agent_type="SupervisorAgent",
+            decision_type="CONSENSUS_REACHED"
+            if consensus_acceptable
+            else "CONSENSUS_WEAK",
+            metadata={
+                "tribunals_consulted": tribunals,
+                "consensus_strength": consensus_strength,
+                "decision_maker": consensus_result.get("decision_maker"),
+                "dissenting": consensus_result.get("dissenting_opinions", []),
+                "threshold": self.consensus_threshold,
+            },
+        )
+
+        winning_proposal: Dict[str, Any] | None = None
+        decision_block = consensus_result.get("decision")
+        if isinstance(decision_block, dict):
+            winning_proposal = decision_block.get("proposal")
+
+        if not winning_proposal and responses:
+            # fallback para a resposta de maior confiança
+            sorted_responses = sorted(
+                responses.values(), key=lambda item: item.get("confidence", 0.0), reverse=True
+            )
+            if sorted_responses:
+                winning_proposal = sorted_responses[0].get("response")
+
+        return {
+            "consensus": consensus_result,
+            "consensus_strength": consensus_strength,
+            "consensus_acceptable": consensus_acceptable,
+            "winning_proposal": winning_proposal,
+        }
 
     def _aggregate_results(
         self, results: List[Dict[str, Any]], tribunal_codes: List[str]
