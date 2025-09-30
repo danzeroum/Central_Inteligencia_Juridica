@@ -1,20 +1,17 @@
+# Production dependencies - BuildToFlip v6.1
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
-httpx==0.27.0
+httpx==0.24.1
 redis==4.6.0
 prometheus-client==0.17.1
 PyJWT==2.8.0
-pytest==8.3.2
-pytest-asyncio==0.21.1
-coverage==7.5.4
-langchain==0.2.7
-langchain-openai==0.1.8
-chromadb==0.5.0
-pydantic==2.7.4
-# Real APIs (Onda 2.3)
-tenacity==8.2.3
-circuitbreaker==1.4.0
-respx==0.20.2
-# Vector Memory (Onda 2.2)
-chromadb-client==0.5.0
-openai==1.12.0
+pydantic==2.6.0
+pydantic-settings==2.1.0
+
+# AI/ML dependencies
+chromadb==0.4.22
+sentence-transformers==2.2.2
+
+# Development dependencies (opcional, mas recomendado)
+pytest==7.4.0
+pytest-asyncio==0.23.0
