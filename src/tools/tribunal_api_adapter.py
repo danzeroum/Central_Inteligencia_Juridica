@@ -13,7 +13,11 @@ from typing import Any, Deque, Dict, Optional
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from src.tools.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
+from src.tools.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+)
 from src.tools.schemas.tribunal_schemas import (
     ProcessoResponse,
     TribunalStatusResponse,
@@ -60,6 +64,33 @@ class RateLimiter:
 
 
 
+DEFAULT_CIRCUIT_CONFIG = CircuitBreakerConfig(
+    name="tribunal_api_default",
+    failure_threshold=3,
+    recovery_timeout=30.0,
+    success_threshold=2,
+    half_open_max_calls=2,
+)
+
+
+TRIBUNAL_CIRCUIT_CONFIGS: Dict[str, CircuitBreakerConfig] = {
+    "TJSP": CircuitBreakerConfig(
+        name="tribunal_api_TJSP",
+        failure_threshold=3,
+        recovery_timeout=30.0,
+        success_threshold=2,
+        half_open_max_calls=2,
+    ),
+    "TJMG": CircuitBreakerConfig(
+        name="tribunal_api_TJMG",
+        failure_threshold=3,
+        recovery_timeout=30.0,
+        success_threshold=2,
+        half_open_max_calls=2,
+    ),
+}
+
+
 class TribunalAPIAdapter:
     """Adaptador para APIs reais com fallback automático."""
 
@@ -83,12 +114,8 @@ class TribunalAPIAdapter:
         self.config = self.API_CONFIGS.get(tribunal_code)
 
 
-        failure_threshold = int(os.getenv("CIRCUIT_BREAKER_FAILURE_THRESHOLD", "3"))
-        timeout_seconds = int(os.getenv("CIRCUIT_BREAKER_TIMEOUT_SECONDS", "60"))
-
         self.circuit_breaker = CircuitBreaker(
-            failure_threshold=failure_threshold,
-            timeout_seconds=timeout_seconds,
+            config=self._build_circuit_config(tribunal_code)
         )
 
         self.client: Optional[httpx.Client] = None
@@ -112,7 +139,7 @@ class TribunalAPIAdapter:
 
         if not self.config or not self.client:
             logger.info("No API config for %s, using mock", self.tribunal_code)
-            return self._get_mock_status()
+            return self._augment_with_circuit(self._get_mock_status())
 
         try:
             payload = self.circuit_breaker.call(self._fetch_status_from_api)
@@ -123,24 +150,28 @@ class TribunalAPIAdapter:
                 "tribunal": self.tribunal_code,
                 "timestamp": time.time(),
             }
+            data["_metadata"]["circuit_breaker"] = self.get_circuit_stats()
             logger.info("✅ Real API success for %s", self.tribunal_code)
             return data
-        except CircuitBreakerOpenError:
+        except CircuitBreakerOpenError as exc:
             logger.warning(
                 "Circuit breaker OPEN for %s, falling back to mock", self.tribunal_code
+            )
+            return self._augment_with_circuit(
+                self._get_mock_status(),
+                circuit_error=exc,
             )
         except Exception as exc:
             logger.warning(
                 "API call failed for %s: %s, using mock", self.tribunal_code, exc
             )
-
-        return self._get_mock_status()
+        return self._augment_with_circuit(self._get_mock_status())
 
     def get_processo(self, numero_processo: str) -> Dict[str, Any]:
         """Consulta dados de um processo com fallback."""
 
         if not self.config or not self.client:
-            return self._get_mock_processo(numero_processo)
+            return self._augment_with_circuit(self._get_mock_processo(numero_processo))
 
         try:
             payload = self.circuit_breaker.call(
@@ -153,10 +184,16 @@ class TribunalAPIAdapter:
                 "tribunal": self.tribunal_code,
                 "timestamp": time.time(),
             }
+            data["_metadata"]["circuit_breaker"] = self.get_circuit_stats()
             return data
-        except CircuitBreakerOpenError:
+        except CircuitBreakerOpenError as exc:
             logger.warning(
-                "Circuit breaker OPEN for %s, returning mock processo", self.tribunal_code
+                "Circuit breaker OPEN for %s, returning mock processo",
+                self.tribunal_code,
+            )
+            return self._augment_with_circuit(
+                self._get_mock_processo(numero_processo),
+                circuit_error=exc,
             )
         except Exception as exc:
             logger.warning(
@@ -164,13 +201,22 @@ class TribunalAPIAdapter:
                 self.tribunal_code,
                 exc,
             )
-
-        return self._get_mock_processo(numero_processo)
+        return self._augment_with_circuit(self._get_mock_processo(numero_processo))
 
     def get_circuit_breaker_state(self) -> Dict[str, Any]:
         """Retorna o estado atual do circuit breaker."""
 
+        return self.get_circuit_stats()
+
+    def get_circuit_stats(self) -> Dict[str, Any]:
+        """Expose circuit breaker metrics for observability."""
+
         return self.circuit_breaker.get_state()
+
+    def reset_circuit(self) -> None:
+        """Reset circuit breaker forcing CLOSED state."""
+
+        self.circuit_breaker.reset()
 
     def close(self) -> None:
         """Fecha o cliente HTTP subjacente."""
@@ -212,6 +258,51 @@ class TribunalAPIAdapter:
         response = self.client.get(endpoint)
         response.raise_for_status()
         return response.json()
+
+    def _build_circuit_config(self, tribunal_code: str) -> CircuitBreakerConfig:
+        base_config = TRIBUNAL_CIRCUIT_CONFIGS.get(tribunal_code, DEFAULT_CIRCUIT_CONFIG)
+
+        def _env(key: str, default: float) -> float:
+            return float(os.getenv(key, str(default)))
+
+        def _env_int(key: str, default: int) -> int:
+            return int(os.getenv(key, str(default)))
+
+        prefix = tribunal_code.upper()
+        failure_threshold = _env_int(
+            f"{prefix}_CB_FAILURE_THRESHOLD", base_config.failure_threshold
+        )
+        timeout_seconds = _env(
+            f"{prefix}_CB_TIMEOUT_SECONDS", base_config.recovery_timeout
+        )
+        success_threshold = _env_int(
+            f"{prefix}_CB_SUCCESS_THRESHOLD", base_config.success_threshold
+        )
+        half_open_calls = _env_int(
+            f"{prefix}_CB_HALF_OPEN_CALLS", base_config.half_open_max_calls
+        )
+
+        return CircuitBreakerConfig(
+            name=f"tribunal_api_{tribunal_code}",
+            failure_threshold=failure_threshold,
+            recovery_timeout=timeout_seconds,
+            success_threshold=success_threshold,
+            half_open_max_calls=half_open_calls,
+        )
+
+    def _augment_with_circuit(
+        self,
+        payload: Dict[str, Any],
+        *,
+        circuit_error: CircuitBreakerOpenError | None = None,
+    ) -> Dict[str, Any]:
+        metadata = payload.setdefault("_metadata", {})
+        metadata["circuit_breaker"] = self.get_circuit_stats()
+        if circuit_error:
+            metadata["circuit_state"] = circuit_error.state
+            if circuit_error.retry_after is not None:
+                metadata["retry_after_seconds"] = circuit_error.retry_after
+        return payload
 
     def _get_auth_headers(self) -> Dict[str, str]:
         if not self.config:
