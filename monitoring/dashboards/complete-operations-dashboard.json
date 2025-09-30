@@ -1,0 +1,160 @@
+{
+  "dashboard": {
+    "title": "Central Jurídica - Sistema Multi-Agente",
+    "tags": ["buildtoflip", "tribunal", "agents"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Taxa de Requisições por Tribunal",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(tribunal_tasks_total[5m])) by (tribunal)",
+            "legendFormat": "{{tribunal}}"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "id": 2,
+        "title": "Latência P95 por Tribunal",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(tribunal_task_duration_seconds_bucket[5m])) by (tribunal, le))",
+            "legendFormat": "P95 {{tribunal}}"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "id": 3,
+        "title": "Estado dos Circuit Breakers",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "circuit_breaker_state",
+            "legendFormat": "{{name}}"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"value": 0, "text": "CLOSED", "color": "green"},
+              {"value": 1, "text": "OPEN", "color": "red"},
+              {"value": 2, "text": "HALF_OPEN", "color": "yellow"}
+            ]
+          }
+        },
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 6}
+      },
+      {
+        "id": 4,
+        "title": "Falhas de Circuit Breaker (últimos 5min)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(circuit_breaker_failures[5m])) by (name)",
+            "legendFormat": "{{name}}"
+          }
+        ],
+        "gridPos": {"x": 8, "y": 8, "w": 8, "h": 6}
+      },
+      {
+        "id": 5,
+        "title": "Cache Hit Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "sum(rate(cache_hits_total[5m])) / (sum(rate(cache_hits_total[5m])) + sum(rate(tribunal_tasks_total[5m])))",
+            "legendFormat": "Hit Rate"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.5, "color": "yellow"},
+                {"value": 0.8, "color": "green"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"x": 16, "y": 8, "w": 8, "h": 6}
+      },
+      {
+        "id": 6,
+        "title": "Agentes Ativos",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(active_tribunal_agents)",
+            "legendFormat": "Total Agentes"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 14, "w": 6, "h": 4}
+      },
+      {
+        "id": 7,
+        "title": "Erros de API (Taxa)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(api_errors_total[5m])) by (tribunal, error_type)",
+            "legendFormat": "{{tribunal}} - {{error_type}}"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]}
+            }
+          ],
+          "name": "Alta Taxa de Erros de API"
+        },
+        "gridPos": {"x": 6, "y": 14, "w": 18, "h": 8}
+      },
+      {
+        "id": 8,
+        "title": "Distribuição de Operações",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(tribunal_tasks_total) by (operation)",
+            "legendFormat": "{{operation}}"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 22, "w": 12, "h": 8}
+      },
+      {
+        "id": 9,
+        "title": "Timeline de Eventos Críticos",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"agent-system\"} |= \"ERROR\" or |= \"circuit_breaker\""
+          }
+        ],
+        "gridPos": {"x": 12, "y": 22, "w": 12, "h": 8}
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 38,
+    "version": 1
+  }
+}
