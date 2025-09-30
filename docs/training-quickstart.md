@@ -61,6 +61,7 @@ curl http://localhost:8000/api/v1/training/stats?agent_type=TJSP | jq
 pytest tests/integration/test_training_system.py -v
 ```
 
+
 ## 🚀 Setup Inicial do Agente (< 10 minutos)
 
 ### 1. Clone e Estruture
@@ -686,3 +687,4 @@ Você agora tem:
 - Se está certificando: rode o checklist completo de certificação.
 
 > Filosofia Crisp Pragmatist: valor primeiro, segurança inegociável, observabilidade desde o dia 1, evolução incremental e HITL quando houver incerteza.
+
