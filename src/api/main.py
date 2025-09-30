@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
@@ -15,6 +16,7 @@ from src.api.training_endpoints import router as training_router
 from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.protocols.a2a_channel import get_a2a_channel
 from src.utils.metrics_collector import MetricsCollector
+from src.orchestration.unified_orchestrator import UnifiedOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,12 @@ class SuccessfulTaskResponse(BaseModel):
     execution_time: float
     parallel: bool
     timestamp: str
+
+
+class ProblemDetail(BaseModel):
+    status: int = Field(..., description="HTTP status code do erro")
+    title: str = Field(..., description="Resumo do problema")
+    detail: str = Field(..., description="Detalhes adicionais")
 
 
 class A2AMessageRequest(BaseModel):
@@ -74,6 +82,8 @@ async def enforce_rate_limit() -> None:  # pragma: no cover - placeholder
 
 
 supervisor_agent = SupervisorAgent()
+unified_orchestrator = UnifiedOrchestrator(supervisor_agent=supervisor_agent)
+logger.info("UnifiedOrchestrator inicializado para endpoint avançado")
 a2a_channel = get_a2a_channel()
 
 # Initialize MCP Agent Registry
@@ -419,6 +429,111 @@ async def process_task_v1(
     """Processa tarefa jurídica utilizando o padrão MCP."""
 
     return await _process_task_internal(task_request, user_id)
+
+
+@app.post(
+    "/api/v1/tasks/advanced",
+    tags=["Advanced AI Agent"],
+    summary="Processa tarefa com orquestração completa de agentes",
+    description="""
+    Endpoint avançado que ativa o UnifiedOrchestrator com:
+    - Squad completo de agentes especializados
+    - RAG para enriquecimento de contexto
+    - Chain-of-Thought para raciocínio
+    - Consensus mechanism para decisões complexas
+    - Adaptive planning com replanning automático
+    """,
+    responses={
+        200: {"description": "Tarefa processada com sucesso pelo squad"},
+        400: {"model": ProblemDetail},
+        500: {"model": ProblemDetail},
+    },
+)
+async def process_advanced_task(
+    task_request: TaskRequest,
+    user_id: str = Depends(AuthManager.verify_token),
+    _: None = Depends(enforce_rate_limit),
+) -> Dict[str, Any]:
+    """Processa uma tarefa jurídica complexa utilizando o UnifiedOrchestrator."""
+
+    logger.info(
+        "🚀 ADVANCED MODE: Tarefa recebida do usuário %s: %s",
+        user_id if AUTH_REQUIRED else "anonymous",
+        task_request.task_description,
+    )
+
+    try:
+        task_payload = {
+            "task_id": f"adv_{user_id}_{int(time.time())}",
+            "description": task_request.task_description,
+            "priority": "high",
+            "user_id": user_id,
+            "requires_consensus": True,
+        }
+
+        result = await unified_orchestrator.execute_complex_task(task_payload)
+        result["api_mode"] = "advanced"
+        result["buildtoflip_version"] = "v6.1"
+
+        logger.info(
+            "✅ ADVANCED MODE: Tarefa concluída com sucesso=%s, confidence=%s",
+            result.get("success"),
+            result.get("consensus_strength", "N/A"),
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive safeguard
+        logger.error(f"❌ ADVANCED MODE: Erro no processamento: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro no orquestrador avançado: {str(exc)}",
+        )
+
+
+@app.post(
+    "/api/v1/tasks/compare",
+    tags=["Advanced AI Agent"],
+    summary="Compara processamento simples vs avançado",
+    description="Executa a mesma tarefa nos dois modos e retorna comparação",
+)
+async def compare_modes(
+    task_request: TaskRequest,
+    user_id: str = Depends(AuthManager.verify_token),
+    _: None = Depends(enforce_rate_limit),
+) -> Dict[str, Any]:
+    """Compara resultado do modo simples vs avançado para análise."""
+
+    simple_result = await supervisor_agent.process_task(task_request.task_description)
+
+    advanced_payload = {
+        "task_id": f"cmp_{user_id}_{int(time.time())}",
+        "description": task_request.task_description,
+        "priority": "medium",
+        "requires_consensus": False,
+    }
+    advanced_result = await unified_orchestrator.execute_complex_task(advanced_payload)
+
+    advanced_mode_data = advanced_result.get("advanced_result", {})
+
+    return {
+        "comparison": {
+            "simple_mode": simple_result,
+            "advanced_mode": advanced_result,
+            "differences": {
+                "reasoning_depth": "advanced"
+                if "reasoning" in advanced_mode_data
+                else "simple",
+                "consensus_used": bool(advanced_mode_data.get("consensus")),
+                "rag_enabled": any(
+                    "rag" in str(value).lower() for value in advanced_mode_data.values()
+                ),
+            },
+        },
+        "recommendation": "Use /api/v1/tasks/advanced para tarefas complexas",
+    }
 
 
 @app.get("/health")

@@ -9,10 +9,12 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List
 
+from src.agents.architect_agent import ArchitectAgent
 from src.agents.tribunal_agent import TribunalAgent
 from src.consensus.weighted_voting import WeightedConsensusEngine
 from src.protocols.a2a_mixin import A2ACapable
 from src.routing.intent_classifier import ClassifiedIntent, IntentClassifier
+from src.memory.agent_memory import AgentMemorySystem
 from src.memory.vector_memory import VectorMemory
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
@@ -55,6 +57,14 @@ class SupervisorAgent(A2ACapable):
 
         # Vector Memory (Onda 2.2)
         self.memory = VectorMemory()
+        self.memory_system = AgentMemorySystem()
+
+        # Architect Agent for chain-of-thought reasoning
+        self.architect = ArchitectAgent()
+
+        self.logger.info(
+            "SupervisorAgent inicializado com capacidades avançadas (CoT + Consenso)"
+        )
 
         if not self.memory.is_available():
             self.logger.warning(
@@ -123,6 +133,119 @@ class SupervisorAgent(A2ACapable):
             },
         )
         return intent
+
+    async def process_task_advanced(self, task_description: str) -> Dict[str, Any]:
+        """Processa tarefas com Chain-of-Thought e consenso dinâmico."""
+
+        try:
+            sanitized_task = self.sanitizer.sanitize_text(task_description)
+
+            self.ledger.log_decision(
+                agent_type="SupervisorAgent",
+                decision_type="ADVANCED_TASK_RECEIVED",
+                metadata={
+                    "original_task": task_description,
+                    "sanitized_task": sanitized_task,
+                    "mode": "cot_enabled",
+                },
+            )
+
+            self.logger.info("Iniciando análise CoT via ArchitectAgent")
+            reasoning_result = self.architect.reason_with_cot(sanitized_task)
+
+            tribunais = self._extract_tribunals_from_reasoning(reasoning_result)
+            if not tribunais:
+                self.logger.warning("CoT não identificou tribunais, fallback para TJSP")
+                tribunais = ["TJSP"]
+
+            if len(tribunais) == 1:
+                tribunal_code = tribunais[0]
+                result = await self._delegate_to_tribunal_agent(
+                    tribunal_code,
+                    sanitized_task,
+                )
+                return {
+                    "status": "success",
+                    "mode": "advanced_single_tribunal",
+                    "reasoning": reasoning_result,
+                    "supervisor_result": result,
+                    "tribunal_used": tribunal_code,
+                    "timestamp": self._get_timestamp(),
+                }
+
+            self.logger.info(
+                "Múltiplos tribunais detectados: %s, ativando consenso",
+                tribunais,
+            )
+
+            propostas: Dict[str, Dict[str, Any]] = {}
+            for tribunal in tribunais:
+                proposta = await self._delegate_to_tribunal_agent(tribunal, sanitized_task)
+                meta_block = proposta.get("meta") or proposta.get("metadata") or {}
+                confidence = float(meta_block.get("confidence", 0.75))
+                propostas[tribunal] = {"confidence": confidence, "proposal": proposta}
+
+            consensus_result = self.consensus_engine.reach_consensus(
+                propostas,
+                "legal_analysis",
+            )
+
+            self.ledger.log_decision(
+                agent_type="SupervisorAgent",
+                decision_type="CONSENSUS_REACHED",
+                metadata={
+                    "consensus_strength": consensus_result.get("consensus_strength"),
+                    "decision_maker": consensus_result.get("decision_maker"),
+                    "tribunals_involved": tribunais,
+                },
+            )
+
+            return {
+                "status": "success_with_consensus",
+                "mode": "advanced_multi_tribunal",
+                "reasoning": reasoning_result,
+                "consensus": consensus_result,
+                "tribunais_envolvidos": tribunais,
+                "timestamp": self._get_timestamp(),
+            }
+
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            self.logger.error("Erro no processamento avançado: %s", exc, exc_info=True)
+            return {
+                "status": "error",
+                "message": str(exc),
+                "fallback": "use_simple_mode",
+                "timestamp": self._get_timestamp(),
+            }
+
+    def _extract_tribunals_from_reasoning(self, reasoning: Dict[str, Any]) -> List[str]:
+        """Extrai códigos de tribunais a partir do raciocínio estruturado."""
+
+        combined_text = (
+            f"{reasoning.get('recommendation', '')} "
+            f"{reasoning.get('problem_analysis', '')}"
+        ).upper()
+
+        keywords = {
+            "TJSP": ["TJSP", "SÃO PAULO", "SAO PAULO"],
+            "TJMG": ["TJMG", "MINAS GERAIS", "MINAS"],
+            "TJRS": ["TJRS", "RIO GRANDE DO SUL", "GAÚCHO", "GAUCHO"],
+            "TJRJ": ["TJRJ", "RIO DE JANEIRO"],
+            "STF": ["STF", "SUPREMO", "FEDERAL"],
+        }
+
+        detected: List[str] = []
+        for tribunal, words in keywords.items():
+            if any(word in combined_text for word in words):
+                detected.append(tribunal)
+
+        explicit = reasoning.get("identified_tribunals") or []
+        for item in explicit:
+            code = str(item).upper()
+            if code:
+                detected.append(code)
+
+        return list(dict.fromkeys(detected))
 
     def _is_multi_tribunal_query(self, task: str) -> bool:
         """Detecta se a tarefa exige múltiplos tribunais ou consenso."""
@@ -634,7 +757,11 @@ class SupervisorAgent(A2ACapable):
         """Retorna agente existente ou cria novo delegado para o tribunal."""
 
         if tribunal_code not in self.active_delegates:
-            agent = TribunalAgent(tribunal_code=tribunal_code, ledger=self.ledger)
+            agent = TribunalAgent(
+                tribunal_code=tribunal_code,
+                ledger=self.ledger,
+                memory_system=self.memory_system,
+            )
             self.active_delegates[tribunal_code] = agent
             self.ledger.log_decision(
                 agent_type="SupervisorAgent",
