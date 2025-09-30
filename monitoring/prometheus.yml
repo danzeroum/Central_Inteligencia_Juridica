@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'buildtoflip-agent-monitor'
+
+scrape_configs:
+  - job_name: 'agent-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets:
+          - 'agent-system:8000'
+        labels:
+          service: 'agent-api'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:9090'
