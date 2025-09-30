@@ -12,6 +12,7 @@ from src.tools.tribunal_api_adapter import TribunalAPIAdapter
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
 from src.utils.metrics_collector import MetricsCollector
+from src.memory.agent_memory import AgentMemorySystem
 
 
 class TribunalAgent(A2ACapable):
@@ -19,12 +20,18 @@ class TribunalAgent(A2ACapable):
 
     _PROCESS_NUMBER_RE = re.compile(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}")
 
-    def __init__(self, tribunal_code: str, ledger: DecisionLedger | None = None) -> None:
+    def __init__(
+        self,
+        tribunal_code: str,
+        ledger: DecisionLedger | None = None,
+        memory_system: AgentMemorySystem | None = None,
+    ) -> None:
         self.tribunal_code = tribunal_code
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.sanitizer = InputSanitizer()
         self.ledger = ledger or DecisionLedger()
+        self.memory = memory_system or AgentMemorySystem()
         self.api_adapter = TribunalAPIAdapter(tribunal_code)
 
         MetricsCollector.set_agent_active(self.tribunal_code, True)
@@ -177,7 +184,35 @@ class TribunalAgent(A2ACapable):
         if not process_number:
             process_number = self._generate_process_number()
 
-        processo_payload = self.api_adapter.get_processo(process_number)
+        rag_query = (
+            f"jurisprudência {self.tribunal_code} processo similar a {sanitized_task}"
+        )
+        try:
+            rag_context = self.memory.recall_similar(query=rag_query, k=3)
+            retrieved = rag_context.get("documents", [[]])[0]
+            self.logger.info(
+                "RAG recuperou %d documentos para %s",
+                len(retrieved) if isinstance(retrieved, list) else 0,
+                process_number,
+            )
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            self.logger.warning("RAG falhou, continuando sem contexto: %s", exc)
+            rag_context = {"documents": [[]], "metadatas": [[]], "note": "rag_unavailable"}
+
+        try:
+            processo_payload = self.api_adapter.get_processo(process_number)
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            self.logger.error(
+                "Erro ao consultar processo real %s: %s", process_number, exc, exc_info=True
+            )
+            fallback = self._simulate_generic_response(sanitized_task)
+            fallback.setdefault("data", {})
+            fallback["data"]["rag_context"] = rag_context
+            fallback["process_number"] = process_number
+            fallback.setdefault("metadata", {})
+            fallback["metadata"].update({"source": "simulated", "rag_enabled": True, "fallback": True})
+            return fallback
+
         metadata = processo_payload.pop("_metadata", {})
         source = metadata.get("source", "unknown")
 
@@ -189,6 +224,10 @@ class TribunalAgent(A2ACapable):
             self.logger.info(
                 "Using REAL API data for processo %s", process_number
             )
+
+        processo_payload["rag_context"] = rag_context
+
+        metadata.update({"rag_enabled": True})
 
         return {
             "tribunal": self.tribunal_code,
