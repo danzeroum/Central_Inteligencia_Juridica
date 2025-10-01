@@ -1,7 +1,32 @@
+<<<<<<< HEAD
 # Production dependencies
+=======
+# Production dependencies - BuildToFlip v6.1
+>>>>>>> origin/codex/implementar-central-de-inteligencia-juridica
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 httpx==0.24.1
 redis==4.6.0
 prometheus-client==0.17.1
 PyJWT==2.8.0
+<<<<<<< HEAD
+=======
+pydantic==2.6.0
+pydantic-settings==2.1.0
+
+# Integrações de LLM e configuração
+ollama==0.1.9
+python-dotenv==1.0.1
+
+# Numpy compatibility fix (ChromaDB dependency)
+numpy<2.0.0,>=1.22.0
+
+# AI/ML dependencies
+chromadb==0.4.18
+sentence-transformers==2.2.2
+
+# Development dependencies (opcional, mas recomendado)
+pytest==7.4.0
+pytest-asyncio==0.21.0
+respx==0.20.2
+>>>>>>> origin/codex/implementar-central-de-inteligencia-juridica

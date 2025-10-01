@@ -11,6 +11,11 @@ services:
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
+<<<<<<< HEAD
+=======
+      - ./logs:/app/logs
+      - ./.buildtoflip:/app/.buildtoflip
+>>>>>>> origin/codex/implementar-central-de-inteligencia-juridica
     working_dir: /app
     environment:
       - PYTHONPATH=/app
@@ -18,6 +23,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+<<<<<<< HEAD
 
   agent-tests:
     build:
@@ -34,6 +40,9 @@ services:
       - ./tests:/app/tests
     depends_on:
       - redis
+=======
+      - prometheus
+>>>>>>> origin/codex/implementar-central-de-inteligencia-juridica
 
   redis:
     image: redis:7-alpine
@@ -44,5 +53,46 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+<<<<<<< HEAD
 volumes:
   redis_data:
+=======
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tribunal-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tribunal-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/dashboards:/etc/grafana/provisioning/dashboards/json:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+>>>>>>> origin/codex/implementar-central-de-inteligencia-juridica
