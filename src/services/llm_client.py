@@ -1,3 +1,4 @@
+
 """Cliente utilitário para interação com o Ollama."""
 
 from __future__ import annotations
@@ -27,16 +28,19 @@ def _load_ollama_client() -> Optional[_ChatClient]:
 _OLLAMA_CLIENT: Optional[_ChatClient] = _load_ollama_client()
 
 
+
 def gerar_resposta_ollama(prompt: str, modelo: str = "llama3") -> str:
     """
     Envia um prompt para o modelo local do Ollama e retorna a resposta.
     """
+
     if _OLLAMA_CLIENT is None:
         return "Erro: Cliente Ollama nao está instalado no ambiente."
 
     print(f"\n[LLM Client] Enviando prompt para o modelo '{modelo}'...")
     try:
         response = _OLLAMA_CLIENT.chat(
+
             model=modelo,
             messages=[{"role": "user", "content": prompt}],
         )
