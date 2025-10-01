@@ -8,6 +8,10 @@ PyJWT==2.8.0
 pydantic==2.6.0
 pydantic-settings==2.1.0
 
+# Integrações de LLM e configuração
+ollama==0.1.9
+python-dotenv==1.0.1
+
 # Numpy compatibility fix (ChromaDB dependency)
 numpy<2.0.0,>=1.22.0
 
