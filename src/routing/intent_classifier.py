@@ -271,6 +271,7 @@ Agora analise a seguinte solicitação:
         ]
         movement_keywords = ["movimentações", "movimentacoes", "andamento", "últimas movimentações", "ultimas movimentacoes"]
         jurisprudence_keywords = ["jurisprudência", "jurisprudencia", "decisões", "decisoes", "precedentes"]
+        process_keywords = ["processo", "processar"]
 
         if any(kw in lowered for kw in comparison_keywords):
             operation = "jurisprudence_comparison"
@@ -284,7 +285,7 @@ Agora analise a seguinte solicitação:
             operation = "process_movements"
             confidence = 0.8
             reasoning_parts.append("Referência a movimentações processuais")
-        elif "processo" in lowered:
+        elif any(kw in lowered for kw in process_keywords):
             operation = "process_query"
             confidence = 0.75
             reasoning_parts.append("Solicitação envolvendo processo específico")

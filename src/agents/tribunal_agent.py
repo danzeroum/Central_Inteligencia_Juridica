@@ -155,7 +155,7 @@ class TribunalAgent(A2ACapable):
         lower = task.lower()
         if "status" in lower or "disponibilidade" in lower:
             return "status"
-        if "processo" in lower or self._PROCESS_NUMBER_RE.search(lower):
+        if "processo" in lower or "processar" in lower or self._PROCESS_NUMBER_RE.search(lower):
             return "process_query"
         return "generic"
 
