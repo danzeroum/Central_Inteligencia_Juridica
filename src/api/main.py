@@ -6,10 +6,11 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
 from src.api.hitl_endpoints import router as hitl_router
 from src.api.training_endpoints import router as training_router
@@ -17,6 +18,7 @@ from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.protocols.a2a_channel import get_a2a_channel
 from src.utils.metrics_collector import MetricsCollector
 from src.orchestration.unified_orchestrator import UnifiedOrchestrator
+from src.services.camara_client import buscar_projetos_de_lei
 
 logger = logging.getLogger(__name__)
 
@@ -534,6 +536,37 @@ async def compare_modes(
         },
         "recommendation": "Use /api/v1/tasks/advanced para tarefas complexas",
     }
+
+
+@app.get("/consultar-projetos-lei/", tags=["Consultas"])
+async def consultar_projetos_endpoint(
+    q: str = Query(..., description="Termo de busca para proposições legislativas"),
+):
+    """Consulta projetos de lei diretamente na API da Câmara dos Deputados."""
+
+    termo_busca = q.strip()
+    if not termo_busca:
+        raise HTTPException(status_code=400, detail="Parametro 'q' e obrigatorio.")
+
+    resultado = buscar_projetos_de_lei(termo_busca)
+    if "error" in resultado:
+        raise HTTPException(status_code=502, detail=resultado["error"])
+    return resultado
+
+
+@app.post("/analise-legislativa/", tags=["Análises de IA"])
+async def analisar_legislacao_endpoint(
+    tema: str = Body(..., embed=True, description="Tema legislativo para análise de IA"),
+):
+    """Inicia uma análise de IA sobre um tema legislativo."""
+
+    tema_legislativo = tema.strip()
+    if not tema_legislativo:
+        raise HTTPException(status_code=400, detail="Parametro 'tema' e obrigatorio.")
+
+    resultado_analise = analisar_cenario_legislativo(tema_legislativo)
+
+    return {"tema_analisado": tema_legislativo, "analise_ia": resultado_analise}
 
 
 @app.get("/health")
