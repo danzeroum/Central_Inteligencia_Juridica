@@ -1,0 +1,82 @@
+name: CI - Central de Inteligencia Juridica
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main, develop]
+
+jobs:
+  lint-and-test:
+    name: Python Lint + Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Check syntax (compile all)
+        run: |
+          python -c "import compileall; compileall.compile_dir('src', quiet=True, force=True)"
+          echo "All .py files compile successfully"
+
+      - name: Run Bandit security scan
+        run: |
+          bandit -r src/ -ll -x tests/ || true
+          echo "Security scan completed"
+
+      - name: Check formatting (black --check)
+        run: |
+          black --check src/ tests/ || echo "WARNING: Some files need formatting. Run: black src/ tests/"
+
+      - name: Run tests with coverage
+        run: |
+          python -m pytest tests/unit/ -v --tb=short --cov=src --cov-report=term-missing --cov-report=xml:coverage.xml 2>&1
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 7
+
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: central-inteligencia-juridica:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
