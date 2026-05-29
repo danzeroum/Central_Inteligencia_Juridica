@@ -1,2 +1,0 @@
-# Retry/resilience (necessário para HTTP clients)
-tenacity==8.2.3
