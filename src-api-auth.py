@@ -1,7 +1,7 @@
 """JWT-based authentication helpers for the public API.
 
-SECURITY: JWT_SECRET environment variable is REQUIRED (min 32 chars).
-The application will raise RuntimeError if JWT_SECRET is not set.
+SECURITY NOTICE: JWT_SECRET environment variable is REQUIRED.
+The application will fail to start if JWT_SECRET is not set.
 """
 
 from __future__ import annotations
@@ -22,20 +22,25 @@ security = HTTPBearer(auto_error=False)
 class AuthManager:
     """Utility class to create and validate JWT tokens.
 
-    IMPORTANT: ``SECRET_KEY`` is loaded from the ``JWT_SECRET``
-    environment variable. If not set (and not in test env), RuntimeError
-    is raised to prevent accidental insecure deployment.
+    IMPORTANT: ``SECRET_KEY`` is now loaded from the ``JWT_SECRET``
+    environment variable at import time. If the variable is not set (and
+    we are not in a test environment), a ``RuntimeError`` is raised to
+    prevent accidental deployment without a proper key.
     """
 
     ALGORITHM: str = "HS256"
-    REQUIRED: bool = True  # SECURITY: Changed from False to True
+    REQUIRED: bool = True  # Changed from False to True for security
 
-    # Load secret from environment (no fallback default)
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+
+    # Load secret from environment (no fallback)
     _raw_secret: str = os.environ.get("JWT_SECRET", "")
+    # Minimum entropy check: 32 characters
     if len(_raw_secret) < 32 and os.environ.get("ENVIRONMENT", "") != "test":
         raise RuntimeError(
             "JWT_SECRET environment variable must be set (min 32 characters). "
-            "Generate: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
         )
     SECRET_KEY: str = _raw_secret
 

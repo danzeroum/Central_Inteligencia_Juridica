@@ -1,7 +1,8 @@
 """Safety-focused base agent with guardrails used across the platform.
 
-Phase 1 Fix: Merged HEAD structure with codex guardrails.
-Real guardrails: loop protection, capability whitelisting, decision ledger.
+Phase 1 Fix: Merged version combining HEAD structure with codex guardrails.
+Keeps codex's real guardrails (loop protection, capability whitelisting,
+decision ledger) while maintaining HEAD's clean Protocol-based design.
 """
 
 from __future__ import annotations
@@ -118,12 +119,18 @@ class SafeAgentBase:
 
     Guardrails enforced:
         1. **Input sanitisation**  - Suspicious patterns are blocked.
-        2. **Loop protection**      - SHA-256 fingerprinting prevents repetition.
-        3. **Capability whitelisting** - Only registered capabilities execute.
-        4. **Resource limits**       - Task length enforcement.
+        2. **Loop protection**      - Recent executions are tracked via SHA-256
+           fingerprinting to avoid infinite repetition.
+        3. **Capability whitelisting** - Only registered capabilities can be
+           executed, preventing ad-hoc or unsafe behaviours.
+        4. **Decision ledger**      - Key lifecycle events are logged.
     """
 
-    def __init__(self, *, max_repeated_tasks: int = 3) -> None:
+    def __init__(
+        self,
+        *,
+        max_repeated_tasks: int = 3,
+    ) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.guardrails = GuardrailSuite(self._initialize_guardrails())
         self.max_repeated_tasks = max(1, max_repeated_tasks)
@@ -133,6 +140,9 @@ class SafeAgentBase:
         self._capabilities: Dict[str, RegisteredCapability] = {}
         self._tools_in_use: Counter[str] = Counter()
 
+    # ------------------------------------------------------------------
+    # Guardrail initialization
+    # ------------------------------------------------------------------
     def _initialize_guardrails(self) -> list[Guardrail]:
         return [
             InputSanitizerGuard(),
@@ -141,6 +151,9 @@ class SafeAgentBase:
             ResourceLimitGuard(),
         ]
 
+    # ------------------------------------------------------------------
+    # Capability management
+    # ------------------------------------------------------------------
     def add_capability(
         self,
         name: str,
@@ -149,7 +162,13 @@ class SafeAgentBase:
         description: str = "",
         allowed_tools: Iterable[str] | None = None,
     ) -> None:
-        """Register a new capability guarded by the whitelist."""
+        """Register a new capability guarded by the whitelist.
+
+        Supports both signatures:
+            add_capability("memory")           # legacy HEAD style
+            add_capability("search", handler)  # codex style
+        """
+
         if not name:
             raise ValueError("Capability name cannot be empty")
         if name in self._capabilities:
@@ -174,19 +193,29 @@ class SafeAgentBase:
             for name, cap in self._capabilities.items()
         }
 
+    # ------------------------------------------------------------------
+    # Execution
+    # ------------------------------------------------------------------
     def execute(
         self,
         task: str,
         context: str | None = None,
         **_kwargs: Any,
     ) -> Dict[str, Any]:
-        """Execute a task applying guardrails and loop protection."""
+        """Execute a task applying guardrails and loop protection.
+
+        Accepts both signatures:
+            execute(task, context)      # HEAD style
+            execute(*, task, capability, context)  # codex style (via kwargs)
+        """
+
         if not self.guardrails.validate_pattern_safety(task):
             raise ValueError(f"Task failed guardrail validation: {task[:100]}")
 
         task_fingerprint = self._fingerprint_task(task)
         self._enforce_loop_protection(task_fingerprint)
 
+        # Delegate to first available capability if not specified
         capability_name = _kwargs.get("capability", next(iter(self._capabilities), None))
         if capability_name and capability_name in self._capabilities:
             cap = self._capabilities[capability_name]
@@ -215,6 +244,9 @@ class SafeAgentBase:
         self.logger.info("Tool executed: %s", tool_name)
         return {"tool": tool_name, "executions": self._tools_in_use[tool_name]}
 
+    # ------------------------------------------------------------------
+    # Loop protection
+    # ------------------------------------------------------------------
     def _fingerprint_task(self, task: str) -> str:
         data = task.encode("utf-8", "ignore")
         return hashlib.sha256(data).hexdigest()

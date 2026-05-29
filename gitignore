@@ -1,42 +1,42 @@
 docs/UX/mockups.zip
 
-# -- Python --
+# ── Python ──
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 
-# -- Environment & Secrets --
+# ── Environment & Secrets ──
 .env
 .env.*
 !.env.example
 !.env.template
 
-# -- Build artifacts --
+# ── Build artifacts ──
 build/
 dist/
 *.egg-info/
 *.egg
 
-# -- IDE & Editor --
+# ── IDE & Editor ──
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# -- OS files --
+# ── OS files ──
 .DS_Store
 Thumbs.db
 
-# -- BuildToFlip internal --
+# ── BuildToFlip internal ──
 .buildtoflip/ledger/
 
-# -- Logs --
+# ── Logs ──
 logs/
 *.log
 
-# -- Testing / Coverage --
+# ── Testing / Coverage ──
 htmlcov/
 .coverage
 .coverage.*
@@ -44,21 +44,21 @@ coverage.xml
 *.cover
 .pytest_cache/
 
-# -- Java (secondary stack) --
+# ── Java (secondary stack) ──
 target/
 .m2/
 *.jar
 *.war
 *.class
 
-# -- Terraform --
+# ── Terraform ──
 .terraform/
 *.tfstate
 *.tfstate.*
 *.tfplan
 
-# -- Node (if any) --
+# ── Node (if any) ──
 node_modules/
 
-# -- Docker volumes (local) --
+# ── Docker volumes (local) ──
 docker/data/

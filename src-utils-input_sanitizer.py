@@ -1,6 +1,6 @@
 """Basic Input Sanitizer for security purposes.
 
-Phase 1 Fix: Keeps full security sanitization with corrected ordering
+Phase 1 Fix: Keep HEAD version (full security) but fix the ordering bug
 (strip chars BEFORE html.escape to prevent &amp; from being stripped).
 """
 
@@ -51,7 +51,7 @@ class InputSanitizer:
             return ""
 
         # 1. Truncate first to prevent DoS on regex
-        sanitized = text[:self.max_length]
+        sanitized = text[: self.max_length]
 
         # 2. Remove suspicious patterns FIRST (before char stripping)
         for pattern in self.suspicious_patterns:
