@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-"""Human-in-the-loop utilities."""
-=======
 """Human-in-the-Loop (HITL) package."""
 
 from .hitl_queue import HITLQueue, HITLRequest, get_hitl_queue
@@ -12,4 +9,3 @@ __all__ = [
     "get_hitl_queue",
     "ProgressiveAutonomyManager",
 ]
->>>>>>> origin/codex/implementar-central-de-inteligencia-juridica
