@@ -170,3 +170,27 @@ class TestMultiTribunalRouting:
         assert len(timestamps) == 2
         assert all("T" in ts for ts in timestamps)
         assert len({ts for ts in timestamps}) == len(timestamps)
+
+    async def test_single_tribunal_cache_does_not_leak_across_tribunals(
+        self, supervisor_with_stubbed_delegates: SupervisorAgent
+    ) -> None:
+        """Regressão: um cache hit de OUTRO tribunal não pode ser reutilizado.
+
+        Com hash embeddings (sem OPENAI_API_KEY), o limiar de similaridade do
+        cache é baixo (0.1), então tarefas de tribunal único distintas podem
+        casar entre si no recall. O resultado em cache para o TJMG NÃO deve ser
+        retornado para uma consulta ao TJSP — o que produziria um
+        supervisor_result inconsistente (tribunal errado ou sem a chave).
+        """
+
+        supervisor = supervisor_with_stubbed_delegates
+
+        # Popula a memória com uma tarefa de tribunal único (TJMG).
+        first = await supervisor.process_task("Verificar status TJMG")
+        assert first["supervisor_result"]["tribunal"] == "TJMG"
+
+        # Mesma forma de tarefa, tribunal diferente (TJSP). Não pode herdar TJMG.
+        second = await supervisor.process_task("Verificar status TJSP")
+        assert second["tribunals_used"] == ["TJSP"]
+        assert second["supervisor_result"]["tribunal"] == "TJSP"
+        assert second["memory"]["cache_hit"] is False

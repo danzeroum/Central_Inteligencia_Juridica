@@ -419,7 +419,18 @@ class SupervisorAgent(A2ACapable):
 
                 if memory_cache_hit and cached_result is not None:
                     cached_tribunals = cached_result.get("tribunals")
-                    if isinstance(cached_tribunals, dict) and len(cached_tribunals) > 1:
+                    cached_single_tribunal = cached_result.get("tribunal")
+                    # Só reutilizamos o cache se ele for de uma tarefa de tribunal
+                    # ÚNICO e do MESMO tribunal identificado agora. Com hash
+                    # embeddings o limiar de similaridade é baixo (0.1), então um
+                    # recall pode trazer o resultado de OUTRO tribunal — reaproveitá-lo
+                    # produziria um supervisor_result inconsistente (ou sem a chave
+                    # 'tribunal'), além de resposta incorreta.
+                    is_multi_cache = (
+                        isinstance(cached_tribunals, dict) and len(cached_tribunals) > 1
+                    )
+                    matches_single = cached_single_tribunal == single_code
+                    if is_multi_cache or not matches_single:
                         memory_cache_hit = False
                         cached_result = None
                     else:
