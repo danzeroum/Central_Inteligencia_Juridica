@@ -63,14 +63,14 @@ fase*.sh
 
 # Legacy/obsolete
 .buildtoflip/
+.buildtovalue/
+.training_state/
 experimental/
 k6/
 terraform/
 ansible/
 certificates/
 docs/UX/mockups.zip
-buildtoflip-v6-certificate.md
-buildtoflip-v6.1-certificate.md
 pom.xml
 discovery-consensus.v6.json
 despachar_tarefa.py

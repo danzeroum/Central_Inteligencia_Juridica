@@ -1,4 +1,4 @@
-# 🔧 BuildToFlip v6 - Troubleshooting (Atualizado com Circuit Breaker)
+# 🔧 Troubleshooting (Circuit Breaker)
 
 ## Problemas Comuns
 
@@ -145,7 +145,7 @@ curl -s http://localhost:8000/metrics | grep -E "circuit_breaker_(state|failures
 docker-compose logs agent-system --tail=100 | grep ERROR | tail -5
 
 # Verificar ledger de decisões
-cat .buildtoflip/ledger/decisions.log | jq -r 'select(.level=="ERROR")'
+cat logs/agent_decisions.json | jq -r 'select(.level=="ERROR")'
 
 # Performance snapshot
 curl -s http://localhost:8000/metrics | grep -E "(p95|p99|duration_seconds)"
@@ -155,9 +155,9 @@ curl -s http://localhost:8000/metrics | grep -E "(p95|p99|duration_seconds)"
 
 ## Contatos de Emergência
 
-- **On-call Engineer**: oncall@buildtoflip.com
-- **SRE Team**: sre@buildtoflip.com  
-- **Status Page**: https://status.buildtoflip.com
+- **On-call Engineer**: oncall@example.com
+- **SRE Team**: sre@example.com  
+- **Status Page**: https://status.example.com
 
 ---
 

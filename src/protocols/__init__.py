@@ -1,1 +1,1 @@
-"""Communication protocols for BuildToFlip agents."""
+"""Communication protocols for the platform's agents."""

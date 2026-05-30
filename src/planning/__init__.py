@@ -1,1 +1,1 @@
-"""Planning utilities for BuildToFlip."""
+"""Planning utilities for the platform."""

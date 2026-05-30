@@ -8,7 +8,7 @@ from src.agents.base_agent import BaseAgent
 
 
 class OpsAgent(BaseAgent):
-    """Provides pragmatic operational runbooks for BuildToFlip."""
+    """Provides pragmatic operational runbooks for the platform."""
 
     def __init__(self) -> None:
         super().__init__("ops")

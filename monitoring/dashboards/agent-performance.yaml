@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Dashboard
 metadata:
-  name: buildtoflip-agent-performance
+  name: cij-agent-performance
 spec:
   panels:
     - title: "Agent Consensus Strength"

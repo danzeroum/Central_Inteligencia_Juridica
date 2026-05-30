@@ -4,7 +4,7 @@
 Aceita (2025-01-20)
 
 ## Contexto
-BuildToFlip v6 precisa definir uma meta de performance pragmática para MVPs que equilibre:
+A Central de Inteligência Jurídica precisa definir uma meta de performance pragmática para MVPs que equilibre:
 - Simplicidade de implementação
 - Experiência aceitável do usuário
 - Vendabilidade do produto

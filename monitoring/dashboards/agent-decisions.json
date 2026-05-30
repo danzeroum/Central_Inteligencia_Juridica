@@ -1,7 +1,7 @@
 {
   "dashboard": {
     "title": "Agent Decision Intelligence",
-    "tags": ["buildtoflip", "agents", "decisions"],
+    "tags": ["cij", "agents", "decisions"],
     "timezone": "browser",
     "panels": [
       {

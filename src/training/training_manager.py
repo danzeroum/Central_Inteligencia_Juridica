@@ -69,7 +69,7 @@ class TrainingManager:
         self.training_interval_hours = 24
         self.auto_trigger_enabled = False
 
-        self._storage_dir = Path(".buildtoflip/training")
+        self._storage_dir = Path(".training_state")
         self._storage_dir.mkdir(parents=True, exist_ok=True)
 
     async def start_training_session(self, agent_type: str) -> TrainingSession:

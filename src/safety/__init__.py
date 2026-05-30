@@ -1,1 +1,1 @@
-"""Safety utilities for BuildToFlip."""
+"""Safety utilities for the platform."""

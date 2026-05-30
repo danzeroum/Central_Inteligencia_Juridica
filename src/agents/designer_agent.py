@@ -8,7 +8,7 @@ from src.agents.base_agent import BaseAgent
 
 
 class DesignerAgent(BaseAgent):
-    """Produces pragmatic design artefacts for BuildToFlip."""
+    """Produces pragmatic design artefacts for the platform."""
 
     def __init__(self) -> None:
         super().__init__("designer")

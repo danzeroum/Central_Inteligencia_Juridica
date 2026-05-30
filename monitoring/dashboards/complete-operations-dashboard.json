@@ -1,7 +1,7 @@
 {
   "dashboard": {
     "title": "Central Jurídica - Sistema Multi-Agente",
-    "tags": ["buildtoflip", "tribunal", "agents"],
+    "tags": ["cij", "tribunal", "agents"],
     "timezone": "browser",
     "panels": [
       {

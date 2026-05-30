@@ -68,7 +68,6 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - OpenAPI specification
 - UI Kit e mockups
 - Executive summary
-- BuildToFlip v6 Certificate
 
 ### 🔒 Security
 - Input sanitization contra XSS, SQL injection, path traversal
@@ -133,4 +132,4 @@ Ajustar via environment variables se necessário.
 
 **Last Updated**: 2025-09-30  
 **Project Version**: 1.0.0  
-**Methodology**: BuildToFlip v6.1
+**Project**: Central de Inteligência Jurídica
