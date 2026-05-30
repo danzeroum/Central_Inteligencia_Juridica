@@ -1,0 +1,36 @@
+# Configuração de ferramentas do projeto.
+# As dependências de runtime/dev permanecem em requirements.txt e
+# requirements-dev.txt (consumidas pela CI e pelo Docker) — fonte única.
+
+[project]
+name = "central-inteligencia-juridica"
+version = "1.1.0"
+description = "Plataforma multiagente de inteligência jurídica com Human-in-the-Loop."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+# Dependências de runtime ficam em requirements.txt (fonte única usada por
+# CI e Docker); este arquivo cobre apenas metadados e configuração de tooling.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: Testes de integração que dependem de serviços externos como ChromaDB.",
+    "emergent: Testes emergentes que validam comportamento de aprendizado contínuo.",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py311", "py312"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true

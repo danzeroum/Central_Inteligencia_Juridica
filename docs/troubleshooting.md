@@ -124,7 +124,7 @@ curl -s http://localhost:8000/metrics | head -20
 docker-compose restart prometheus grafana
 
 # Verificar configuração do Prometheus
-cat docker/prometheus.yml
+cat monitoring/prometheus.yml
 
 # Recarregar dashboard no Grafana
 # Grafana UI > Dashboards > Import > monitoring/dashboards/complete-operations-dashboard.json

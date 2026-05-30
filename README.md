@@ -121,6 +121,8 @@ pytest tests/unit --cov=src --cov-report=term-missing --cov-report=html
 | [ADRs](docs/ADRs/README.md) | Decisoes arquiteturais |
 | [Novo dominio/tribunal](docs/ADICIONAR_NOVO_DOMINIO.md) | Como estender via YAML |
 | [Troubleshooting](docs/troubleshooting.md) | Problemas comuns |
+| [Como contribuir](CONTRIBUTING.md) | Fluxo, qualidade e convencoes |
+| [Politica de seguranca](SECURITY.md) | Como reportar vulnerabilidades |
 | **API (Swagger)** | http://localhost:8000/docs (gerado do app) |
 
 > A spec OpenAPI versionada (`docs/API/openapi.json`) e gerada por
@@ -153,7 +155,7 @@ Central_Inteligencia_Juridica/
 +-- docker-compose.yml
 +-- Dockerfile
 +-- requirements.txt
-+-- pytest.ini
++-- pyproject.toml
 ```
 
 ## Monitoramento
@@ -183,4 +185,4 @@ GitHub Actions (`.github/workflows/ci.yml`): lint, type-check, security scan, te
 
 ## Licenca
 
-Projeto academico — Central de Inteligencia Juridica
+Distribuido sob a licenca [Apache License 2.0](LICENSE).
