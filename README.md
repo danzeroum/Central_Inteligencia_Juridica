@@ -66,6 +66,28 @@ pytest tests/unit/ -v
 uvicorn src.api.main:app --reload --port 8000
 ```
 
+## Frontend (SPA React + Vite)
+
+A interface fica em `frontend/` (React + Vite). O build é gerado em
+`src/api/static/spa/` e servido pelo FastAPI em **`/app`** (mesma origem — sem
+CORS em produção). A SPA cobre os dois espaços: *Espaço de Trabalho*
+(Assistente, Processos, Jurisprudência, Legislativo, Histórico) e *Administração*
+(Aprovações HITL, Treinamento, Agentes, Auditoria/Ledger, Autonomia/DMN,
+Monitoramento).
+
+```bash
+cd frontend
+npm install
+npm run build          # gera src/api/static/spa (servido em http://localhost:8000/app)
+
+# Desenvolvimento com hot-reload (proxy /api -> :8000):
+npm run dev            # http://localhost:5173
+```
+
+> O build (`src/api/static/spa`) é versionado de propósito: o deploy serve os
+> estáticos diretamente, sem pipeline Node. Rode `npm run build` após alterar o
+> frontend.
+
 ## Docker
 
 ```bash

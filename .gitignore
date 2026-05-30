@@ -39,6 +39,13 @@ htmlcov/
 logs/
 *.log
 
+# Frontend (Node) — node_modules e caches; o build (src/api/static/spa) é
+# versionado de propósito, pois o FastAPI o serve diretamente sem pipeline.
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+.npm/
+
 # OS
 .DS_Store
 Thumbs.db

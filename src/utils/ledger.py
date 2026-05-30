@@ -139,6 +139,21 @@ class DecisionLedger:
             self.logger.error("Error loading ledger entries: %s", exc)
 
 
+# Instância global compartilhada — garante que os endpoints que gravam decisões
+# (HITL) e os que as leem (trilha de auditoria) enxerguem as mesmas entradas em
+# memória dentro do mesmo processo (mesmo padrão de get_hitl_queue).
+_ledger: Optional[DecisionLedger] = None
+
+
+def get_ledger() -> DecisionLedger:
+    """Retorna a instância global do Decision Ledger."""
+
+    global _ledger
+    if _ledger is None:
+        _ledger = DecisionLedger()
+    return _ledger
+
+
 if __name__ == "__main__":  # pragma: no cover - manual smoke test
     ledger = DecisionLedger()
     ledger.log_decision("TestAgent", "TEST_DECISION", {"test": True})
