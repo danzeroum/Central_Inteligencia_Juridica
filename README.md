@@ -185,4 +185,4 @@ GitHub Actions (`.github/workflows/ci.yml`): lint, type-check, security scan, te
 
 ## Licenca
 
-Projeto academico — Central de Inteligencia Juridica
+Distribuido sob a licenca [Apache License 2.0](LICENSE).
