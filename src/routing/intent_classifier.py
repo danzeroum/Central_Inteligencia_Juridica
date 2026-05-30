@@ -301,7 +301,7 @@ Agora analise a seguinte solicitação:
             operation = "process_movements"
             confidence = 0.8
             reasoning_parts.append("Referência a movimentações processuais")
-        elif "processo" in lowered:
+        elif any(kw in lowered for kw in process_keywords):
             operation = "process_query"
             confidence = 0.75
             reasoning_parts.append("Solicitação envolvendo processo específico")
