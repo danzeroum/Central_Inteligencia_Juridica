@@ -121,6 +121,8 @@ pytest tests/unit --cov=src --cov-report=term-missing --cov-report=html
 | [ADRs](docs/ADRs/README.md) | Decisoes arquiteturais |
 | [Novo dominio/tribunal](docs/ADICIONAR_NOVO_DOMINIO.md) | Como estender via YAML |
 | [Troubleshooting](docs/troubleshooting.md) | Problemas comuns |
+| [Como contribuir](CONTRIBUTING.md) | Fluxo, qualidade e convencoes |
+| [Politica de seguranca](SECURITY.md) | Como reportar vulnerabilidades |
 | **API (Swagger)** | http://localhost:8000/docs (gerado do app) |
 
 > A spec OpenAPI versionada (`docs/API/openapi.json`) e gerada por
