@@ -1,71 +1,70 @@
-docs/UX/mockups.zip
-
-# -- Python --
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
-# -- Environment & Secrets --
-.env
-.env.*
-!.env.example
-!.env.template
-
-# -- Build artifacts --
+.Python
 build/
 dist/
 *.egg-info/
+.installed.cfg
 *.egg
 
-# -- IDE & Editor --
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# -- OS files --
-.DS_Store
-Thumbs.db
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.benchmark/
 
-# -- BuildToFlip internal --
-.buildtoflip/ledger/
-
-# -- Logs --
+# Logs
 logs/
 *.log
 
-# -- Testing / Coverage --
-htmlcov/
-.coverage
-.coverage.*
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
 coverage.xml
 *.cover
-.pytest_cache/
 
-# -- Java (secondary stack) --
-target/
-.m2/
-*.jar
-*.war
-*.class
+# Phase scripts (dev only)
+fase*.sh
 
-# -- Terraform --
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
+# Secrets
+.env.dev
+.env.prod
 
-# -- Node (if any) --
-node_modules/
-
-# -- Docker volumes (local) --
-docker/data/
+# Legacy/obsolete
 .buildtoflip/
-src/main/
+experimental/
 k6/
 terraform/
 ansible/
-experimental/
 certificates/
+docs/UX/mockups.zip
+buildtoflip-v6-certificate.md
+buildtoflip-v6.1-certificate.md
+pom.xml
+discovery-consensus.v6.json
+despachar_tarefa.py
+handoff-codex.md
+fallback-strategy.md
+orchestration-matrix.md
+metrics-advanced.yaml
+metrics.yaml
