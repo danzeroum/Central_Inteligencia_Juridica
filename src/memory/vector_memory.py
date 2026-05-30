@@ -201,7 +201,13 @@ class VectorMemory:
             logger.warning("Failed to prepare local persist directory: %s", exc)
 
         try:
-            self.client = chromadb.PersistentClient(path=str(self.persist_directory))
+            # Desabilita a telemetria anônima do ChromaDB (PostHog), que faz
+            # chamadas de rede de saída — problemáticas em runners de CI com rede
+            # restrita. O cliente HTTP já fazia isso; alinhamos o cliente local.
+            self.client = chromadb.PersistentClient(
+                path=str(self.persist_directory),
+                settings=Settings(anonymized_telemetry=False),
+            )
 
             embedding_function = None
             if api_key:
