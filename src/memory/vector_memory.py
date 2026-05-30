@@ -208,6 +208,12 @@ class VectorMemory:
                 embedding_function = self._resolve_embedding_function(api_key)
                 self._use_manual_embeddings = False
             else:
+                # Sem API key: usamos a HashEmbeddingFunction determinística como
+                # embedding_function da coleção. Isso impede que o ChromaDB use seu
+                # modelo ONNX padrão (ONNXMiniLM_L6_V2), que baixa um modelo pela
+                # rede no primeiro uso — o que falha em runners de CI com rede
+                # restrita. Mantém os testes herméticos e o CI determinístico.
+                embedding_function = self._hash_embedding
                 self._use_manual_embeddings = True
 
             collection_kwargs = {
