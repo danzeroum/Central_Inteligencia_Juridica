@@ -1,0 +1,67 @@
+# Configuração de roteamento de tribunais (domínios jurisdicionais).
+#
+# Fonte ÚNICA de verdade para identificação de tribunais a partir do texto da
+# tarefa. Antes, estes dados estavam triplicados e hardcoded em três métodos de
+# SupervisorAgent (violação do princípio OCP). Adicionar um novo tribunal/domínio
+# agora é editar SÓ este arquivo — nenhuma mudança de código é necessária.
+#
+# Estratégias de casamento:
+#   - keywords: termos seguros para casamento por SUBSTRING (códigos e nomes
+#     não-ambíguos). Usados na identificação ordenada por aparição.
+#   - aliases: termos adicionais usados APENAS em casamento por palavra inteira
+#     (regex word-boundary). Servem para adjetivos regionais e termos curtos que
+#     gerariam falsos positivos se buscados por substring (ex.: "sul" em
+#     "conSULta").
+#   - reasoning_keywords: termos (maiúsculos) usados ao extrair tribunais de um
+#     raciocínio estruturado do ArchitectAgent.
+#
+# core: true  -> participa da identificação ordenada por aparição (identify_all),
+#                que é a rota primária de delegação.
+# core: false -> tribunal "estendido", considerado apenas na sugestão de
+#                tribunais relevantes (identify_relevant), p.ex. para consenso.
+
+default_tribunal: TJSP
+
+tribunals:
+  TJSP:
+    core: true
+    keywords: [tjsp, "são paulo", "sao paulo", sp]
+    aliases: [paulista]
+    reasoning_keywords: [TJSP, "SÃO PAULO", "SAO PAULO"]
+  TJMG:
+    core: true
+    keywords: [tjmg, "minas gerais", minas, mg]
+    aliases: [mineiro]
+    reasoning_keywords: [TJMG, "MINAS GERAIS", MINAS]
+  TJRS:
+    core: true
+    keywords: [tjrs, "rio grande do sul", gaúcho, gaucho, rs]
+    aliases: [sul]
+    reasoning_keywords: [TJRS, "RIO GRANDE DO SUL", GAÚCHO, GAUCHO]
+  TJRJ:
+    core: true
+    keywords: [tjrj, "rio de janeiro", fluminense, rj]
+    aliases: []
+    reasoning_keywords: [TJRJ, "RIO DE JANEIRO"]
+  STF:
+    core: true
+    keywords: [stf, supremo, federal]
+    aliases: []
+    reasoning_keywords: [STF, SUPREMO, FEDERAL]
+  STJ:
+    core: false
+    keywords: [stj, "superior tribunal de justiça", superior]
+    aliases: []
+    reasoning_keywords: []
+  TST:
+    core: false
+    keywords: [tst, "tribunal superior do trabalho", trabalho]
+    aliases: []
+    reasoning_keywords: []
+
+# Regiões -> tribunais relacionados. Tribunais não declarados acima são
+# ignorados (ex.: TJBA/TJPE/TJCE ainda não têm agente dedicado).
+regions:
+  sudeste: [TJSP, TJMG, TJRJ]
+  sul: [TJRS]
+  nordeste: [TJBA, TJPE, TJCE]

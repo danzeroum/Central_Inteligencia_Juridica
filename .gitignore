@@ -17,6 +17,10 @@ env/
 venv/
 ENV/
 
+# VectorMemory / ChromaDB persistência local (artefatos de runtime)
+.vector_memory/
+*.sqlite3
+
 # IDE
 .idea/
 .vscode/

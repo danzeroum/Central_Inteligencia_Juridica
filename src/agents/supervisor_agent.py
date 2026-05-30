@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 import time
 from datetime import datetime
 from typing import Any, Dict, List
@@ -17,6 +16,7 @@ from src.memory.agent_memory import AgentMemorySystem
 from src.memory.vector_memory import VectorMemory
 from src.protocols.a2a_mixin import A2ACapable
 from src.routing.intent_classifier import ClassifiedIntent, IntentClassifier
+from src.routing.tribunal_identifier import TribunalIdentifier
 from src.utils.decision_metrics import DecisionMetricsCollector
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
@@ -34,21 +34,11 @@ class SupervisorAgent(A2ACapable):
         self.active_delegates: Dict[str, TribunalAgent] = {}
         self.task_history: List[Dict[str, Any]] = []
 
-        # Keywords para identificação direta de tribunais citados em tarefas
-        self._tribunal_keywords: Dict[str, List[str]] = {
-            "TJSP": ["tjsp", "são paulo", "sao paulo", "sp"],
-            "TJMG": ["tjmg", "minas gerais", "minas", "mg"],
-            "TJRS": ["tjrs", "rio grande do sul", "gaúcho", "gaucho", "rs"],
-            "TJRJ": ["tjrj", "rio de janeiro", "fluminense", "rj"],
-            "STF": ["stf", "supremo", "federal"],
-        }
-
-        # Regiões ajudam a identificar tribunais relacionados implicitamente
-        self._region_to_tribunals: Dict[str, List[str]] = {
-            "sudeste": ["TJSP", "TJMG", "TJRJ"],
-            "sul": ["TJRS"],
-            "federal": ["STF"],
-        }
+        # Identificação de tribunais via configuração externa
+        # (config/routing/tribunals.yaml). Centraliza o que antes eram três
+        # dicionários hardcoded e triplicados — adicionar um novo tribunal/domínio
+        # agora é editar apenas o YAML, sem tocar neste código (princípio OCP).
+        self.tribunal_identifier = TribunalIdentifier.from_config()
 
         # Consensus coordination
         self.consensus_engine = WeightedConsensusEngine()
@@ -240,31 +230,7 @@ class SupervisorAgent(A2ACapable):
     def _extract_tribunals_from_reasoning(self, reasoning: Dict[str, Any]) -> List[str]:
         """Extrai códigos de tribunais a partir do raciocínio estruturado."""
 
-        combined_text = (
-            f"{reasoning.get('recommendation', '')} "
-            f"{reasoning.get('problem_analysis', '')}"
-        ).upper()
-
-        keywords = {
-            "TJSP": ["TJSP", "SÃO PAULO", "SAO PAULO"],
-            "TJMG": ["TJMG", "MINAS GERAIS", "MINAS"],
-            "TJRS": ["TJRS", "RIO GRANDE DO SUL", "GAÚCHO", "GAUCHO"],
-            "TJRJ": ["TJRJ", "RIO DE JANEIRO"],
-            "STF": ["STF", "SUPREMO", "FEDERAL"],
-        }
-
-        detected: List[str] = []
-        for tribunal, words in keywords.items():
-            if any(word in combined_text for word in words):
-                detected.append(tribunal)
-
-        explicit = reasoning.get("identified_tribunals") or []
-        for item in explicit:
-            code = str(item).upper()
-            if code:
-                detected.append(code)
-
-        return list(dict.fromkeys(detected))
+        return self.tribunal_identifier.extract_from_reasoning(reasoning)
 
     def _is_multi_tribunal_query(self, task: str) -> bool:
         """Detecta se a tarefa exige múltiplos tribunais ou consenso."""
@@ -314,61 +280,12 @@ class SupervisorAgent(A2ACapable):
     def _identify_relevant_tribunals(self, task: str) -> List[str]:
         """Identify tribunals that should be consulted for the task."""
 
-        task_lower = task.lower()
-        identified: List[str] = []
-
-        tribunal_keywords: Dict[str, List[str]] = {
-            "TJSP": ["tjsp", "são paulo", "sao paulo", "sp", "paulista"],
-            "TJMG": ["tjmg", "minas gerais", "minas", "mg", "mineiro"],
-            "TJRS": ["tjrs", "rio grande do sul", "gaúcho", "gaucho", "rs", "sul"],
-            "TJRJ": ["tjrj", "rio de janeiro", "fluminense", "rj"],
-            "STF": ["stf", "supremo", "federal"],
-            "STJ": ["stj", "superior tribunal de justiça", "superior"],
-            "TST": ["tst", "tribunal superior do trabalho", "trabalho"],
-        }
-
-        region_keywords: Dict[str, List[str]] = {
-            "sudeste": ["TJSP", "TJMG", "TJRJ"],
-            "sul": ["TJRS"],
-            "nordeste": ["TJBA", "TJPE", "TJCE"],
-        }
-
-        for region, tribunals in region_keywords.items():
-            if re.search(rf"\b{re.escape(region)}\b", task_lower):
-                identified.extend([t for t in tribunals if t in tribunal_keywords])
-
-        for tribunal, keywords in tribunal_keywords.items():
-            for keyword in keywords:
-                if re.search(rf"\b{re.escape(keyword)}\b", task_lower):
-                    if tribunal not in identified:
-                        identified.append(tribunal)
-                    break
-
-        if not identified:
-            identified = [self._identify_tribunal(task)]
-
-        seen: set[str] = set()
-        unique_identified: List[str] = []
-        for tribunal in identified:
-            if tribunal not in seen:
-                seen.add(tribunal)
-                unique_identified.append(tribunal)
-
-        self.logger.debug(
-            "Identified tribunals for task '%s': %s",
-            task[:50],
-            unique_identified,
-        )
-
-        return unique_identified
+        return self.tribunal_identifier.identify_relevant(task)
 
     def _identify_tribunal(self, task: str) -> str:
         """Retorna um único tribunal mais provável para a tarefa."""
 
-        tribunals = self._identify_all_tribunals(task)
-        if tribunals:
-            return tribunals[0]
-        return "TJSP"
+        return self.tribunal_identifier.identify_primary(task)
 
     async def process_task(self, task_description: str) -> Dict[str, Any]:
         """
@@ -502,7 +419,18 @@ class SupervisorAgent(A2ACapable):
 
                 if memory_cache_hit and cached_result is not None:
                     cached_tribunals = cached_result.get("tribunals")
-                    if isinstance(cached_tribunals, dict) and len(cached_tribunals) > 1:
+                    cached_single_tribunal = cached_result.get("tribunal")
+                    # Só reutilizamos o cache se ele for de uma tarefa de tribunal
+                    # ÚNICO e do MESMO tribunal identificado agora. Com hash
+                    # embeddings o limiar de similaridade é baixo (0.1), então um
+                    # recall pode trazer o resultado de OUTRO tribunal — reaproveitá-lo
+                    # produziria um supervisor_result inconsistente (ou sem a chave
+                    # 'tribunal'), além de resposta incorreta.
+                    is_multi_cache = (
+                        isinstance(cached_tribunals, dict) and len(cached_tribunals) > 1
+                    )
+                    matches_single = cached_single_tribunal == single_code
+                    if is_multi_cache or not matches_single:
                         memory_cache_hit = False
                         cached_result = None
                     else:
@@ -915,31 +843,7 @@ class SupervisorAgent(A2ACapable):
     def _identify_all_tribunals(self, task: str) -> List[str]:
         """Retorna todos os tribunais mencionados preservando ordem de aparição."""
 
-        task_lower = task.lower()
-        matches: List[tuple[int, str]] = []
-
-        for tribunal, keywords in self._tribunal_keywords.items():
-            first_index: int | None = None
-            for keyword in keywords:
-                idx = task_lower.find(keyword)
-                if idx != -1 and (first_index is None or idx < first_index):
-                    first_index = idx
-
-            if first_index is not None:
-                matches.append((first_index, tribunal))
-
-        matches.sort(key=lambda item: item[0])
-        ordered = [tribunal for _, tribunal in matches]
-
-        # Remover duplicados mantendo ordem resultante
-        seen: set[str] = set()
-        ordered_unique: List[str] = []
-        for tribunal in ordered:
-            if tribunal not in seen:
-                seen.add(tribunal)
-                ordered_unique.append(tribunal)
-
-        return ordered_unique
+        return self.tribunal_identifier.identify_all(task)
 
     def _get_or_create_tribunal_agent(self, tribunal_code: str) -> TribunalAgent:
         """Retorna agente existente ou cria novo delegado para o tribunal."""

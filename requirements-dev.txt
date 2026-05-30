@@ -2,7 +2,9 @@
 -r requirements.txt
 
 pytest==8.0.0
-pytest-asyncio==0.23.3
+# 0.23.3 quebra a coleta com pytest 8.x em pacotes de teste com __init__.py
+# (AttributeError: 'Package' object has no attribute 'obj'). 0.23.8 corrige.
+pytest-asyncio==0.23.8
 pytest-cov==4.1.0
 respx==0.20.2
 black==24.2.0

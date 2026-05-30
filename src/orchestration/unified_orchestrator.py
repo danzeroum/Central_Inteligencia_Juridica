@@ -28,7 +28,12 @@ logger = logging.getLogger(__name__)
 class UnifiedOrchestrator:
     """High level orchestrator bridging all subsystems."""
 
-    def __init__(self) -> None:
+    def __init__(self, supervisor_agent: Any | None = None) -> None:
+        # Injeção de dependência opcional do SupervisorAgent (corrige o
+        # TypeError em main.py e atende ao princípio DIP). O orquestrador não
+        # exige um supervisor para operar; quando fornecido, fica disponível
+        # para integrações que queiram delegar tarefas a tribunais.
+        self.supervisor_agent = supervisor_agent
         self.planner = AdaptivePlanner()
         self.router = LearningRouter()
         self.parallel = ParallelResourceManager()
@@ -151,7 +156,11 @@ class UnifiedOrchestrator:
                     parallel_tasks
                 )
                 for result in step_results:
-                    await self.evaluator.evaluate_agent_performance(agent_name, result)
+                    await self.evaluator.evaluate(
+                        agent_name,
+                        {"confidence": float(result.get("confidence", 0.0))},
+                        {"result": result},
+                    )
                 results.extend(step_results)
                 continue
 
@@ -161,13 +170,16 @@ class UnifiedOrchestrator:
                 "step": step["step"],
             }
             result = await self.agents[agent_name].execute(step_task)
-            quality = await self.evaluator.evaluate_agent_performance(
-                agent_name, result
+            quality = await self.evaluator.evaluate(
+                agent_name,
+                {"confidence": float(result.get("confidence", 0.0))},
+                {"result": result},
             )
-            if quality.get("technical_score", 0) < 0.6:
+            technical_score = quality.get("aggregates", {}).get("confidence", 1.0)
+            if technical_score < 0.6:
                 reflection = {
                     "reason": "low_quality",
-                    "score": quality.get("technical_score", 0),
+                    "score": technical_score,
                 }
                 plan = await self.planner.replan_from_point(plan, step, reflection)
             results.append(result)
