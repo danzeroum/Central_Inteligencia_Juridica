@@ -155,7 +155,7 @@ Central_Inteligencia_Juridica/
 +-- docker-compose.yml
 +-- Dockerfile
 +-- requirements.txt
-+-- pytest.ini
++-- pyproject.toml
 ```
 
 ## Monitoramento
