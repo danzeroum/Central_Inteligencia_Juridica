@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon, Badge } from '../../components/primitives.jsx';
 import { useToast } from '../../components/toast.jsx';
 import { api } from '../../api/client.js';
@@ -33,7 +33,7 @@ function extract(result) {
   return { intent, tribunals, confidence, text, raw: result };
 }
 
-function MsgAI({ data, error }) {
+function MsgAI({ data, error, queue }) {
   const [showRaw, setShowRaw] = useState(false);
   if (error) {
     return (
@@ -85,7 +85,13 @@ function MsgAI({ data, error }) {
           )}
           <div className="hitl-banner">
             <Icon name="shield" />
-            <div>A síntese acima é informativa. Qualquer <b>ação processual</b> derivada entrará na fila de <b>revisão humana</b> antes de ser executada.</div>
+            <div>
+              Resposta <b>gerada por IA</b>, de caráter informativo. Qualquer <b>ação processual</b> derivada
+              entrará na fila de <b>revisão humana</b> antes de ser executada
+              {queue?.pending > 0
+                ? <> — há <b>{queue.pending}</b> {queue.pending === 1 ? 'solicitação' : 'solicitações'} na fila no momento.</>
+                : <> — a fila de revisão está vazia agora.</>}
+            </div>
           </div>
         </div>
       </div>
@@ -98,6 +104,11 @@ export default function AssistantScreen() {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [queue, setQueue] = useState(null); // contexto da fila de revisão humana
+
+  // Transparência ao consulente: mostra quantas solicitações aguardam revisão.
+  const refreshQueue = () => api.hitlStats().then(setQueue).catch(() => {});
+  useEffect(() => { refreshQueue(); }, []);
 
   const send = async (text) => {
     const t = (text ?? draft).trim();
@@ -109,6 +120,7 @@ export default function AssistantScreen() {
     try {
       const res = await api.submitTask(t);
       setMessages((m) => m.map((msg, i) => (i === aiIndex ? { role: 'ai', data: extract(res) } : msg)));
+      refreshQueue();
     } catch (e) {
       setMessages((m) => m.map((msg, i) => (i === aiIndex ? { role: 'ai', error: e.message } : msg)));
       toast.error(`Falha na consulta: ${e.message}`);
@@ -138,7 +150,7 @@ export default function AssistantScreen() {
           <div className="chat-inner">
             {messages.map((m, i) => m.role === 'user'
               ? <MsgUser key={i} text={m.text} />
-              : <MsgAI key={i} data={m.data} error={m.error} />)}
+              : <MsgAI key={i} data={m.data} error={m.error} queue={queue} />)}
           </div>
         )}
       </div>
