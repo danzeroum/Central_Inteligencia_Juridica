@@ -75,6 +75,9 @@ CORS em produção). A SPA cobre os dois espaços: *Espaço de Trabalho*
 (Aprovações HITL, Treinamento, Agentes, Auditoria/Ledger, Autonomia/DMN,
 Monitoramento).
 
+> 📘 Novo por aqui? Veja o **[Manual do Estudante de Direito](docs/MANUAL_ESTUDANTE.md)** —
+> guia prático de todas as funcionalidades, com roteiro guiado de 15 minutos.
+
 ```bash
 cd frontend
 npm install
