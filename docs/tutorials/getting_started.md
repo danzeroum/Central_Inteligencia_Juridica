@@ -1,137 +1,59 @@
-# Getting Started: O Seu Primeiro Agente com BuildToFlip v6.1
+# Primeiros passos — Central de Inteligência Jurídica
 
-## Introdução
+Guia rápido para subir o projeto **localmente** e fazer sua primeira consulta.
+Para um passeio por todas as funcionalidades da interface, veja o
+[Manual do Estudante](../MANUAL_ESTUDANTE.md).
 
-Bem-vindo ao guia prático da metodologia **BuildToFlip v6.1 – Reality Check**. Este tutorial foi desenhado para ser a sua primeira experiência no campo de batalha, guiando-o na construção de um agente básico que já utiliza duas capacidades da família de **Execução de Tarefas**: `Prompt Chaining` e `Routing`.
+## 1. Pré-requisitos
 
-Lembre-se da nossa filosofia: **disciplina mínima, valor máximo**. Vamos escrever código funcional primeiro.
+- Python 3.11+ e `pip`
+- Node 18+ e `npm` (apenas para (re)compilar o frontend)
+- (Opcional) Docker, para subir Redis/Prometheus/Grafana
 
-## Passo 1: Configuração do Ambiente ( < 5 minutos)
+## 2. Instalação e execução
 
-1.  **Clone o repositório base**:
-    ```bash
-    git clone https://github.com/buildtoflip/template-v6.1-reality-check.git my-first-agent
-    cd my-first-agent
-    ```
+```bash
+git clone https://github.com/danzeroum/Central_Inteligencia_Juridica.git
+cd Central_Inteligencia_Juridica
 
-2.  **Configure as variáveis de ambiente**:
-    Copie o template `.env.template` para `.env` e adicione a sua chave de API da OpenAI.
-    ```bash
-    cp .env.template .env
-    nano .env # Adicione sua OPENAI_API_KEY
-    ```
+pip install -r requirements.txt
 
-3.  **Inicie os serviços (se necessário)**:
-    Se o seu projeto necessitar de serviços externos como bases de dados, pode iniciá-los com Docker.
-    ```bash
-    # Exemplo: docker-compose up -d
-    ```
+# Frontend (gera o bundle servido pelo FastAPI em /app)
+cd frontend && npm install && npm run build && cd ..
 
-## Passo 2: Implementando `Prompt Chaining`
-
-O `Prompt Chaining` permite-nos quebrar uma tarefa complexa em um pipeline de passos mais simples e gerenciáveis.
-
-```python
-# Crie um arquivo chamado: getting_started_chaining.py
-
-from langchain_openai import ChatOpenAI
-from langchain.chains import LLMChain, SimpleSequentialChain
-from langchain.prompts import PromptTemplate
-import os
-from dotenv import load_dotenv
-
-# Carrega a chave de API do arquivo .env
-load_dotenv()
-
-# Configuração do LLM
-llm = ChatOpenAI(temperature=0.1, model_name="gpt-4")
-
-# Chain 1: Extrair informações chave
-extract_prompt = PromptTemplate(
-    input_variables=["document"],
-    template="Extraia as 3 informações principais deste documento: {document}"
-)
-extract_chain = LLMChain(llm=llm, prompt=extract_prompt, output_key="key_points")
-
-# Chain 2: Gerar resumo com base nas informações extraídas
-summarize_prompt = PromptTemplate(
-    input_variables=["key_points"],
-    template="Com base nestes pontos principais: {key_points}, gere um resumo conciso."
-)
-summarize_chain = LLMChain(llm=llm, prompt=summarize_prompt, output_key="summary")
-
-# Encadeamento completo: a saída de `extract_chain` alimenta `summarize_chain`
-full_chain = SimpleSequentialChain(chains=[extract_chain, summarize_chain], verbose=True)
-
-# Execução
-document = "A transição para energias renováveis tem mostrado um impacto positivo na redução de emissões, criação de empregos e inovação tecnológica. No entanto, há desafios como a intermitência das fontes renováveis e os custos iniciais elevados."
-result = full_chain.run(document)
-print(f"✅ Resultado final do Chaining: {result}")
+uvicorn src.api.main:app --reload --port 8000
 ```
 
-## Passo 3: Implementando Routing
+Acesse:
+- **Interface (SPA):** http://localhost:8000/app
+- **Documentação da API (Swagger):** http://localhost:8000/docs
+- **Health check:** http://localhost:8000/health
 
-O Routing dá ao nosso agente a capacidade de tomar decisões, direcionando o fluxo com base na intenção do utilizador.
+> **Sem chave de LLM?** Tudo funciona. Sem `OPENAI_API_KEY`, o classificador de
+> intenção usa um fallback heurístico determinístico (palavras-chave + regex CNJ).
 
-```python
-# Crie um arquivo chamado: getting_started_routing.py
+## 3. Sua primeira consulta
 
-from langchain_openai import ChatOpenAI
-from langchain.schema.runnable import RunnableBranch
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from dotenv import load_dotenv
+### Pela interface
+1. Abra http://localhost:8000/app e clique em **Entrar como Usuário**.
+2. Na tela **Assistente**, clique numa sugestão (ex.: *"Comparar jurisprudência
+   sobre LGPD no STF e no TJSP"*) e observe a **intenção detectada**, os
+   **tribunais** e o **roteamento**.
 
-load_dotenv()
-llm = ChatOpenAI(temperature=0.1, model_name="gpt-4")
-
-# 1. Classificador de Intenção (O "Cérebro" do Roteador)
-classifier_prompt = PromptTemplate(
-    input_variables=["user_input"],
-    template="""Classifique a intenção do usuário em uma destas categorias: "suporte_tecnico", "informacao", "vendas", "outros".
-    Input: {user_input}
-    Intenção:"""
-)
-classifier_chain = LLMChain(llm=llm, prompt=classifier_prompt)
-
-# 2. Handlers Especializados (As "Ações" do Roteador)
-support_handler = lambda data: f"🔧 Rota: Suporte Técnico. Ação: Escalar para especialista."
-info_handler = lambda data: f"📚 Rota: Informação. Ação: Buscar na base de conhecimento."
-sales_handler = lambda data: f"💰 Rota: Vendas. Ação: Conectar com a equipa de vendas."
-default_handler = lambda data: f"❓ Rota: Padrão. Ação: Pedir esclarecimento ao utilizador."
-
-# 3. Sistema de Roteamento com RunnableBranch
-route_branch = RunnableBranch(
-    (lambda x: "suporte_tecnico" in x["intention"].lower(), support_handler),
-    (lambda x: "informacao" in x["intention"].lower(), info_handler),
-    (lambda x: "vendas" in x["intention"].lower(), sales_handler),
-    default_handler
-)
-
-# 4. Pipeline Completo de Roteamento
-def route_request(user_input: str):
-    intention_result = classifier_chain.invoke({"user_input": user_input})
-    intention_text = intention_result['text'].strip()
-    
-    # O RunnableBranch recebe o dicionário e escolhe o caminho
-    result = route_branch.invoke({"user_input": user_input, "intention": intention_text})
-    return result
-
-# Execução
-test_cases = [
-    "Meu aplicativo está a crashar quando abro o relatório",
-    "Quais são os planos de preços disponíveis?",
-    "Gostaria de comprar a versão enterprise",
-    "Bom dia, tudo bem?"
-]
-
-for case in test_cases:
-    routed_action = route_request(case)
-    print(f"Input: '{case}'\n➡️  {routed_action}\n")
+### Pela API
+```bash
+curl -X POST http://localhost:8000/api/v1/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"task_description": "Status do TJSP"}'
 ```
 
-## Conclusão
+A resposta (`SuccessfulTaskResponse`) traz `supervisor_result`, `tribunals_used`,
+`task_id`, `execution_time` e `timestamp`.
 
-Parabéns! Você implementou com sucesso um agente básico que utiliza dois dos padrões mais fundamentais. Você está pronto para explorar as outras famílias de capacidades e adicionar mais sofisticação ao seu agente.
+## 4. Para onde ir agora
 
-**Próximo Passo Recomendado:** Leia o nosso guia de `best_practices.md` para aprender como tornar os seus agentes mais modulares, testáveis e seguros.
+- [Manual do Estudante](../MANUAL_ESTUDANTE.md) — todas as telas e funcionalidades.
+- [Arquitetura (C4)](../ARCHITECTURE_C4.md) — visão de contexto → código.
+- [Adicionar um novo domínio/tribunal](../ADICIONAR_NOVO_DOMINIO.md) — só editar YAML.
+- [ADRs](../ADRs/README.md) — decisões arquiteturais.
+- [Troubleshooting](../troubleshooting.md) — problemas comuns.

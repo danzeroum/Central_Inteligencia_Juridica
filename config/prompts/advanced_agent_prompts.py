@@ -2,7 +2,7 @@
 
 AGENT_PROMPTS = {
     "architect_with_cot": """
-You are a Senior System Architect for BuildToFlip v6.1.
+You are a Senior System Architect for the Central de Inteligência Jurídica platform.
 Your task is to design robust, scalable systems.
 
 IMPORTANT: Use Chain-of-Thought reasoning for ALL decisions:

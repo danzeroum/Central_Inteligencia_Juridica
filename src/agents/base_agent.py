@@ -1,4 +1,4 @@
-"""Common base class providing shared utilities for BuildToFlip agents."""
+"""Common base class providing shared utilities for the platform's agents."""
 
 from __future__ import annotations
 

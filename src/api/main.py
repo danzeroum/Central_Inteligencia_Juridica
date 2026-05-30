@@ -512,7 +512,7 @@ async def process_advanced_task(
 
         result = await unified_orchestrator.execute_complex_task(task_payload)
         result["api_mode"] = "advanced"
-        result["buildtoflip_version"] = "v6.1"
+        result["api_version"] = "1.1.0"
 
         logger.info(
             "✅ ADVANCED MODE: Tarefa concluída com sucesso=%s, confidence=%s",

@@ -4,7 +4,7 @@
 Aceita (2025-09-25)
 
 ## Contexto
-Para garantir consistência, DX e manutenção, a API do BuildToFlip v6 deve seguir convenções REST claras com versionamento explícito e documentação de contrato.
+Para garantir consistência, DX e manutenção, a API da Central de Inteligência Jurídica deve seguir convenções REST claras com versionamento explícito e documentação de contrato.
 
 ## Decisão
 - **URLs RESTful** com substantivos no plural (ex.: `/users`, `/orders`).

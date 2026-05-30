@@ -5,7 +5,7 @@ Aceito (2025-09-30)
 
 ## Contexto
 
-Durante análise crítica pós-certificação BuildToFlip v6.1, identificou-se a coexistência de dois mecanismos de orquestração com responsabilidades sobrepostas:
+Durante análise crítica pós-certificação do MVP, identificou-se a coexistência de dois mecanismos de orquestração com responsabilidades sobrepostas:
 
 1. **SupervisorAgent** (`src/agents/supervisor_agent.py`)
    - Arquitetura simples e pragmática (supervisor-delegate pattern)
@@ -125,5 +125,5 @@ src/
 ## Referências
 
 - Análise crítica pós-certificação (2025-09-30)
-- BuildToFlip v6.1 - Princípio Crisp Pragmatist
+- Princípio Crisp Pragmatist
 - Martin Fowler - "Feature Toggles" (featuretoggle.org)

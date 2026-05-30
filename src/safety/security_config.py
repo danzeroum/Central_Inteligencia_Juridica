@@ -26,7 +26,7 @@ class SecurityConfig:
         r"socket\.",
     ]
 
-    ALLOWED_DOMAINS = {"api.buildtoflip.com", "localhost", "127.0.0.1"}
+    ALLOWED_DOMAINS = {"localhost", "127.0.0.1"}
     HIGH_RISK_TOOLS = {
         "database_write",
         "send_email",

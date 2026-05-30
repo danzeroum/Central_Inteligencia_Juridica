@@ -10,22 +10,27 @@ Este UI Kit estabelece a base visual para a plataforma "Central de Inteligência
 -   **Secundária:** `#4A6585` (Azul Médio) - Para cabeçalhos e bordas.
 -   **Neutra (Fundo):** `#F8F9FA` (Cinza Muito Claro) - Para o fundo da página.
 -   **Neutra (Superfície):** `#FFFFFF` (Branco) - Para cards e superfícies de conteúdo.
--   **Neutra (Texto):** `#333333` (Cinza Escuro) - Para texto principal.
--   **Neutra (Texto Secundário):** `#666666` (Cinza Médio) - Para rótulos e texto de suporte.
+-   **Neutra (Texto):** `#1b2330` (Cinza Escuro) - Para texto principal.
+-   **Neutra (Texto Secundário):** `#677387` (Cinza Médio) - Para rótulos e texto de suporte (contraste ≥ 4.5:1 sobre branco, WCAG AA).
 -   **Feedback (Sucesso):** `#28A745` (Verde) - Para indicar conclusão bem-sucedida.
 -   **Feedback (Atenção):** ` #FFC107` (Âmbar) - Para estados de carregamento.
 -   **Feedback (Erro):** `#DC3545` (Vermelho) - Para mensagens de erro.
 
 ## Tipografia
-**Justificativa:** A fonte `Inter` foi escolhida por sua excelente legibilidade em telas, ampla disponibilidade e aparência moderna e limpa, adequada para longos períodos de leitura.
+**Justificativa:** a SPA usa a família **IBM Plex** (Sans para interface, Mono para
+dados/identificadores técnicos) e **Newsreader** (serifada) para títulos de seção —
+combinação que transmite seriedade jurídica e mantém ótima legibilidade em tela.
 
--   **Família Primária:** `Inter, sans-serif`
+-   **Interface (corpo/rótulos):** `IBM Plex Sans, system-ui, sans-serif`
+-   **Dados técnicos / monospace:** `IBM Plex Mono, ui-monospace, monospace`
+-   **Títulos de seção (display):** `Newsreader, Georgia, serif`
 -   **Escalas:**
-    -   `H1 (Título da Página):` 2rem (32px) / Weight: 600
-    -   `H2 (Cabeçalhos de Seção):` 1.5rem (24px) / Weight: 600
-    -   `Corpo (Texto Principal):` 1rem (16px) / Weight: 400
-    -   `Rótulo/Input:` 0.875rem (14px) / Weight: 500
-    -   `Texto de Suporte:` 0.875rem (14px) / Weight: 400
+    -   `Título de tela (serif):` ~1.6rem (26px) / Weight: 600
+    -   `Cabeçalhos de seção:` 1.5rem (24px) / Weight: 600
+    -   `Corpo (texto principal):` ~0.875rem (14px) / Weight: 400
+    -   `Rótulo/Input:` 0.78rem (12.5px) / Weight: 500
+
+> Tokens canônicos: `frontend/src/styles.css` (`:root`).
 
 ## Componentes Essenciais
 

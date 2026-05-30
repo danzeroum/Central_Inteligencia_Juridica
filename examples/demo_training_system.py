@@ -305,7 +305,7 @@ async def main() -> None:
 
     print("\n" + "=" * 60)
     print("🎓 SISTEMA DE TREINAMENTO CONTÍNUO - DEMONSTRAÇÃO")
-    print("   BuildToFlip v6.1 - Reality Check")
+    print("   Central de Inteligência Jurídica")
     print("=" * 60)
     print(f"\n⏰ Iniciado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 

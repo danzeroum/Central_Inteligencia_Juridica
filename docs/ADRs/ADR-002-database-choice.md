@@ -4,7 +4,7 @@
 Proposta
 
 ## Contexto
-A metodologia BuildToFlip v6 exige uma base de dados relacional confiável para suportar transações críticas e métricas de observabilidade. A decisão deve equilibrar facilidade de operação, custo e compatibilidade com o stack padrão Spring Boot.
+O projeto exige uma base de dados relacional confiável para suportar transações críticas e métricas de observabilidade. A decisão deve equilibrar facilidade de operação, custo e compatibilidade com o stack Python/FastAPI.
 
 ## Decisão
 Utilizar **PostgreSQL 15** como banco de dados primário para os ambientes lite e standard. Para enterprise, complementar com réplicas e recursos avançados conforme necessidade.

@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O sistema BuildToFlip Central de Inteligência Jurídica (Standard Upgrade - Onda 2.3) evoluiu de dados simulados para **integração com APIs reais dos tribunais**, mantendo resiliência através de fallback graceful.
+O sistema Central de Inteligência Jurídica (Standard Upgrade - Onda 2.3) evoluiu de dados simulados para **integração com APIs reais dos tribunais**, mantendo resiliência através de fallback graceful.
 
 ### Problema Atual
 
@@ -439,7 +439,7 @@ chmod +x scripts/validate-wave2.3.sh
 
 Saída Esperada:
 ```
-🔍 BuildToFlip Standard Upgrade - Onda 2.3 Validation
+🔍 Standard Upgrade - Onda 2.3 Validation
 ================================================================
 
 📦 Gate 1: Dependencies
@@ -682,7 +682,7 @@ docker-compose logs agent-system | grep "MOCK data"
 docker-compose logs agent-system | grep "Circuit breaker"
 ```
 
-## 🏆 CERTIFICADO BUILDTOFLIP - ONDA 2.3
+## 🏆 CERTIFICADO - ONDA 2.3
 
 **Projeto:** Central de Inteligência Jurídica
 
@@ -710,7 +710,7 @@ docker-compose logs agent-system | grep "Circuit breaker"
 
 **Data:** 2025-09-29
 
-**Assinatura:** BuildToFlip v6.1 Codex
+**Assinatura:** Equipe de Arquitetura
 
 ---
 

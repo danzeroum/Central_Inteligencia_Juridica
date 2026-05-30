@@ -1,4 +1,4 @@
-"""Cooperative orchestration between BuildToFlip agents."""
+"""Cooperative orchestration between the platform's agents."""
 
 from __future__ import annotations
 

@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O sistema BuildToFlip Central de Inteligência Jurídica (Standard Upgrade - Onda 2.2) necessita de **memória de longo prazo** para:
+O sistema Central de Inteligência Jurídica (Standard Upgrade - Onda 2.2) necessita de **memória de longo prazo** para:
 
 1. **Evitar Reprocessamento**: Queries similares não devem requerer processamento completo repetido
 2. **Contextualização**: Decisões futuras devem ser informadas por interações passadas
@@ -222,7 +222,7 @@ docker-compose logs -f chromadb
 python -c "from src.memory.vector_memory import VectorMemory; print(VectorMemory().get_stats())"
 
 # Queries lentas no ledger
-grep "MEMORY_RECALLED" .buildtoflip/ledger/decisions.log | jq '.metadata.recall_time' | sort -rn | head -5
+grep "MEMORY_RECALLED" logs/agent_decisions.json | jq '.metadata.recall_time' | sort -rn | head -5
 ```
 
 🎉 Onda 2.2 completa! Você agora tem um agente que aprende com o tempo.

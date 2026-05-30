@@ -1,8 +1,8 @@
-# Melhores Práticas para Construir Agentes de IA com BuildToFlip v6.1
+# Melhores Práticas para Construir Agentes de IA
 
 ## Introdução
 
-Construir agentes de IA robustos vai além de simplesmente escrever código funcional. Este guia aborda as melhores práticas de engenharia de software aplicadas ao desenvolvimento de agentes, alinhadas com a metodologia **BuildToFlip v6.1**. Os pilares são: Modularidade, Testabilidade, Escalabilidade e Segurança.
+Construir agentes de IA robustos vai além de simplesmente escrever código funcional. Este guia aborda as melhores práticas de engenharia de software aplicadas ao desenvolvimento de agentes, alinhadas à arquitetura do projeto. Os pilares são: Modularidade, Testabilidade, Escalabilidade e Segurança.
 
 ## 1. Modularidade (Princípio da Responsabilidade Única)
 
