@@ -11,7 +11,8 @@ def gerar_resposta_ollama(prompt: str, modelo: str = "llama3") -> str:
     """
     logger.info("Enviando prompt para o modelo '%s'", modelo)
     try:
-        response = ollama.chat(
+        response = _OLLAMA_CLIENT.chat(
+
             model=modelo,
             messages=[{"role": "user", "content": prompt}],
         )
