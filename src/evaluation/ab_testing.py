@@ -71,7 +71,9 @@ class AgentABTestingFramework:
 
         winner = "A" if aggregates["A"] >= aggregates["B"] else "B"
 
-        significance = self._calculate_significance(aggregates["A"], aggregates["B"], len(cases))
+        significance = self._calculate_significance(
+            aggregates["A"], aggregates["B"], len(cases)
+        )
 
         result = ABTestResult(
             winner=winner,

@@ -211,7 +211,9 @@ def test_learning_rate_calculation() -> None:
         collector.record("TJRJ", "accuracy", 0.7 + index * 0.05)
         time.sleep(0.05)
 
-    learning_rate = collector.calculate_learning_rate("TJRJ", "accuracy", time_window_hours=1)
+    learning_rate = collector.calculate_learning_rate(
+        "TJRJ", "accuracy", time_window_hours=1
+    )
 
     assert learning_rate is not None
     assert learning_rate > 0

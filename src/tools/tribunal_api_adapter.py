@@ -9,22 +9,16 @@ from collections import deque
 from threading import Lock
 from typing import Any, Deque, Dict, Optional
 
-
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_exponential)
 
-from src.tools.circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerConfig,
-    CircuitBreakerOpenError,
-)
-from src.tools.schemas.tribunal_schemas import (
-    ProcessoResponse,
-    TribunalStatusResponse,
-)
+from src.tools.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
+                                       CircuitBreakerOpenError)
+from src.tools.schemas.tribunal_schemas import (ProcessoResponse,
+                                                TribunalStatusResponse)
 
 logger = logging.getLogger(__name__)
-
 
 
 class RateLimiter:
@@ -61,7 +55,6 @@ class RateLimiter:
                 time.sleep(0)
             else:
                 time.sleep(sleep_time)
-
 
 
 DEFAULT_CIRCUIT_CONFIG = CircuitBreakerConfig(
@@ -112,7 +105,6 @@ class TribunalAPIAdapter:
     def __init__(self, tribunal_code: str) -> None:
         self.tribunal_code = tribunal_code
         self.config = self.API_CONFIGS.get(tribunal_code)
-
 
         self.circuit_breaker = CircuitBreaker(
             config=self._build_circuit_config(tribunal_code)
@@ -245,7 +237,11 @@ class TribunalAPIAdapter:
         if not self.client:
             raise RuntimeError("HTTP client not initialized")
 
-        endpoint = "/processos/{numero}" if self.tribunal_code == "TJSP" else "/api/processos/{numero}"
+        endpoint = (
+            "/processos/{numero}"
+            if self.tribunal_code == "TJSP"
+            else "/api/processos/{numero}"
+        )
         return self._perform_request(endpoint.format(numero=numero_processo))
 
     def _perform_request(self, endpoint: str) -> Dict[str, Any]:
@@ -260,7 +256,9 @@ class TribunalAPIAdapter:
         return response.json()
 
     def _build_circuit_config(self, tribunal_code: str) -> CircuitBreakerConfig:
-        base_config = TRIBUNAL_CIRCUIT_CONFIGS.get(tribunal_code, DEFAULT_CIRCUIT_CONFIG)
+        base_config = TRIBUNAL_CIRCUIT_CONFIGS.get(
+            tribunal_code, DEFAULT_CIRCUIT_CONFIG
+        )
 
         def _env(key: str, default: float) -> float:
             return float(os.getenv(key, str(default)))

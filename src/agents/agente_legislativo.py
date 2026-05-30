@@ -1,9 +1,13 @@
+import logging
+
 from src.services.camara_client import buscar_projetos_de_lei
 from src.services.llm_client import gerar_resposta_ollama
 
+logger = logging.getLogger(__name__)
+
 
 def analisar_cenario_legislativo(tema: str) -> str:
-    print(f"[Agente Legislativo] Buscando dados sobre '{tema}'...")
+    logger.info("Buscando dados sobre '%s'", tema)
     dados_projetos = buscar_projetos_de_lei(tema)
     if "error" in dados_projetos or not dados_projetos.get("dados"):
         return "Nao foi possivel obter dados legislativos sobre este tema."
@@ -21,7 +25,7 @@ def analisar_cenario_legislativo(tema: str) -> str:
     elabore uma analise concisa (2-3 paragrafos) sobre o foco atual do legislativo neste assunto.
     Dados:\n{contexto}\nAnalise:
     """
-    print("[Agente Legislativo] Enviando contexto para analise do Ollama...")
+    logger.info("Enviando contexto para analise do Ollama...")
     analise_final = gerar_resposta_ollama(prompt)
     return analise_final
 

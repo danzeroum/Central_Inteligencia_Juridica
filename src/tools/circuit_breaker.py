@@ -76,7 +76,9 @@ def _build_gauge() -> Optional[Gauge]:  # pragma: no cover - simple helper
     )
 
 
-def _build_counter(metric_name: str, documentation: str, labels: tuple[str, ...]):  # pragma: no cover
+def _build_counter(
+    metric_name: str, documentation: str, labels: tuple[str, ...]
+):  # pragma: no cover
     if Counter is None:
         return None
     return Counter(metric_name, documentation, labelnames=labels)
@@ -103,6 +105,28 @@ _CIRCUIT_TRANSITIONS_TOTAL = _build_counter(
     "Total number of state transitions for the circuit breaker",
     ("name", "state"),
 )
+
+
+# ----------------------------------------------------------------------
+# Global registry — permite que endpoints de monitoramento listem todos
+# os circuit breakers ativos no processo (mesmo padrão de get_hitl_queue).
+# ----------------------------------------------------------------------
+_REGISTRY: "Dict[str, CircuitBreaker]" = {}
+_REGISTRY_LOCK = RLock()
+
+
+def register_circuit_breaker(breaker: "CircuitBreaker") -> None:
+    """Registra (ou substitui) um circuit breaker pelo seu nome."""
+
+    with _REGISTRY_LOCK:
+        _REGISTRY[breaker.config.name] = breaker
+
+
+def get_all_circuit_breakers() -> "Dict[str, CircuitBreaker]":
+    """Retorna um snapshot do registro global de circuit breakers."""
+
+    with _REGISTRY_LOCK:
+        return dict(_REGISTRY)
 
 
 class CircuitBreaker:
@@ -141,6 +165,7 @@ class CircuitBreaker:
         self._last_failure_time: float | None = None
 
         self._update_state_metric()
+        register_circuit_breaker(self)
 
     @property
     def state(self) -> CircuitState:
@@ -221,7 +246,9 @@ class CircuitBreaker:
 
         with self._lock:
             now = time.monotonic()
-            retry_after = self._retry_after(now) if self._state == CircuitState.OPEN else 0.0
+            retry_after = (
+                self._retry_after(now) if self._state == CircuitState.OPEN else 0.0
+            )
             return {
                 "name": self.config.name,
                 "state": self._state.value,
@@ -241,9 +268,10 @@ class CircuitBreaker:
         with self._lock:
             now = time.monotonic()
             if self._state == CircuitState.OPEN:
-                if self._opened_at is not None and (
-                    now - self._opened_at
-                ) >= self.config.recovery_timeout:
+                if (
+                    self._opened_at is not None
+                    and (now - self._opened_at) >= self.config.recovery_timeout
+                ):
                     self._transition_to(CircuitState.HALF_OPEN)
                     self._half_open_calls = 0
                     self._success_count = 0
@@ -311,7 +339,8 @@ class CircuitBreaker:
 
         if self._state == CircuitState.HALF_OPEN:
             logger.warning(
-                "Circuit breaker '%s' reopening after failure in HALF_OPEN", self.config.name
+                "Circuit breaker '%s' reopening after failure in HALF_OPEN",
+                self.config.name,
             )
             self._transition_to(CircuitState.OPEN)
             self._success_count = 0
@@ -399,4 +428,6 @@ __all__ = [
     "CircuitBreakerError",
     "CircuitBreakerOpenError",
     "CircuitState",
+    "register_circuit_breaker",
+    "get_all_circuit_breakers",
 ]

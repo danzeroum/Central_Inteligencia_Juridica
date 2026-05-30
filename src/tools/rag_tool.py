@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 class RAGTool:
     """High-level helper that wraps :class:`VectorMemory` for RAG pipelines."""
 
-    def __init__(self, memory: VectorMemory | None = None, **memory_kwargs: Any) -> None:
+    def __init__(
+        self, memory: VectorMemory | None = None, **memory_kwargs: Any
+    ) -> None:
         self.memory = memory or VectorMemory(**memory_kwargs)
 
     def is_available(self) -> bool:
@@ -94,7 +96,9 @@ class RAGTool:
 
         return [doc for doc in documents[0] if doc]
 
-    def similarity_search(self, query_embeddings: Iterable[List[float]], n_results: int = 3) -> List[str]:
+    def similarity_search(
+        self, query_embeddings: Iterable[List[float]], n_results: int = 3
+    ) -> List[str]:
         """Query the store using pre-computed embeddings (fallback when needed)."""
 
         if not self.is_available():

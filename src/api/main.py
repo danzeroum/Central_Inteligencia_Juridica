@@ -7,18 +7,25 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
+from src.api.autonomy_endpoints import router as autonomy_router
 from src.api.hitl_endpoints import router as hitl_router
+from src.api.ledger_endpoints import router as ledger_router
+from src.api.monitoring_endpoints import router as monitoring_router
 from src.api.training_endpoints import router as training_router
-from src.protocols.agent_card import AgentCard, AgentRegistry
-from src.protocols.a2a_channel import get_a2a_channel
-from src.utils.metrics_collector import MetricsCollector
+from src.hitl.hitl_queue import get_hitl_queue
+from src.hitl.progressive_autonomy import get_autonomy_manager
 from src.orchestration.unified_orchestrator import UnifiedOrchestrator
+from src.protocols.a2a_channel import get_a2a_channel
+from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.services.camara_client import buscar_projetos_de_lei
+from src.utils.metrics_collector import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +35,25 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 
 AUTH_REQUIRED = False
 
+# CORS — permite o dev server do Vite (localhost:5173) durante o desenvolvimento.
+# Em produção a SPA é servida pela mesma origem (StaticFiles), tornando isto inócuo.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(hitl_router)
 app.include_router(training_router)
+app.include_router(ledger_router)
+app.include_router(autonomy_router)
+app.include_router(monitoring_router)
 
 
 class TaskRequest(BaseModel):
@@ -60,7 +83,9 @@ class A2AMessageRequest(BaseModel):
     message_type: str = Field(..., description="Tipo da mensagem a ser enviada")
     payload: Dict[str, Any] = Field(..., description="Dados da mensagem")
     priority: int = Field(1, ge=1, le=3, description="Prioridade da mensagem (1-3)")
-    requires_response: bool = Field(False, description="Se é necessário aguardar resposta")
+    requires_response: bool = Field(
+        False, description="Se é necessário aguardar resposta"
+    )
 
 
 class A2ABroadcastRequest(BaseModel):
@@ -122,7 +147,9 @@ async def training_dashboard() -> HTMLResponse:
     if os.path.exists(dashboard_path):
         with open(dashboard_path, "r", encoding="utf-8") as file:
             return HTMLResponse(content=file.read())
-    return HTMLResponse(content="<h1>Training Dashboard não encontrado.</h1>", status_code=404)
+    return HTMLResponse(
+        content="<h1>Training Dashboard não encontrado.</h1>", status_code=404
+    )
 
 
 @app.get(
@@ -148,6 +175,7 @@ async def list_agents() -> Dict[str, Any]:
     """Lista todos os agentes registrados no sistema."""
 
     initialize_agent_registry()
+    autonomy = get_autonomy_manager()
 
     return {
         "total": len(agent_registry.agents),
@@ -158,6 +186,15 @@ async def list_agents() -> Dict[str, Any]:
                 "type": card.agent_type,
                 "status": card.status,
                 "endpoint": card.endpoint,
+                "specialization": card.specialization,
+                "capabilities": card.capabilities,
+                "trust_score": round(
+                    autonomy.agent_trust_scores.get(
+                        card.agent_id, autonomy.default_trust_score
+                    ),
+                    2,
+                ),
+                "autonomy_level": autonomy.get_autonomy_level(card.agent_id),
             }
             for card in agent_registry.get_all()
         ],
@@ -525,9 +562,9 @@ async def compare_modes(
             "simple_mode": simple_result,
             "advanced_mode": advanced_result,
             "differences": {
-                "reasoning_depth": "advanced"
-                if "reasoning" in advanced_mode_data
-                else "simple",
+                "reasoning_depth": (
+                    "advanced" if "reasoning" in advanced_mode_data else "simple"
+                ),
                 "consensus_used": bool(advanced_mode_data.get("consensus")),
                 "rag_enabled": any(
                     "rag" in str(value).lower() for value in advanced_mode_data.values()
@@ -556,7 +593,9 @@ async def consultar_projetos_endpoint(
 
 @app.post("/analise-legislativa/", tags=["Análises de IA"])
 async def analisar_legislacao_endpoint(
-    tema: str = Body(..., embed=True, description="Tema legislativo para análise de IA"),
+    tema: str = Body(
+        ..., embed=True, description="Tema legislativo para análise de IA"
+    ),
 ):
     """Inicia uma análise de IA sobre um tema legislativo."""
 
@@ -570,7 +609,9 @@ async def analisar_legislacao_endpoint(
 
 
 @app.get("/health")
-async def health_check(verbose: bool = Query(False, description="Inclui detalhes completos")) -> Dict[str, Any]:
+async def health_check(
+    verbose: bool = Query(False, description="Inclui detalhes completos")
+) -> Dict[str, Any]:
     """Endpoint simples de saúde da aplicação."""
 
     timestamp = datetime.now(timezone.utc).isoformat()
@@ -596,3 +637,52 @@ async def health_check(verbose: bool = Query(False, description="Inclui detalhes
             "a2a": a2a_status,
         },
     }
+
+
+@app.get(
+    "/api/v1/history",
+    tags=["Consultas"],
+    summary="Histórico de consultas do consulente",
+)
+async def list_history(
+    limit: int = Query(20, ge=1, le=100),
+) -> Dict[str, Any]:
+    """Lista as consultas processadas pelo Supervisor.
+
+    Consultas cuja ação derivada entrou em revisão humana e ainda está pendente
+    são marcadas com status ``em_revisao_humana``; as demais, ``concluida``.
+    """
+
+    pending_actions = {
+        req.get("action", {}).get("task")
+        for req in get_hitl_queue().get_pending_requests()
+    }
+
+    history = []
+    for record in reversed(supervisor_agent.task_history[-limit:]):
+        intent = record.get("intent", {})
+        task = record.get("task", "")
+        in_review = task in pending_actions
+        history.append(
+            {
+                "task": task,
+                "operation": intent.get("operacao", "generic"),
+                "tribunals": record.get("tribunals", []),
+                "timestamp": record.get("timestamp"),
+                "status": "em_revisao_humana" if in_review else "concluida",
+            }
+        )
+
+    return {"count": len(history), "history": history}
+
+
+# ----------------------------------------------------------------------
+# SPA (Vite build) — montada por último para não sombrear as rotas de API.
+# O build do frontend gera estáticos em static/spa; servida em /app com
+# fallback de HTML (html=True) para roteamento client-side.
+# ----------------------------------------------------------------------
+spa_dir = os.path.join(static_dir, "spa")
+if os.path.isdir(spa_dir):
+    app.mount("/app", StaticFiles(directory=spa_dir, html=True), name="spa")
+else:  # pragma: no cover - apenas em ambiente sem build do frontend
+    logger.info("SPA não encontrada em %s (rode 'npm run build').", spa_dir)

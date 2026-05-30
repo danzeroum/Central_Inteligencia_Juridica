@@ -139,7 +139,9 @@ async def get_active_sessions() -> Dict[str, Any]:
 
 
 @router.get("/history")
-async def get_training_history(agent_type: Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
+async def get_training_history(
+    agent_type: Optional[str] = None, limit: int = 10
+) -> Dict[str, Any]:
     """Get training history."""
 
     manager = get_training_manager()
@@ -148,7 +150,9 @@ async def get_training_history(agent_type: Optional[str] = None, limit: int = 10
     if agent_type:
         history = [session for session in history if session.agent_type == agent_type]
 
-    history = sorted(history, key=lambda session: session.start_time, reverse=True)[:limit]
+    history = sorted(history, key=lambda session: session.start_time, reverse=True)[
+        :limit
+    ]
 
     return {
         "total_sessions": len(manager.training_history),

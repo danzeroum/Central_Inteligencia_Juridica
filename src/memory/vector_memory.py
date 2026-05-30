@@ -16,7 +16,10 @@ try:  # pragma: no cover - import guard for optional dependency
     import chromadb
     from chromadb.config import Settings
     from chromadb.utils import embedding_functions
-except (ImportError, AttributeError):  # pragma: no cover - handled gracefully at runtime
+except (
+    ImportError,
+    AttributeError,
+):  # pragma: no cover - handled gracefully at runtime
     chromadb = None
     Settings = None
     embedding_functions = None
@@ -32,7 +35,9 @@ class HashEmbeddingFunction:
     def __init__(self, dimensions: int = 1536) -> None:
         self.dimensions = dimensions
 
-    def __call__(self, input: List[str]) -> List[List[float]]:  # pragma: no cover - simple math
+    def __call__(
+        self, input: List[str]
+    ) -> List[List[float]]:  # pragma: no cover - simple math
         embeddings: List[List[float]] = []
         for text in input:
             vector = [0.0] * self.dimensions
@@ -43,7 +48,7 @@ class HashEmbeddingFunction:
             encoded = text.encode("utf-8", "ignore")
             for idx, byte in enumerate(encoded):
                 bucket = idx % self.dimensions
-                vector[bucket] += (byte / 255.0)
+                vector[bucket] += byte / 255.0
 
             tokens = text.lower().split()
             if not tokens:
@@ -105,7 +110,9 @@ class VectorMemory:
         mode = self.mode
 
         if mode not in {"auto", "remote", "local"}:
-            logger.warning("Unknown VECTOR_MEMORY_MODE '%s'. Falling back to auto.", mode)
+            logger.warning(
+                "Unknown VECTOR_MEMORY_MODE '%s'. Falling back to auto.", mode
+            )
             mode = "auto"
 
         api_key = os.getenv("OPENAI_API_KEY")
@@ -139,9 +146,7 @@ class VectorMemory:
                 self.client = chromadb.HttpClient(
                     host=self.chroma_host,
                     port=self.chroma_port,
-                    settings=Settings(
-                        anonymized_telemetry=False
-                    )
+                    settings=Settings(anonymized_telemetry=False),
                 )
 
                 # Verificar conexão
@@ -176,7 +181,7 @@ class VectorMemory:
                     exc,
                 )
                 if attempt < max_retries:
-                    time.sleep(2 ** attempt)  # Exponential backoff
+                    time.sleep(2**attempt)  # Exponential backoff
                 else:
                     logger.error(
                         "Could not connect to ChromaDB after %d attempts. "
@@ -196,13 +201,25 @@ class VectorMemory:
             logger.warning("Failed to prepare local persist directory: %s", exc)
 
         try:
-            self.client = chromadb.PersistentClient(path=str(self.persist_directory))
+            # Desabilita a telemetria anônima do ChromaDB (PostHog), que faz
+            # chamadas de rede de saída — problemáticas em runners de CI com rede
+            # restrita. O cliente HTTP já fazia isso; alinhamos o cliente local.
+            self.client = chromadb.PersistentClient(
+                path=str(self.persist_directory),
+                settings=Settings(anonymized_telemetry=False),
+            )
 
             embedding_function = None
             if api_key:
                 embedding_function = self._resolve_embedding_function(api_key)
                 self._use_manual_embeddings = False
             else:
+                # Sem API key: usamos a HashEmbeddingFunction determinística como
+                # embedding_function da coleção. Isso impede que o ChromaDB use seu
+                # modelo ONNX padrão (ONNXMiniLM_L6_V2), que baixa um modelo pela
+                # rede no primeiro uso — o que falha em runners de CI com rede
+                # restrita. Mantém os testes herméticos e o CI determinístico.
+                embedding_function = self._hash_embedding
                 self._use_manual_embeddings = True
 
             collection_kwargs = {
@@ -354,7 +371,9 @@ class VectorMemory:
 
             query_kwargs: Dict[str, Any] = {"n_results": k}
             if self._use_manual_embeddings:
-                query_kwargs["query_embeddings"] = [self._compute_manual_embedding(query)]
+                query_kwargs["query_embeddings"] = [
+                    self._compute_manual_embedding(query)
+                ]
             else:
                 query_kwargs["query_texts"] = [query]
 
@@ -527,7 +546,7 @@ if __name__ == "__main__":  # pragma: no cover
             "tribunals": ["TJSP"],
             "intent_operacao": "status_check",
             "confidence": 0.95,
-        }
+        },
     )
     print(f"   Stored: {success}")
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from pathlib import Path
-import sys
 from typing import Any, Dict
 
 import pytest
@@ -12,12 +12,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from src.tools.circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerConfig,
-    CircuitBreakerOpenError,
-)
-from src.utils.cache_manager import CacheManager, CacheManagerConfig, RedisError
+from src.tools.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
+                                       CircuitBreakerOpenError)
+from src.utils.cache_manager import (CacheManager, CacheManagerConfig,
+                                     RedisError)
 
 
 class FakeRedis:

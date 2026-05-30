@@ -5,14 +5,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: multi-agent-system
+    container_name: central-inteligencia-juridica
     ports:
       - "8000:8000"
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
       - ./logs:/app/logs
-      - ./.buildtoflip:/app/.buildtoflip
     working_dir: /app
     environment:
       - PYTHONPATH=/app
@@ -42,8 +41,6 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--storage.tsdb.retention.time=30d'
     restart: unless-stopped
 
@@ -55,12 +52,9 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/dashboards:/etc/grafana/provisioning/dashboards/json:ro
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SERVER_ROOT_URL=http://localhost:3000
-      - GF_INSTALL_PLUGINS=
     depends_on:
       - prometheus
     restart: unless-stopped

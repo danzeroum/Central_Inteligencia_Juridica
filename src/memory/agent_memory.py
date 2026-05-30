@@ -1,9 +1,17 @@
-"""High-level memory facade that wraps VectorMemory for agent usage."""
+"""High-level memory facade that wraps VectorMemory for agent usage.
+
+Provides:
+- Vector similarity search via VectorMemory (primary)
+- JSONL episodic persistence for audit trails (optional)
+"""
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Any, Dict, List
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from src.memory.vector_memory import VectorMemory
 
@@ -11,11 +19,23 @@ logger = logging.getLogger(__name__)
 
 
 class AgentMemorySystem:
-    """Convenience wrapper around :class:`VectorMemory` for RAG pipelines."""
+    """Convenience wrapper around :class:`VectorMemory` for RAG pipelines.
 
-    def __init__(self, vector_memory: VectorMemory | None = None) -> None:
+    Also supports optional JSONL episodic persistence for audit trails.
+    """
+
+    def __init__(
+        self,
+        vector_memory: VectorMemory | None = None,
+        storage_dir: Optional[Path] = None,
+    ) -> None:
         self.vector_memory = vector_memory or VectorMemory()
         self.logger = logging.getLogger(f"{__name__}.AgentMemorySystem")
+
+        # Optional JSONL episodic persistence
+        self.storage_dir = storage_dir or Path("logs/memory")
+        self.storage_dir.mkdir(parents=True, exist_ok=True)
+        self.episodic_path = self.storage_dir / "agent_memories.jsonl"
 
     def is_available(self) -> bool:
         """Return ``True`` if the underlying vector memory is available."""
@@ -47,9 +67,11 @@ class AgentMemorySystem:
                     "similarity": float(item.get("similarity_score", 0.0)),
                     "tribunals": item.get("tribunals", []),
                     "timestamp": item.get("timestamp"),
-                    "intent": item.get("intent_operacao")
-                    or item.get("intent_operation")
-                    or "unknown",
+                    "intent": (
+                        item.get("intent_operacao")
+                        or item.get("intent_operation")
+                        or "unknown"
+                    ),
                 }
             )
 
@@ -65,7 +87,35 @@ class AgentMemorySystem:
         result: Dict[str, Any],
         metadata: Dict[str, Any],
     ) -> bool:
-        """Persist an interaction using the underlying vector memory."""
+        """Persist an interaction using the underlying vector memory + JSONL."""
 
-        return self.vector_memory.remember(task, result, metadata)
+        vector_ok = self.vector_memory.remember(task, result, metadata)
 
+        # Always persist to JSONL for audit trail
+        try:
+            memory = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "task": task[:200],
+                "metadata": metadata,
+                "result_status": result.get("status", "unknown"),
+            }
+            with self.episodic_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(memory, ensure_ascii=False) + "\n")
+        except OSError as exc:
+            self.logger.warning("Failed to write episodic memory: %s", exc)
+
+        return vector_ok
+
+    def remember_decision(self, agent_type: str, entry: Dict[str, Any]) -> bool:
+        """Persiste uma decisão de agente.
+
+        Interface esperada por ``BaseAgent.log_decision`` quando uma memória é
+        injetada via ``attach_memory`` (corrige AttributeError durante a
+        orquestração). Delega para ``remember`` mantendo o trilho de auditoria.
+        """
+
+        return self.remember(
+            task=f"decision::{agent_type}",
+            result={"status": "decision"},
+            metadata=entry,
+        )

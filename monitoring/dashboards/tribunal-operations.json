@@ -1,0 +1,90 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Tarefas por Tribunal",
+      "targets": [
+        {
+          "expr": "sum by (tribunal) (rate(tribunal_tasks_total[5m]))",
+          "legendFormat": "{{tribunal}}"
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "graph",
+      "title": "Duração das Tarefas",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (tribunal, le) (rate(tribunal_task_duration_seconds_bucket[5m])))",
+          "legendFormat": "P95 {{tribunal}}"
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Hits de Cache",
+      "targets": [
+        {
+          "expr": "sum(rate(cache_hits_total[5m]))",
+          "legendFormat": "Cache hits"
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Agentes Ativos",
+      "targets": [
+        {
+          "expr": "sum(active_tribunal_agents)",
+          "legendFormat": "Agentes"
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ],
+  "schemaVersion": 38,
+  "title": "Tribunal Operations",
+  "version": 1
+}

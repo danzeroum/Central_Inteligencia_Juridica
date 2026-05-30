@@ -125,7 +125,9 @@ Agora analise a seguinte solicitação:
         if llm_enabled is not None:
             inferred_enabled = llm_enabled
 
-        self.llm_enabled = bool(LLMChain and PromptTemplate and ChatOpenAI) and inferred_enabled
+        self.llm_enabled = (
+            bool(LLMChain and PromptTemplate and ChatOpenAI) and inferred_enabled
+        )
         self.chain: Optional[LLMChain] = None
 
         if self.llm_enabled:
@@ -162,7 +164,9 @@ Agora analise a seguinte solicitação:
         start_time = time.perf_counter()
 
         if not self.llm_enabled or self.chain is None:
-            return self._keyword_classify(user_input, fallback_reason="LLM indisponível")
+            return self._keyword_classify(
+                user_input, fallback_reason="LLM indisponível"
+            )
 
         try:
             raw_output = await self.chain.arun(user_input=user_input)
@@ -211,7 +215,8 @@ Agora analise a seguinte solicitação:
             return True
 
         tribunals_mentioned = sum(
-            1 for t in ["TJSP", "TJMG", "TJRS", "TJRJ", "STF", "STJ", "TST"]
+            1
+            for t in ["TJSP", "TJMG", "TJRS", "TJRJ", "STF", "STJ", "TST"]
             if t in user_input.upper()
         )
         if tribunals_mentioned >= 2:
@@ -269,9 +274,20 @@ Agora analise a seguinte solicitação:
             "indisponível",
             "indisponivel",
         ]
-        movement_keywords = ["movimentações", "movimentacoes", "andamento", "últimas movimentações", "ultimas movimentacoes"]
-        jurisprudence_keywords = ["jurisprudência", "jurisprudencia", "decisões", "decisoes", "precedentes"]
-        process_keywords = ["processo", "processar"]
+        movement_keywords = [
+            "movimentações",
+            "movimentacoes",
+            "andamento",
+            "últimas movimentações",
+            "ultimas movimentacoes",
+        ]
+        jurisprudence_keywords = [
+            "jurisprudência",
+            "jurisprudencia",
+            "decisões",
+            "decisoes",
+            "precedentes",
+        ]
 
         if any(kw in lowered for kw in comparison_keywords):
             operation = "jurisprudence_comparison"
@@ -294,7 +310,9 @@ Agora analise a seguinte solicitação:
             confidence = 0.75
             reasoning_parts.append("Solicitação por jurisprudência/decisões")
         else:
-            reasoning_parts.append("Nenhuma palavra-chave forte encontrada; marcado como genérico")
+            reasoning_parts.append(
+                "Nenhuma palavra-chave forte encontrada; marcado como genérico"
+            )
 
         parametros = self._extract_parameters(user_input, lowered)
         if "numero_processo" in parametros and not tribunais:
@@ -373,7 +391,9 @@ Agora analise a seguinte solicitação:
             if fragment:
                 parametros["tema"] = fragment
 
-        periodo_match = re.search(r"(últimos|ultimos|últimas|ultimas) (\d+) anos", lowered)
+        periodo_match = re.search(
+            r"(últimos|ultimos|últimas|ultimas) (\d+) anos", lowered
+        )
         if periodo_match:
             parametros["periodo"] = periodo_match.group(0)
 
@@ -409,4 +429,3 @@ if __name__ == "__main__":  # pragma: no cover - demonstração manual
             print(intent.model_dump())
 
     asyncio.run(demo())
-

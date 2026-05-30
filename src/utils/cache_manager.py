@@ -18,11 +18,8 @@ except Exception:  # pragma: no cover - redis not installed
     redis = None  # type: ignore
     RedisError = RuntimeError  # type: ignore
 
-from src.tools.circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerConfig,
-    CircuitBreakerOpenError,
-)
+from src.tools.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
+                                       CircuitBreakerOpenError)
 
 logger = logging.getLogger(__name__)
 
