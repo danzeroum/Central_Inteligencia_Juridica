@@ -14,21 +14,27 @@ class _NoopSpan:
     def __enter__(self) -> None:  # pragma: no cover - minimal span implementation
         return None
 
-    def __exit__(self, exc_type, exc, tb) -> bool:  # pragma: no cover - minimal span implementation
+    def __exit__(
+        self, exc_type, exc, tb
+    ) -> bool:  # pragma: no cover - minimal span implementation
         return False
 
 
 class NullObserver:
     """Fallback observability helper when no tracer is available."""
 
-    def start_span(self, name: str) -> _NoopSpan:  # pragma: no cover - minimal span implementation
+    def start_span(
+        self, name: str
+    ) -> _NoopSpan:  # pragma: no cover - minimal span implementation
         return _NoopSpan()
 
 
 class AgentOrchestrator:
     """Integra agente base, RAG, MCP e avaliação contínua."""
 
-    def __init__(self, vector_db_url: str, metrics_config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, vector_db_url: str, metrics_config: Optional[Dict[str, Any]] = None
+    ) -> None:
         self.base_agent = SafeAgentBase()
         self.base_agent.add_capability("memory")
         self.base_agent.add_capability("planning")
@@ -38,7 +44,9 @@ class AgentOrchestrator:
         self.observer = NullObserver()
         self.mcp_server = MCPServer(self.base_agent)
 
-    def execute_with_monitoring(self, task: str) -> Tuple[AgentExecution, Dict[str, Any]]:
+    def execute_with_monitoring(
+        self, task: str
+    ) -> Tuple[AgentExecution, Dict[str, Any]]:
         """Executa uma tarefa integrando recuperação de contexto e avaliação."""
 
         rag_context = self._prepare_context(self.rag_tool.retrieve(task))

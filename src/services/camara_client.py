@@ -16,6 +16,8 @@ def buscar_projetos_de_lei(termo_busca: str) -> dict:
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as e:
-        return {"error": f"Falha ao buscar dados na Camara: Status {e.response.status_code}"}
+        return {
+            "error": f"Falha ao buscar dados na Camara: Status {e.response.status_code}"
+        }
     except Exception as e:  # pragma: no cover - dependência externa
         return {"error": f"Erro interno ao conectar com a API da Camara: {e}"}

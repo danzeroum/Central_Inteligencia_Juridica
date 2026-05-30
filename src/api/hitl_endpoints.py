@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import (APIRouter, HTTPException, WebSocket, WebSocketDisconnect,
+                     status)
 from pydantic import BaseModel, Field
 
 from src.hitl.hitl_queue import get_hitl_queue
@@ -25,9 +26,7 @@ class HITLDecision(BaseModel):
         None, description="Modificações nos parâmetros"
     )
     feedback: str | None = Field(None, description="Feedback textual do operador")
-    operator_id: str = Field(
-        default="manual_operator", description="ID do operador"
-    )
+    operator_id: str = Field(default="manual_operator", description="ID do operador")
 
 
 @router.get("/pending", summary="Lista aprovações pendentes")

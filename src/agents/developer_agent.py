@@ -1,8 +1,9 @@
 """Developer agent implementing the ReAct pattern."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
 import asyncio
+from typing import Any, Dict, List
 
 from src.agents.base_agent import BaseAgent
 
@@ -92,7 +93,9 @@ class DeveloperAgent(BaseAgent):
 
     def is_task_complete(self, observation: str) -> bool:
         lowered = observation.lower()
-        return any(keyword in lowered for keyword in ["complete", "finished", "generated"])
+        return any(
+            keyword in lowered for keyword in ["complete", "finished", "generated"]
+        )
 
     def format_final_answer(self) -> Dict[str, Any]:
         final_observation = self.history[-1]["observation"] if self.history else ""

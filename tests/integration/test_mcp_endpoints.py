@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -168,10 +168,7 @@ class TestMCPCapabilitySearch:
 
         assert data["capability"] == "task_routing"
         assert data["total_matches"] >= 1
-        assert any(
-            agent["agent_id"] == "supervisor_agent"
-            for agent in data["agents"]
-        )
+        assert any(agent["agent_id"] == "supervisor_agent" for agent in data["agents"])
 
     def test_search_nonexistent_capability_returns_empty(self) -> None:
         """Should return empty list for unknown capability."""

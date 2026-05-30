@@ -28,7 +28,9 @@ class A2AMessage:
     receiver_id: str
     message_type: str
     payload: Dict[str, Any]
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
     priority: int = 1  # 1=low, 2=normal, 3=high
     requires_response: bool = False
     correlation_id: Optional[str] = None
@@ -67,8 +69,12 @@ class A2AMessage:
 class InMemoryChannel:
     """Fallback in-memory message queue."""
 
-    queues: Dict[str, Deque[A2AMessage]] = field(default_factory=lambda: defaultdict(deque))
-    handlers: Dict[str, List[Callable]] = field(default_factory=lambda: defaultdict(list))
+    queues: Dict[str, Deque[A2AMessage]] = field(
+        default_factory=lambda: defaultdict(deque)
+    )
+    handlers: Dict[str, List[Callable]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
     message_history: List[A2AMessage] = field(default_factory=list)
     max_history: int = 1000
 
@@ -76,11 +82,11 @@ class InMemoryChannel:
         """Publish message to receiver's queue."""
         self.queues[message.receiver_id].append(message)
         self.message_history.append(message)
-        
+
         # Trim history
         if len(self.message_history) > self.max_history:
-            self.message_history = self.message_history[-self.max_history:]
-        
+            self.message_history = self.message_history[-self.max_history :]
+
         # Trigger handlers
         for handler in self.handlers.get(message.receiver_id, []):
             try:
@@ -99,23 +105,26 @@ class InMemoryChannel:
         """Get pending messages for agent."""
         messages = []
         queue = self.queues[agent_id]
-        
+
         for _ in range(min(limit, len(queue))):
             if queue:
                 messages.append(queue.popleft())
-        
+
         return messages
 
-    def get_history(self, agent_id: Optional[str] = None, limit: int = 50) -> List[A2AMessage]:
+    def get_history(
+        self, agent_id: Optional[str] = None, limit: int = 50
+    ) -> List[A2AMessage]:
         """Get message history for agent or all."""
         if agent_id:
             history = [
-                msg for msg in self.message_history
+                msg
+                for msg in self.message_history
                 if msg.sender_id == agent_id or msg.receiver_id == agent_id
             ]
         else:
             history = self.message_history
-        
+
         return history[-limit:]
 
 
@@ -147,7 +156,9 @@ class A2AChannel:
             self.using_redis = True
             logger.info("A2A Channel using Redis backend")
         except Exception as exc:
-            logger.warning("Could not connect to Redis: %s. Using memory fallback.", exc)
+            logger.warning(
+                "Could not connect to Redis: %s. Using memory fallback.", exc
+            )
             self.redis_client = None
 
     async def send_message(
@@ -189,20 +200,22 @@ class A2AChannel:
             message_type,
             priority,
         )
-        
+
         return message.message_id
 
     async def _publish_redis(self, message: A2AMessage) -> None:
         """Publish message via Redis pub/sub."""
         channel = f"agent:{message.receiver_id}"
         await self.redis_client.publish(channel, json.dumps(message.to_dict()))
-        
+
         # Also store in list for retrieval
         key = f"agent_queue:{message.receiver_id}"
         await self.redis_client.lpush(key, json.dumps(message.to_dict()))
         await self.redis_client.ltrim(key, 0, 99)  # Keep last 100 messages
 
-    async def receive_messages(self, agent_id: str, limit: int = 10) -> List[A2AMessage]:
+    async def receive_messages(
+        self, agent_id: str, limit: int = 10
+    ) -> List[A2AMessage]:
         """Receive pending messages for agent."""
         if self.using_redis and self.redis_client:
             try:
@@ -218,14 +231,14 @@ class A2AChannel:
         """Receive messages from Redis."""
         key = f"agent_queue:{agent_id}"
         messages = []
-        
+
         for _ in range(limit):
             data = await self.redis_client.rpop(key)
             if not data:
                 break
             msg_dict = json.loads(data)
             messages.append(A2AMessage.from_dict(msg_dict))
-        
+
         return messages
 
     async def subscribe_agent(self, agent_id: str, handler: Callable) -> None:
@@ -233,7 +246,7 @@ class A2AChannel:
         if self.using_redis and self.redis_client:
             # Redis pub/sub subscription (background task needed)
             logger.info("Redis subscription for %s requires background task", agent_id)
-        
+
         await self.memory_channel.subscribe(agent_id, handler)
 
     def get_message_history(
@@ -254,7 +267,7 @@ class A2AChannel:
     ) -> Optional[Dict[str, Any]]:
         """Send message and wait for response (request-response pattern)."""
         correlation_id = str(uuid.uuid4())
-        
+
         message = A2AMessage(
             message_id=str(uuid.uuid4()),
             sender_id=sender_id,
@@ -280,11 +293,11 @@ class A2AChannel:
         start_time = asyncio.get_event_loop().time()
         while (asyncio.get_event_loop().time() - start_time) < timeout:
             messages = await self.receive_messages(sender_id, limit=50)
-            
+
             for msg in messages:
                 if msg.correlation_id == correlation_id:
                     return msg.payload
-            
+
             await asyncio.sleep(0.1)
 
         logger.warning(

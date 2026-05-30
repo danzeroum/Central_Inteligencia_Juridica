@@ -6,13 +6,13 @@ import re
 import time
 from typing import Any, Dict, Optional
 
+from src.memory.agent_memory import AgentMemorySystem
 from src.protocols.a2a_channel import A2AMessage
 from src.protocols.a2a_mixin import A2ACapable, create_status_handler
 from src.tools.tribunal_api_adapter import TribunalAPIAdapter
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
 from src.utils.metrics_collector import MetricsCollector
-from src.memory.agent_memory import AgentMemorySystem
 
 
 class TribunalAgent(A2ACapable):
@@ -110,9 +110,14 @@ class TribunalAgent(A2ACapable):
                 if operation == "process_query":
                     return {"success": True, "data": self._process_query(sanitized)}
 
-                return {"success": True, "data": self._simulate_generic_response(sanitized)}
+                return {
+                    "success": True,
+                    "data": self._simulate_generic_response(sanitized),
+                }
         except Exception as exc:  # pragma: no cover - defensive safeguard
-            self.logger.error("Erro ao processar solicitação A2A: %s", exc, exc_info=True)
+            self.logger.error(
+                "Erro ao processar solicitação A2A: %s", exc, exc_info=True
+            )
             return {"success": False, "error": str(exc)}
 
         return {"success": False, "error": "Nenhum parâmetro de consulta fornecido"}
@@ -165,9 +170,7 @@ class TribunalAgent(A2ACapable):
         source = metadata.get("source", "unknown")
 
         if source == "simulated":
-            self.logger.warning(
-                "Using MOCK data for %s (fallback)", self.tribunal_code
-            )
+            self.logger.warning("Using MOCK data for %s (fallback)", self.tribunal_code)
         else:
             self.logger.info("Using REAL API data for %s", self.tribunal_code)
 
@@ -197,20 +200,29 @@ class TribunalAgent(A2ACapable):
             )
         except Exception as exc:  # pragma: no cover - defensive safeguard
             self.logger.warning("RAG falhou, continuando sem contexto: %s", exc)
-            rag_context = {"documents": [[]], "metadatas": [[]], "note": "rag_unavailable"}
+            rag_context = {
+                "documents": [[]],
+                "metadatas": [[]],
+                "note": "rag_unavailable",
+            }
 
         try:
             processo_payload = self.api_adapter.get_processo(process_number)
         except Exception as exc:  # pragma: no cover - defensive safeguard
             self.logger.error(
-                "Erro ao consultar processo real %s: %s", process_number, exc, exc_info=True
+                "Erro ao consultar processo real %s: %s",
+                process_number,
+                exc,
+                exc_info=True,
             )
             fallback = self._simulate_generic_response(sanitized_task)
             fallback.setdefault("data", {})
             fallback["data"]["rag_context"] = rag_context
             fallback["process_number"] = process_number
             fallback.setdefault("metadata", {})
-            fallback["metadata"].update({"source": "simulated", "rag_enabled": True, "fallback": True})
+            fallback["metadata"].update(
+                {"source": "simulated", "rag_enabled": True, "fallback": True}
+            )
             return fallback
 
         metadata = processo_payload.pop("_metadata", {})
@@ -221,9 +233,7 @@ class TribunalAgent(A2ACapable):
                 "Using MOCK data for processo %s (fallback)", process_number
             )
         else:
-            self.logger.info(
-                "Using REAL API data for processo %s", process_number
-            )
+            self.logger.info("Using REAL API data for processo %s", process_number)
 
         processo_payload["rag_context"] = rag_context
 

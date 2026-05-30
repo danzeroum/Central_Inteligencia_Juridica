@@ -21,7 +21,9 @@ class TestReachConsensus:
         assert result["consensus_strength"] >= 0.8
         assert result["decision_maker"] == "TJSP"
 
-    def test_two_proposals_high_agreement(self, engine: WeightedConsensusEngine) -> None:
+    def test_two_proposals_high_agreement(
+        self, engine: WeightedConsensusEngine
+    ) -> None:
         proposals = {
             "TJSP": {"confidence": 0.85, "proposal": {"result": "similar"}},
             "TJMG": {"confidence": 0.83, "proposal": {"result": "similar"}},

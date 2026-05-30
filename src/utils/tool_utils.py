@@ -1,4 +1,5 @@
 """Abstrações para ferramentas utilizadas por agentes."""
+
 from __future__ import annotations
 
 from typing import Awaitable, Callable

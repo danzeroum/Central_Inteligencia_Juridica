@@ -1,4 +1,5 @@
 """Hierarchical planner inspired by Tree-of-Thoughts."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,8 +28,14 @@ class HierarchicalPlanner:
 
     def generate_alternatives(self, step: Dict[str, Any]) -> List[Dict[str, Any]]:
         return [
-            {"description": step["description"] + " (alternativa A)", "confidence": 0.6},
-            {"description": step["description"] + " (alternativa B)", "confidence": 0.5},
+            {
+                "description": step["description"] + " (alternativa A)",
+                "confidence": 0.6,
+            },
+            {
+                "description": step["description"] + " (alternativa B)",
+                "confidence": 0.5,
+            },
         ]
 
     def evaluate_paths(self, root: Dict[str, Any]) -> Dict[str, Any]:

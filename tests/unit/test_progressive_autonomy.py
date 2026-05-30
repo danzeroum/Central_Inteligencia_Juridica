@@ -28,7 +28,9 @@ class TestAutonomyLevels:
         after = manager.get_trust_score("TestAgent")
         assert after < initial
 
-    def test_requires_human_review_with_low_consensus(self, manager: ProgressiveAutonomyManager) -> None:
+    def test_requires_human_review_with_low_consensus(
+        self, manager: ProgressiveAutonomyManager
+    ) -> None:
         result = manager._requires_human_review(
             consensus_strength=0.3,
             action="critical_legal_decision",

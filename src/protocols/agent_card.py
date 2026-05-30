@@ -22,7 +22,9 @@ class AgentCard:
     endpoint: str | None = None
     version: str = "1.0.0"
     metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert agent card to dictionary for API responses."""

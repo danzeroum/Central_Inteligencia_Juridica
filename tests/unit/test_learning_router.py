@@ -39,7 +39,7 @@ class TestRouteStats:
         stats.record(True, 0.2)
         stats.record(False, 0.3)
         assert stats.calls == 3
-        assert stats.success_rate == pytest.approx(2/3)
+        assert stats.success_rate == pytest.approx(2 / 3)
         assert stats.average_latency == pytest.approx(0.2)
 
 

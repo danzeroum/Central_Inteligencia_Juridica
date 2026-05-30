@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
-from typing import Deque, DefaultDict
+from typing import DefaultDict, Deque
 
 from fastapi import HTTPException, Request, status
 

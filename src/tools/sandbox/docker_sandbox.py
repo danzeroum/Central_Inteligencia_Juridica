@@ -1,4 +1,5 @@
 """Simple abstraction around docker for sandboxing tool execution."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,7 +18,12 @@ class DockerSandbox:
     image: str = "python:3.11-slim"
     network_disabled: bool = True
 
-    def run(self, command: list[str], environment: Dict[str, Any] | None = None, timeout: int = 30) -> str:
+    def run(
+        self,
+        command: list[str],
+        environment: Dict[str, Any] | None = None,
+        timeout: int = 30,
+    ) -> str:
         if docker is None:
             raise RuntimeError("Docker SDK não disponível no ambiente atual")
 

@@ -1,4 +1,5 @@
 """Simple registry for Model Context Protocol compatible tools."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

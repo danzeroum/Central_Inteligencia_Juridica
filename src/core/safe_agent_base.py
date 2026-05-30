@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Deque, Dict, Iterable, Optional, Protocol
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,9 @@ class InputSanitizerGuard:
     def validate(self, pattern: str) -> bool:
         for pat, flags in self._suspicious_patterns:
             if re.search(pat, pattern, flags):
-                logger.warning("InputSanitizerGuard: blocked suspicious pattern '%s'", pat)
+                logger.warning(
+                    "InputSanitizerGuard: blocked suspicious pattern '%s'", pat
+                )
                 return False
         return True
 
@@ -127,9 +129,7 @@ class SafeAgentBase:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.guardrails = GuardrailSuite(self._initialize_guardrails())
         self.max_repeated_tasks = max(1, max_repeated_tasks)
-        self._recent_tasks: Deque[str] = deque(
-            maxlen=self.max_repeated_tasks * 2
-        )
+        self._recent_tasks: Deque[str] = deque(maxlen=self.max_repeated_tasks * 2)
         self._capabilities: Dict[str, RegisteredCapability] = {}
         self._tools_in_use: Counter[str] = Counter()
 
@@ -187,7 +187,9 @@ class SafeAgentBase:
         task_fingerprint = self._fingerprint_task(task)
         self._enforce_loop_protection(task_fingerprint)
 
-        capability_name = _kwargs.get("capability", next(iter(self._capabilities), None))
+        capability_name = _kwargs.get(
+            "capability", next(iter(self._capabilities), None)
+        )
         if capability_name and capability_name in self._capabilities:
             cap = self._capabilities[capability_name]
             result = cap.handler(task, context)

@@ -1,4 +1,5 @@
 """Designer agent responsible for UX and UI considerations."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List
@@ -19,13 +20,21 @@ class DesignerAgent(BaseAgent):
             raise ValueError("Invalid design task payload")
 
         design = await self.create_design(task)
-        decision = {"task": task, "design": design, "confidence": design.get("confidence", 0.0)}
+        decision = {
+            "task": task,
+            "design": design,
+            "confidence": design.get("confidence", 0.0),
+        }
         self.log_decision(decision)
         return {"success": True, "agent": self.agent_type, **design}
 
     async def create_design(self, task: Dict[str, Any]) -> Dict[str, Any]:
         requested_pattern = task.get("pattern")
-        pattern = requested_pattern if requested_pattern in self.design_patterns else "material"
+        pattern = (
+            requested_pattern
+            if requested_pattern in self.design_patterns
+            else "material"
+        )
         theme = task.get("theme", "light")
         components = ["header", "navigation", "content", "footer"]
         if task.get("landing_page"):

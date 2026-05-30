@@ -1,4 +1,5 @@
 """Agente dedicado à exploração de ambientes de rede."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

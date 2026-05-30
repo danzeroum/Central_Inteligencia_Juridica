@@ -14,11 +14,11 @@ from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
 from src.api.hitl_endpoints import router as hitl_router
 from src.api.training_endpoints import router as training_router
-from src.protocols.agent_card import AgentCard, AgentRegistry
-from src.protocols.a2a_channel import get_a2a_channel
-from src.utils.metrics_collector import MetricsCollector
 from src.orchestration.unified_orchestrator import UnifiedOrchestrator
+from src.protocols.a2a_channel import get_a2a_channel
+from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.services.camara_client import buscar_projetos_de_lei
+from src.utils.metrics_collector import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,9 @@ class A2AMessageRequest(BaseModel):
     message_type: str = Field(..., description="Tipo da mensagem a ser enviada")
     payload: Dict[str, Any] = Field(..., description="Dados da mensagem")
     priority: int = Field(1, ge=1, le=3, description="Prioridade da mensagem (1-3)")
-    requires_response: bool = Field(False, description="Se é necessário aguardar resposta")
+    requires_response: bool = Field(
+        False, description="Se é necessário aguardar resposta"
+    )
 
 
 class A2ABroadcastRequest(BaseModel):
@@ -122,7 +124,9 @@ async def training_dashboard() -> HTMLResponse:
     if os.path.exists(dashboard_path):
         with open(dashboard_path, "r", encoding="utf-8") as file:
             return HTMLResponse(content=file.read())
-    return HTMLResponse(content="<h1>Training Dashboard não encontrado.</h1>", status_code=404)
+    return HTMLResponse(
+        content="<h1>Training Dashboard não encontrado.</h1>", status_code=404
+    )
 
 
 @app.get(
@@ -525,9 +529,9 @@ async def compare_modes(
             "simple_mode": simple_result,
             "advanced_mode": advanced_result,
             "differences": {
-                "reasoning_depth": "advanced"
-                if "reasoning" in advanced_mode_data
-                else "simple",
+                "reasoning_depth": (
+                    "advanced" if "reasoning" in advanced_mode_data else "simple"
+                ),
                 "consensus_used": bool(advanced_mode_data.get("consensus")),
                 "rag_enabled": any(
                     "rag" in str(value).lower() for value in advanced_mode_data.values()
@@ -556,7 +560,9 @@ async def consultar_projetos_endpoint(
 
 @app.post("/analise-legislativa/", tags=["Análises de IA"])
 async def analisar_legislacao_endpoint(
-    tema: str = Body(..., embed=True, description="Tema legislativo para análise de IA"),
+    tema: str = Body(
+        ..., embed=True, description="Tema legislativo para análise de IA"
+    ),
 ):
     """Inicia uma análise de IA sobre um tema legislativo."""
 
@@ -570,7 +576,9 @@ async def analisar_legislacao_endpoint(
 
 
 @app.get("/health")
-async def health_check(verbose: bool = Query(False, description="Inclui detalhes completos")) -> Dict[str, Any]:
+async def health_check(
+    verbose: bool = Query(False, description="Inclui detalhes completos")
+) -> Dict[str, Any]:
     """Endpoint simples de saúde da aplicação."""
 
     timestamp = datetime.now(timezone.utc).isoformat()

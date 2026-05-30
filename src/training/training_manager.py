@@ -101,7 +101,9 @@ class TrainingManager:
             metadata={
                 "session_id": session_id,
                 "agent_type": agent_type,
-                "baseline_metrics": self.training_states[agent_type].baseline_performance,
+                "baseline_metrics": self.training_states[
+                    agent_type
+                ].baseline_performance,
             },
         )
 
@@ -141,7 +143,10 @@ class TrainingManager:
             len(self.feedback_queue[agent_type]),
         )
 
-        if self.auto_trigger_enabled and len(self.feedback_queue[agent_type]) >= self.min_feedback_for_training:
+        if (
+            self.auto_trigger_enabled
+            and len(self.feedback_queue[agent_type]) >= self.min_feedback_for_training
+        ):
             if await self._should_trigger_training(agent_type):
                 await self.train_agent(agent_type)
 
@@ -151,16 +156,22 @@ class TrainingManager:
         session = await self.start_training_session(agent_type)
 
         try:
-            feedback_batch = self.feedback_queue[agent_type][: self.min_feedback_for_training]
+            feedback_batch = self.feedback_queue[agent_type][
+                : self.min_feedback_for_training
+            ]
 
-            current_metrics = await self._evaluate_with_feedback(agent_type, feedback_batch)
+            current_metrics = await self._evaluate_with_feedback(
+                agent_type, feedback_batch
+            )
             session.metrics = current_metrics
 
             baseline = self.training_states[agent_type].baseline_performance
             improvements = self._calculate_improvements(baseline, current_metrics)
             session.improvements = improvements
 
-            await self._update_routing_weights(agent_type, current_metrics, feedback_batch)
+            await self._update_routing_weights(
+                agent_type, current_metrics, feedback_batch
+            )
 
             state = self.training_states[agent_type]
             state.current_performance = current_metrics
@@ -238,8 +249,16 @@ class TrainingManager:
 
         logger.info("Starting A/B test: %s vs %s", agent_a_type, agent_b_type)
 
-        agent_a = type("Agent", (), {"execute": lambda self, task: {"success": True, "latency": 0.5}})()
-        agent_b = type("Agent", (), {"execute": lambda self, task: {"success": True, "latency": 0.3}})()
+        agent_a = type(
+            "Agent",
+            (),
+            {"execute": lambda self, task: {"success": True, "latency": 0.5}},
+        )()
+        agent_b = type(
+            "Agent",
+            (),
+            {"execute": lambda self, task: {"success": True, "latency": 0.3}},
+        )()
 
         result = await self.ab_framework.run_ab_test(
             agent_a=agent_a,
@@ -288,12 +307,15 @@ class TrainingManager:
                 "improvements": self._calculate_improvements(
                     state.baseline_performance, state.current_performance
                 ),
-                "last_training": state.last_training.isoformat() if state.last_training else None,
+                "last_training": (
+                    state.last_training.isoformat() if state.last_training else None
+                ),
                 "pending_feedback": len(self.feedback_queue.get(agent_type, [])),
             }
 
         return {
-            agent: self.get_training_stats(agent) for agent in self.training_states.keys()
+            agent: self.get_training_stats(agent)
+            for agent in self.training_states.keys()
         }
 
     async def _should_trigger_training(self, agent_type: str) -> bool:
@@ -321,7 +343,9 @@ class TrainingManager:
         avg_rating = total_ratings / count_ratings if count_ratings > 0 else 0.5
 
         success_count = sum(
-            1 for fb in feedback_batch if fb.get("task_result", {}).get("success", False)
+            1
+            for fb in feedback_batch
+            if fb.get("task_result", {}).get("success", False)
         )
         success_rate = success_count / len(feedback_batch) if feedback_batch else 0.0
 

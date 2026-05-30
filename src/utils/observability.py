@@ -39,7 +39,9 @@ class AgentObserver:
         self.trace_id: str = generate_trace_id()
         self.spans: List[SpanRecord] = []
 
-    def start_span(self, operation: str, metadata: Optional[Dict[str, Any]] = None) -> SpanRecord:
+    def start_span(
+        self, operation: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> SpanRecord:
         """Create a new span and register it with the observer."""
         record = SpanRecord(operation=operation, metadata=metadata or {})
         self.spans.append(record)
@@ -60,7 +62,9 @@ class AgentObserver:
                     "operation": span.operation,
                     "metadata": span.metadata,
                     "start_time": span.start_time.isoformat() + "Z",
-                    "end_time": span.end_time.isoformat() + "Z" if span.end_time else None,
+                    "end_time": (
+                        span.end_time.isoformat() + "Z" if span.end_time else None
+                    ),
                     "reasoning_log": span.reasoning_log,
                 }
                 for span in self.spans

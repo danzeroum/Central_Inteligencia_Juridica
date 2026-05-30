@@ -52,9 +52,13 @@ class DecisionLedger:
         filtered = self.entries
 
         if agent_type:
-            filtered = [entry for entry in filtered if entry["agent_type"] == agent_type]
+            filtered = [
+                entry for entry in filtered if entry["agent_type"] == agent_type
+            ]
         if decision_type:
-            filtered = [entry for entry in filtered if entry["decision_type"] == decision_type]
+            filtered = [
+                entry for entry in filtered if entry["decision_type"] == decision_type
+            ]
         if limit is not None:
             filtered = filtered[-limit:]
 
@@ -79,7 +83,10 @@ class DecisionLedger:
         }
 
     def export_report(self, output_file: Optional[str] = None) -> Optional[str]:
-        output_path = output_file or f"logs/ledger_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        output_path = (
+            output_file
+            or f"logs/ledger_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
         report = {
             "generated_at": datetime.now().isoformat(),
             "total_entries": len(self.entries),
@@ -95,7 +102,9 @@ class DecisionLedger:
                     "decision_types": set(),
                 }
             report["agents_summary"][agent]["entry_count"] += 1
-            report["agents_summary"][agent]["decision_types"].add(entry["decision_type"])
+            report["agents_summary"][agent]["decision_types"].add(
+                entry["decision_type"]
+            )
 
         for summary in report["agents_summary"].values():
             summary["decision_types"] = sorted(summary["decision_types"])

@@ -29,7 +29,9 @@ class ProgressiveAutonomyManager:
         self.agent_trust_scores: Dict[str, float] = {}
         self.action_history: Deque[Dict[str, Any]] = deque(maxlen=history_size)
 
-    async def execute_with_autonomy(self, agent: str, action: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute_with_autonomy(
+        self, agent: str, action: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute an action considering trust, consensus, and HITL requirements."""
 
         consensus = float(action.get("consensus", 1.0))
@@ -65,7 +67,9 @@ class ProgressiveAutonomyManager:
             "requires_hitl": requires_hitl,
         }
 
-    def _requires_human_review(self, agent: str, action: Dict[str, Any], consensus: float) -> bool:
+    def _requires_human_review(
+        self, agent: str, action: Dict[str, Any], consensus: float
+    ) -> bool:
         """Determine if human review is necessary for the given action."""
 
         if action.get("critical"):
@@ -116,7 +120,9 @@ class ProgressiveAutonomyManager:
             }
         )
 
-    async def _request_human_approval(self, agent: str, action: Dict[str, Any]) -> Dict[str, Any]:
+    async def _request_human_approval(
+        self, agent: str, action: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Request human approval for the action through the HITL queue."""
 
         queue = get_hitl_queue()

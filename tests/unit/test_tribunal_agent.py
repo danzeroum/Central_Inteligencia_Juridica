@@ -41,7 +41,9 @@ def test_generic_response_internal() -> None:
 
 def test_execute_task_status_flow() -> None:
     agent = TribunalAgent("TJSP")
-    with patch.object(agent, "_check_tribunal_status", return_value={"test": "data"}) as mock_status:
+    with patch.object(
+        agent, "_check_tribunal_status", return_value={"test": "data"}
+    ) as mock_status:
         result = agent.execute_task("Status do tribunal")
         mock_status.assert_called_once()
         assert result == {"test": "data"}
@@ -49,7 +51,9 @@ def test_execute_task_status_flow() -> None:
 
 def test_execute_task_process_flow() -> None:
     agent = TribunalAgent("TJMG")
-    with patch.object(agent, "_simulate_process_query", return_value={"process": "data"}) as mock_process:
+    with patch.object(
+        agent, "_simulate_process_query", return_value={"process": "data"}
+    ) as mock_process:
         result = agent.execute_task("Consulta processo 123")
         mock_process.assert_called_once()
         assert result == {"process": "data"}

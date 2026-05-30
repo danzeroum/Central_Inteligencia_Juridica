@@ -1,4 +1,5 @@
 """Parallel execution helper that respects resource limits."""
+
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +19,9 @@ class ParallelResourceManager:
         }
     )
 
-    async def execute_parallel_with_limits(self, tasks: Iterable[TaskLike]) -> List[Any]:
+    async def execute_parallel_with_limits(
+        self, tasks: Iterable[TaskLike]
+    ) -> List[Any]:
         semaphore = asyncio.Semaphore(int(self.limits.get("max_concurrent", 5)))
 
         async def _ensure(task: TaskLike) -> Any:

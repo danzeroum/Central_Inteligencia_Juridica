@@ -1,4 +1,5 @@
 """Resilient prompt chain with simple retry logic."""
+
 from __future__ import annotations
 
 import asyncio
@@ -29,6 +30,8 @@ class ResilientPromptChain:
                     break
                 except Exception as exc:  # pragma: no cover - defensive
                     if attempt == self.max_retries:
-                        raise RuntimeError(f"Falha na etapa {step.name}: {exc}") from exc
+                        raise RuntimeError(
+                            f"Falha na etapa {step.name}: {exc}"
+                        ) from exc
                     await asyncio.sleep(0)
         return current

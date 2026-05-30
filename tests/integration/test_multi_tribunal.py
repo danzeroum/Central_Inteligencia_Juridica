@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict
-import sys
 
 import pytest
 
@@ -18,7 +18,9 @@ from src.agents.tribunal_agent import TribunalAgent
 
 
 @pytest.fixture
-def supervisor_with_stubbed_delegates(monkeypatch: pytest.MonkeyPatch) -> SupervisorAgent:
+def supervisor_with_stubbed_delegates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> SupervisorAgent:
     """Return a SupervisorAgent with deterministic tribunal delegates."""
 
     supervisor = SupervisorAgent()
@@ -27,7 +29,9 @@ def supervisor_with_stubbed_delegates(monkeypatch: pytest.MonkeyPatch) -> Superv
 
     def _fake_execute(self: TribunalAgent, task: str) -> Dict[str, str]:
         counter["value"] += 1
-        timestamp = (datetime(2025, 9, 30) + timedelta(seconds=counter["value"])).isoformat()
+        timestamp = (
+            datetime(2025, 9, 30) + timedelta(seconds=counter["value"])
+        ).isoformat()
         return {
             "tribunal": self.tribunal_code,
             "operation": "status",
@@ -73,7 +77,10 @@ class TestTribunalIdentification:
 
     def test_identify_tribunal_legacy_method(self) -> None:
         assert self.supervisor._identify_tribunal("Status do TJSP") == "TJSP"
-        assert self.supervisor._identify_tribunal("Status TJRS e STF") in {"TJRS", "STF"}
+        assert self.supervisor._identify_tribunal("Status TJRS e STF") in {
+            "TJRS",
+            "STF",
+        }
         assert self.supervisor._identify_tribunal("Status geral") == "TJSP"
 
 
@@ -84,7 +91,9 @@ class TestMultiTribunalRouting:
     async def test_process_single_tribunal_task_backward_compatibility(
         self, supervisor_with_stubbed_delegates: SupervisorAgent
     ) -> None:
-        result = await supervisor_with_stubbed_delegates.process_task("Verificar status TJSP")
+        result = await supervisor_with_stubbed_delegates.process_task(
+            "Verificar status TJSP"
+        )
 
         assert result["status"] == "success"
         assert result["tribunals_used"] == ["TJSP"]
@@ -150,7 +159,9 @@ class TestMultiTribunalRouting:
     async def test_multi_tribunal_task_preserves_individual_timestamps(
         self, supervisor_with_stubbed_delegates: SupervisorAgent
     ) -> None:
-        result = await supervisor_with_stubbed_delegates.process_task("Status TJSP e TJMG")
+        result = await supervisor_with_stubbed_delegates.process_task(
+            "Status TJSP e TJMG"
+        )
 
         timestamps = [
             payload["timestamp"]

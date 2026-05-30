@@ -1,4 +1,5 @@
 """Operations agent that focuses on deployment and monitoring."""
+
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -20,7 +21,12 @@ class OpsAgent(BaseAgent):
 
         deployment = await self.plan_deployment(task)
         monitoring = self.setup_monitoring(task)
-        decision = {"task": task, "deployment": deployment, "monitoring": monitoring, "confidence": 0.9}
+        decision = {
+            "task": task,
+            "deployment": deployment,
+            "monitoring": monitoring,
+            "confidence": 0.9,
+        }
         self.log_decision(decision)
         return {"success": True, "agent": self.agent_type, **decision}
 

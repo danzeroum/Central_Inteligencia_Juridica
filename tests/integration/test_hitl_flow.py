@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from src.hitl.progressive_autonomy import ProgressiveAutonomyManager
 from src.hitl.hitl_queue import get_hitl_queue
+from src.hitl.progressive_autonomy import ProgressiveAutonomyManager
 
 
 def test_hitl_full_workflow():

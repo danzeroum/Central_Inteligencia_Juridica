@@ -1,10 +1,10 @@
 """Guardrail system to validate agent outputs."""
+
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Tuple
-
 
 Guardrail = Callable[[str, Dict[str, object]], Tuple[bool, str]]
 
@@ -24,7 +24,9 @@ class GuardrailSystem:
                 self.check_performance_bounds,
             ]
 
-    def validate_output(self, output: str, context: Dict[str, object]) -> Tuple[bool, List[str]]:
+    def validate_output(
+        self, output: str, context: Dict[str, object]
+    ) -> Tuple[bool, List[str]]:
         """Validate the output against configured guardrails."""
 
         violations: List[str] = []
@@ -41,21 +43,32 @@ class GuardrailSystem:
                 return False, "Possível PII detectada"
         return True, ""
 
-    def check_no_harmful_code(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
-        dangerous_patterns = [r"rm\s+-rf\s+/", r"DROP\s+DATABASE", r"eval\(", r"__import__\("]
+    def check_no_harmful_code(
+        self, output: str, context: Dict[str, object]
+    ) -> Tuple[bool, str]:
+        dangerous_patterns = [
+            r"rm\s+-rf\s+/",
+            r"DROP\s+DATABASE",
+            r"eval\(",
+            r"__import__\(",
+        ]
         for pattern in dangerous_patterns:
             if re.search(pattern, output, re.IGNORECASE):
                 return False, f"Código potencialmente perigoso detectado: {pattern}"
         return True, ""
 
-    def check_business_logic_consistency(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
+    def check_business_logic_consistency(
+        self, output: str, context: Dict[str, object]
+    ) -> Tuple[bool, str]:
         required_terms = context.get("required_terms", [])
         for term in required_terms:
             if term not in output:
                 return False, f"Termo obrigatório ausente: {term}"
         return True, ""
 
-    def check_performance_bounds(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
+    def check_performance_bounds(
+        self, output: str, context: Dict[str, object]
+    ) -> Tuple[bool, str]:
         limit = context.get("latency_budget_ms")
         if isinstance(limit, (int, float)):
             try:

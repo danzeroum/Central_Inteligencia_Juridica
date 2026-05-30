@@ -35,7 +35,7 @@ class AuthManager:
     if len(_raw_secret) < 32 and os.environ.get("ENVIRONMENT", "") != "test":
         raise RuntimeError(
             "JWT_SECRET environment variable must be set (min 32 characters). "
-            "Generate: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            'Generate: python -c "import secrets; print(secrets.token_urlsafe(48))"'
         )
     SECRET_KEY: str = _raw_secret
 

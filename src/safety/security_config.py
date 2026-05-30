@@ -1,4 +1,5 @@
 """Centralised security configuration for tool executions."""
+
 from __future__ import annotations
 
 import re
@@ -22,14 +23,22 @@ class SecurityConfig:
         r"__import__",
         r"os\.system",
         r"subprocess\.",
-        r"socket\."
+        r"socket\.",
     ]
 
     ALLOWED_DOMAINS = {"api.buildtoflip.com", "localhost", "127.0.0.1"}
-    HIGH_RISK_TOOLS = {"database_write", "send_email", "make_payment", "delete_resource", "modify_production_config"}
+    HIGH_RISK_TOOLS = {
+        "database_write",
+        "send_email",
+        "make_payment",
+        "delete_resource",
+        "modify_production_config",
+    }
 
     @classmethod
-    def validate_tool_call(cls, tool_name: str, params: Dict[str, object]) -> Tuple[bool, str]:
+    def validate_tool_call(
+        cls, tool_name: str, params: Dict[str, object]
+    ) -> Tuple[bool, str]:
         if tool_name in cls.HIGH_RISK_TOOLS:
             return False, f"Tool {tool_name} requires human approval"
         payload = str(params)

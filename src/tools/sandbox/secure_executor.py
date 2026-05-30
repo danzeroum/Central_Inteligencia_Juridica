@@ -1,4 +1,5 @@
 """Security sandbox for executing tools with strict validation."""
+
 from __future__ import annotations
 
 import json
@@ -8,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from src.safety.security_config import SecurityConfig
+
 from .docker_sandbox import DockerSandbox
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,9 @@ class SecureToolSandbox:
     memory_limit_mb: int = 512
     cpu_quota: float = 0.5
 
-    def execute_tool_sandboxed(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def execute_tool_sandboxed(
+        self, tool_name: str, params: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Execute the given tool inside an isolated environment when possible."""
 
         self._validate_security(tool_name, params)
@@ -59,6 +63,9 @@ class SecureToolSandbox:
         param_str = json.dumps(params, ensure_ascii=False)
         for pattern in SecurityConfig.FORBIDDEN_PATTERNS:
             if re.search(pattern, param_str, re.IGNORECASE):
-                logger.error("Forbidden pattern detected during sandbox validation", extra={"pattern": pattern})
+                logger.error(
+                    "Forbidden pattern detected during sandbox validation",
+                    extra={"pattern": pattern},
+                )
                 return False
         return True

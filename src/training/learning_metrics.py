@@ -52,8 +52,10 @@ class MetricWindow:
         if len(self.values) < 2:
             return 0.0
         mean_value = self.mean()
-        variance = sum((dp.value - mean_value) ** 2 for dp in self.values) / len(self.values)
-        return variance ** 0.5
+        variance = sum((dp.value - mean_value) ** 2 for dp in self.values) / len(
+            self.values
+        )
+        return variance**0.5
 
     def trend(self) -> str:
         """Determine if metric is improving, declining, or stable."""
@@ -67,7 +69,9 @@ class MetricWindow:
         recent_mean = sum(dp.value for dp in recent_half) / len(recent_half)
         older_mean = sum(dp.value for dp in older_half) / len(older_half)
 
-        change_percent = ((recent_mean - older_mean) / older_mean * 100) if older_mean > 0 else 0
+        change_percent = (
+            ((recent_mean - older_mean) / older_mean * 100) if older_mean > 0 else 0
+        )
 
         if abs(change_percent) < 5:
             return "stable"
@@ -120,7 +124,10 @@ class LearningMetricsCollector:
     def get_metric_summary(self, agent_type: str, metric_name: str) -> Dict[str, Any]:
         """Get statistical summary of a metric."""
 
-        if agent_type not in self.metrics or metric_name not in self.metrics[agent_type]:
+        if (
+            agent_type not in self.metrics
+            or metric_name not in self.metrics[agent_type]
+        ):
             return {
                 "error": f"No data for {agent_type}.{metric_name}",
                 "available": False,
@@ -142,7 +149,9 @@ class LearningMetricsCollector:
             },
             "trend": window.trend(),
             "latest": window.values[-1].value if window.values else None,
-            "timestamp": window.values[-1].timestamp.isoformat() if window.values else None,
+            "timestamp": (
+                window.values[-1].timestamp.isoformat() if window.values else None
+            ),
         }
 
     def get_agent_summary(self, agent_type: str) -> Dict[str, Any]:
@@ -163,7 +172,9 @@ class LearningMetricsCollector:
             },
         }
 
-    def compare_agents(self, agent_a: str, agent_b: str, metric_name: str) -> Dict[str, Any]:
+    def compare_agents(
+        self, agent_a: str, agent_b: str, metric_name: str
+    ) -> Dict[str, Any]:
         """Compare a specific metric between two agents."""
 
         summary_a = self.get_metric_summary(agent_a, metric_name)
@@ -208,7 +219,10 @@ class LearningMetricsCollector:
     ) -> List[Dict[str, Any]]:
         """Detect anomalous values in a metric using standard deviation."""
 
-        if agent_type not in self.metrics or metric_name not in self.metrics[agent_type]:
+        if (
+            agent_type not in self.metrics
+            or metric_name not in self.metrics[agent_type]
+        ):
             return []
 
         window = self.metrics[agent_type][metric_name]
@@ -227,9 +241,13 @@ class LearningMetricsCollector:
                         "timestamp": data_point.timestamp.isoformat(),
                         "value": data_point.value,
                         "z_score": round(z_score, 2),
-                        "deviation_percent": round(((data_point.value - mean_value) / mean_value * 100), 2)
-                        if mean_value
-                        else 0.0,
+                        "deviation_percent": (
+                            round(
+                                ((data_point.value - mean_value) / mean_value * 100), 2
+                            )
+                            if mean_value
+                            else 0.0
+                        ),
                         "metadata": data_point.metadata,
                     }
                 )
@@ -241,7 +259,10 @@ class LearningMetricsCollector:
     ) -> Optional[float]:
         """Calculate learning rate (improvement per hour) for a metric."""
 
-        if agent_type not in self.metrics or metric_name not in self.metrics[agent_type]:
+        if (
+            agent_type not in self.metrics
+            or metric_name not in self.metrics[agent_type]
+        ):
             return None
 
         window = self.metrics[agent_type][metric_name]
@@ -255,7 +276,9 @@ class LearningMetricsCollector:
         first_point = recent_points[0]
         last_point = recent_points[-1]
 
-        time_diff_hours = (last_point.timestamp - first_point.timestamp).total_seconds() / 3600
+        time_diff_hours = (
+            last_point.timestamp - first_point.timestamp
+        ).total_seconds() / 3600
         value_diff = last_point.value - first_point.value
 
         if time_diff_hours == 0:
@@ -282,7 +305,9 @@ class LearningMetricsCollector:
                                 "value": data_point.value,
                                 "metadata": data_point.metadata,
                             }
-                            for data_point in self.metrics[agent_type][metric_name].values
+                            for data_point in self.metrics[agent_type][
+                                metric_name
+                            ].values
                         ],
                     }
                     for metric_name in self.metrics[agent_type].keys()

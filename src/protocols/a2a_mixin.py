@@ -42,7 +42,7 @@ class A2ACapable:
     ) -> str:
         """Send message to another agent."""
         sender_id = self.get_agent_id()
-        
+
         message_id = await self.a2a_channel.send_message(
             sender_id=sender_id,
             receiver_id=target_agent_id,
@@ -52,14 +52,14 @@ class A2ACapable:
             requires_response=requires_response,
             correlation_id=correlation_id,
         )
-        
+
         logger.info(
             "%s sent A2A message to %s: %s",
             sender_id,
             target_agent_id,
             message_type,
         )
-        
+
         return message_id
 
     async def request_from_agent(
@@ -71,7 +71,7 @@ class A2ACapable:
     ) -> Optional[Dict[str, Any]]:
         """Request data from another agent and wait for response."""
         sender_id = self.get_agent_id()
-        
+
         response = await self.a2a_channel.request_response(
             sender_id=sender_id,
             receiver_id=target_agent_id,
@@ -79,7 +79,7 @@ class A2ACapable:
             payload=payload,
             timeout=timeout,
         )
-        
+
         if response:
             logger.info(
                 "%s received response from %s for %s",
@@ -93,41 +93,41 @@ class A2ACapable:
                 sender_id,
                 target_agent_id,
             )
-        
+
         return response
 
     async def check_messages(self, limit: int = 10) -> List[A2AMessage]:
         """Check for pending messages."""
         agent_id = self.get_agent_id()
         messages = await self.a2a_channel.receive_messages(agent_id, limit)
-        
+
         if messages:
             logger.info("%s received %d A2A messages", agent_id, len(messages))
-        
+
         return messages
 
     async def process_messages(self) -> List[Dict[str, Any]]:
         """Process all pending messages and return results."""
         messages = await self.check_messages()
         results = []
-        
+
         for message in messages:
             result = await self._handle_message(message)
             results.append(result)
-        
+
         return results
 
     async def _handle_message(self, message: A2AMessage) -> Dict[str, Any]:
         """Handle incoming message based on type."""
         handler = self.a2a_handlers.get(message.message_type)
-        
+
         if handler:
             try:
                 if asyncio.iscoroutinefunction(handler):
                     response_payload = await handler(message)
                 else:
                     response_payload = handler(message)
-                
+
                 # Send response if required
                 if message.requires_response and response_payload:
                     await self.send_to_agent(
@@ -137,7 +137,7 @@ class A2ACapable:
                         priority=message.priority,
                         correlation_id=message.correlation_id,
                     )
-                
+
                 return {
                     "status": "handled",
                     "message_id": message.message_id,
@@ -184,7 +184,7 @@ class A2ACapable:
     ) -> List[str]:
         """Broadcast message to multiple agents."""
         message_ids = []
-        
+
         for agent_id in agent_ids:
             msg_id = await self.send_to_agent(
                 target_agent_id=agent_id,
@@ -193,14 +193,14 @@ class A2ACapable:
                 priority=priority,
             )
             message_ids.append(msg_id)
-        
+
         logger.info(
             "%s broadcasted '%s' to %d agents",
             self.get_agent_id(),
             message_type,
             len(agent_ids),
         )
-        
+
         return message_ids
 
     def get_message_history(self, limit: int = 50) -> List[A2AMessage]:
@@ -212,34 +212,34 @@ class A2ACapable:
 # Example handlers that agents can use
 def create_status_handler() -> Callable:
     """Create a standard status request handler."""
-    
+
     async def status_handler(message: A2AMessage) -> Dict[str, Any]:
         return {
             "status": "operational",
             "agent_id": message.receiver_id,
             "timestamp": message.timestamp,
         }
-    
+
     return status_handler
 
 
 def create_data_request_handler(data_source: Callable) -> Callable:
     """Create a handler for data requests."""
-    
+
     async def data_handler(message: A2AMessage) -> Dict[str, Any]:
         query = message.payload.get("query")
-        
+
         if asyncio.iscoroutinefunction(data_source):
             data = await data_source(query)
         else:
             data = data_source(query)
-        
+
         return {
             "data": data,
             "query": query,
             "source_agent": message.receiver_id,
         }
-    
+
     return data_handler
 
 

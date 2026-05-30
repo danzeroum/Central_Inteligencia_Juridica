@@ -1,4 +1,5 @@
 """Utilitários para gestão de memória de agentes."""
+
 from __future__ import annotations
 
 from typing import Any

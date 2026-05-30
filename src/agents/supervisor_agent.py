@@ -13,14 +13,14 @@ from typing import Any, Dict, List
 from src.agents.architect_agent import ArchitectAgent
 from src.agents.tribunal_agent import TribunalAgent
 from src.consensus.weighted_voting import WeightedConsensusEngine
-from src.protocols.a2a_mixin import A2ACapable
-from src.routing.intent_classifier import ClassifiedIntent, IntentClassifier
 from src.memory.agent_memory import AgentMemorySystem
 from src.memory.vector_memory import VectorMemory
+from src.protocols.a2a_mixin import A2ACapable
+from src.routing.intent_classifier import ClassifiedIntent, IntentClassifier
+from src.utils.decision_metrics import DecisionMetricsCollector
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
 from src.utils.metrics_collector import MetricsCollector
-from src.utils.decision_metrics import DecisionMetricsCollector
 
 
 class SupervisorAgent(A2ACapable):
@@ -197,7 +197,9 @@ class SupervisorAgent(A2ACapable):
 
             propostas: Dict[str, Dict[str, Any]] = {}
             for tribunal in tribunais:
-                proposta = await self._delegate_to_tribunal_agent(tribunal, sanitized_task)
+                proposta = await self._delegate_to_tribunal_agent(
+                    tribunal, sanitized_task
+                )
                 meta_block = proposta.get("meta") or proposta.get("metadata") or {}
                 confidence = float(meta_block.get("confidence", 0.75))
                 propostas[tribunal] = {"confidence": confidence, "proposal": proposta}
@@ -268,11 +270,7 @@ class SupervisorAgent(A2ACapable):
         """Detecta se a tarefa exige múltiplos tribunais ou consenso."""
 
         task_lower = task.lower()
-        normalized = (
-            task_lower.replace(",", " ")
-            .replace(";", " ")
-            .replace("-", " ")
-        )
+        normalized = task_lower.replace(",", " ").replace(";", " ").replace("-", " ")
         words = {word for word in normalized.split() if word}
 
         tribunal_codes = ["tjsp", "tjmg", "tjrs", "tjrj", "stf"]
@@ -310,10 +308,7 @@ class SupervisorAgent(A2ACapable):
         )
 
         return (
-            mentioned_tribunals > 1
-            or word_match
-            or phrase_match
-            or consensus_keyword
+            mentioned_tribunals > 1 or word_match or phrase_match or consensus_keyword
         )
 
     def _identify_relevant_tribunals(self, task: str) -> List[str]:
@@ -477,12 +472,8 @@ class SupervisorAgent(A2ACapable):
                     if self.memory.using_manual_embeddings:
                         similarity_override_threshold = 0.1
 
-                    if (
-                        memory_similarity >= similarity_override_threshold
-                        and (
-                            not intent.tribunais
-                            or intent.tribunais == ["TJSP"]
-                        )
+                    if memory_similarity >= similarity_override_threshold and (
+                        not intent.tribunais or intent.tribunais == ["TJSP"]
                     ):
                         intent.tribunais = list(dict.fromkeys(memory_tribunals))
 
@@ -498,9 +489,9 @@ class SupervisorAgent(A2ACapable):
                         dict.fromkeys(code.upper() for code in explicit_mentions)
                     )
 
-            requires_consensus = self._is_multi_tribunal_query(
-                sanitized_task
-            ) or len(tribunal_codes) > 1
+            requires_consensus = (
+                self._is_multi_tribunal_query(sanitized_task) or len(tribunal_codes) > 1
+            )
 
             if len(tribunal_codes) == 1 and not requires_consensus:
                 single_code = tribunal_codes[0]
@@ -577,9 +568,11 @@ class SupervisorAgent(A2ACapable):
                         "tribunals": tribunal_codes,
                         "intent_confidence": intent.confidence,
                         "recalled_count": len(recalled_memories),
-                        "result_status": final_result.get("status", "unknown")
-                        if isinstance(final_result, dict)
-                        else "unknown",
+                        "result_status": (
+                            final_result.get("status", "unknown")
+                            if isinstance(final_result, dict)
+                            else "unknown"
+                        ),
                         "execution_time": elapsed_time,
                         "consensus_used": False,
                         "consensus_strength": None,
@@ -623,7 +616,9 @@ class SupervisorAgent(A2ACapable):
                 suggested = self._identify_relevant_tribunals(sanitized_task)
                 if suggested:
                     merged = tribunal_codes + suggested
-                    tribunal_codes = list(dict.fromkeys(code.upper() for code in merged))
+                    tribunal_codes = list(
+                        dict.fromkeys(code.upper() for code in merged)
+                    )
                 memory_cache_hit = False
                 cached_result = None
 
@@ -711,9 +706,7 @@ class SupervisorAgent(A2ACapable):
                     strength=consensus_strength_value,
                     participants=participants,
                     winning_agent=consensus_details.get("decision_maker", "unknown"),
-                    outcome="weak"
-                    if consensus_strength_value < 0.6
-                    else "strong",
+                    outcome="weak" if consensus_strength_value < 0.6 else "strong",
                 )
 
                 if consensus_strength_value < 0.6:
@@ -745,9 +738,7 @@ class SupervisorAgent(A2ACapable):
                     self._delegate_to_tribunal_agent(code, sanitized_task)
                     for code in tribunal_codes
                 ]
-                results = await asyncio.gather(
-                    *delegated_tasks, return_exceptions=True
-                )
+                results = await asyncio.gather(*delegated_tasks, return_exceptions=True)
 
                 elapsed_time = asyncio.get_running_loop().time() - start_time
 
@@ -788,7 +779,9 @@ class SupervisorAgent(A2ACapable):
                 consensus_payload.get("consensus") if consensus_payload else None
             )
             consensus_strength = (
-                consensus_payload.get("consensus_strength") if consensus_payload else None
+                consensus_payload.get("consensus_strength")
+                if consensus_payload
+                else None
             )
             consensus_decision = (
                 consensus_payload.get("winning_proposal") if consensus_payload else None
@@ -1100,9 +1093,9 @@ class SupervisorAgent(A2ACapable):
 
         self.ledger.log_decision(
             agent_type="SupervisorAgent",
-            decision_type="CONSENSUS_REACHED"
-            if consensus_acceptable
-            else "CONSENSUS_WEAK",
+            decision_type=(
+                "CONSENSUS_REACHED" if consensus_acceptable else "CONSENSUS_WEAK"
+            ),
             metadata={
                 "tribunals_consulted": tribunals,
                 "consensus_strength": consensus_strength,
@@ -1120,7 +1113,9 @@ class SupervisorAgent(A2ACapable):
         if not winning_proposal and responses:
             # fallback para a resposta de maior confiança
             sorted_responses = sorted(
-                responses.values(), key=lambda item: item.get("confidence", 0.0), reverse=True
+                responses.values(),
+                key=lambda item: item.get("confidence", 0.0),
+                reverse=True,
             )
             if sorted_responses:
                 winning_proposal = sorted_responses[0].get("response")

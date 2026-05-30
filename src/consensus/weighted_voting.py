@@ -34,8 +34,13 @@ class WeightedConsensusEngine:
 
     def __init__(self, agent_weights: Dict[str, float] | None = None) -> None:
         custom_weights = agent_weights or {}
-        merged = {**self.DEFAULT_WEIGHTS, **{k.lower(): v for k, v in custom_weights.items()}}
-        self.agent_weights: Dict[str, float] = {k.lower(): float(v) for k, v in merged.items()}
+        merged = {
+            **self.DEFAULT_WEIGHTS,
+            **{k.lower(): v for k, v in custom_weights.items()},
+        }
+        self.agent_weights: Dict[str, float] = {
+            k.lower(): float(v) for k, v in merged.items()
+        }
 
     def set_weight(self, agent_id: str, weight: float) -> None:
         """Update weight for a specific agent."""
@@ -96,7 +101,9 @@ class WeightedConsensusEngine:
                 }
             )
 
-        winning_cluster_key, winning_score = self._select_winning_cluster(cluster_scores)
+        winning_cluster_key, winning_score = self._select_winning_cluster(
+            cluster_scores
+        )
         winning_votes = cluster_members.get(winning_cluster_key, [])
 
         if not winning_votes:
@@ -110,7 +117,9 @@ class WeightedConsensusEngine:
                 "confidence_distribution": confidence_distribution,
             }
 
-        winning_votes_sorted = sorted(winning_votes, key=lambda vote: vote.score, reverse=True)
+        winning_votes_sorted = sorted(
+            winning_votes, key=lambda vote: vote.score, reverse=True
+        )
         winning_vote = winning_votes_sorted[0]
         supporting_agents = [vote.agent for vote in winning_votes_sorted]
 

@@ -73,8 +73,7 @@ class ArchitectAgent:
                 detected.append(tribunal)
 
         if any(
-            keyword in tokens
-            for keyword in ["tribunais", "comparar", "comparacao"]
+            keyword in tokens for keyword in ["tribunais", "comparar", "comparacao"]
         ):
             analysis_steps.append(
                 "3. Solicitacao sugere multiplos tribunais ou comparacao de jurisprudencia."
@@ -114,7 +113,9 @@ class ArchitectAgent:
         )
         return reasoning_payload
 
-    def create_plan(self, task: Dict[str, Any], reasoning: Dict[str, Any]) -> Dict[str, Any]:
+    def create_plan(
+        self, task: Dict[str, Any], reasoning: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Derive a lightweight architectural plan informed by the reasoning."""
 
         components = ["API Gateway", "Auth Service", "Business Logic", "Database"]

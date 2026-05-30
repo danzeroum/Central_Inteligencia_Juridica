@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
 from prometheus_client import REGISTRY
+
 from src.utils.decision_metrics import DecisionMetricsCollector
 
 

@@ -60,7 +60,11 @@ class MCPServer:
             if isinstance(payload, dict):
                 result = self.agent.execute(**payload)
             else:
-                result = self.agent.execute(payload) if payload is not None else self.agent.execute("")
+                result = (
+                    self.agent.execute(payload)
+                    if payload is not None
+                    else self.agent.execute("")
+                )
 
             if is_dataclass(result):
                 return asdict(result)

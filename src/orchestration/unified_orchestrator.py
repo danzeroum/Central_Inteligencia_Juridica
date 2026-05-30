@@ -1,4 +1,5 @@
 """Unified orchestrator integrating advanced agent patterns."""
+
 from __future__ import annotations
 
 import logging
@@ -8,8 +9,8 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from src.agents.architect_agent import ArchitectAgent
 from src.agents.auditor_agent import AuditorAgent
-from src.agents.developer_agent import DeveloperAgent
 from src.agents.designer_agent import DesignerAgent
+from src.agents.developer_agent import DeveloperAgent
 from src.agents.ops_agent import OpsAgent
 from src.chains.resilient_chain import ResilientPromptChain
 from src.consensus.weighted_voting import WeightedConsensusEngine
@@ -72,7 +73,9 @@ class UnifiedOrchestrator:
                 }
 
         execution_results = await self._execute_plan_steps(plan, task)
-        final_validation = await self.agents["auditor"].validate_results(execution_results)
+        final_validation = await self.agents["auditor"].validate_results(
+            execution_results
+        )
 
         self.memory.remember_decision(
             "orchestrator",
@@ -83,7 +86,9 @@ class UnifiedOrchestrator:
                 "results": execution_results,
                 "validation": final_validation,
                 "context_recall": relevant_context,
-                "duration_seconds": (datetime.now(timezone.utc) - start).total_seconds(),
+                "duration_seconds": (
+                    datetime.now(timezone.utc) - start
+                ).total_seconds(),
             },
         )
 
@@ -99,7 +104,9 @@ class UnifiedOrchestrator:
             "confidence": final_validation.get("confidence", 0.0),
         }
 
-    async def _get_squad_proposals(self, plan: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    async def _get_squad_proposals(
+        self, plan: Dict[str, Any]
+    ) -> Dict[str, Dict[str, Any]]:
         proposals: Dict[str, Dict[str, Any]] = {}
 
         architect_result = await self.agents["architect"].execute(
@@ -132,23 +139,36 @@ class UnifiedOrchestrator:
 
         return proposals
 
-    async def _execute_plan_steps(self, plan: Dict[str, Any], task: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _execute_plan_steps(
+        self, plan: Dict[str, Any], task: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
         for step in plan["steps"]:
             agent_name = self._select_agent_for_step(step)
             if self._can_parallelize(step, plan):
                 parallel_tasks = self._extract_parallel_tasks(step)
-                step_results = await self.parallel.execute_parallel_with_limits(parallel_tasks)
+                step_results = await self.parallel.execute_parallel_with_limits(
+                    parallel_tasks
+                )
                 for result in step_results:
                     await self.evaluator.evaluate_agent_performance(agent_name, result)
                 results.extend(step_results)
                 continue
 
-            step_task = {"description": step["description"], "action": step["action"], "step": step["step"]}
+            step_task = {
+                "description": step["description"],
+                "action": step["action"],
+                "step": step["step"],
+            }
             result = await self.agents[agent_name].execute(step_task)
-            quality = await self.evaluator.evaluate_agent_performance(agent_name, result)
+            quality = await self.evaluator.evaluate_agent_performance(
+                agent_name, result
+            )
             if quality.get("technical_score", 0) < 0.6:
-                reflection = {"reason": "low_quality", "score": quality.get("technical_score", 0)}
+                reflection = {
+                    "reason": "low_quality",
+                    "score": quality.get("technical_score", 0),
+                }
                 plan = await self.planner.replan_from_point(plan, step, reflection)
             results.append(result)
         return results
@@ -174,22 +194,34 @@ class UnifiedOrchestrator:
         description = step.get("description", "")
 
         async def developer_task() -> Dict[str, Any]:
-            return await self.agents["developer"].execute({"description": f"Parallel dev: {description}"})
+            return await self.agents["developer"].execute(
+                {"description": f"Parallel dev: {description}"}
+            )
 
         async def designer_task() -> Dict[str, Any]:
-            return await self.agents["designer"].execute({"description": f"Parallel design: {description}"})
+            return await self.agents["designer"].execute(
+                {"description": f"Parallel design: {description}"}
+            )
 
         return [developer_task, designer_task]
 
-    async def _update_learning(self, task: Dict[str, Any], results: List[Dict[str, Any]]) -> None:
+    async def _update_learning(
+        self, task: Dict[str, Any], results: List[Dict[str, Any]]
+    ) -> None:
         for result in results:
             route = result.get("route", "default")
             success = result.get("success", False)
             latency = result.get("duration", 0.0)
             self.router.update_route_performance(task, route, success, float(latency))
 
-    async def _attempt_recovery(self, task: Dict[str, Any], error: str) -> Optional[Dict[str, Any]]:
-        simplified_task = {"description": task.get("description", ""), "priority": "low", "simplified": True}
+    async def _attempt_recovery(
+        self, task: Dict[str, Any], error: str
+    ) -> Optional[Dict[str, Any]]:
+        simplified_task = {
+            "description": task.get("description", ""),
+            "priority": "low",
+            "simplified": True,
+        }
         try:
             return await self.execute_complex_task(simplified_task)
         except Exception:  # pragma: no cover - defensive

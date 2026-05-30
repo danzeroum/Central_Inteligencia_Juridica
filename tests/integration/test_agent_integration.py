@@ -1,19 +1,23 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import asyncio
 
 from src.agents.architect_agent import ArchitectAgent
-from src.agents.developer_agent import DeveloperAgent
 from src.agents.auditor_agent import AuditorAgent
+from src.agents.developer_agent import DeveloperAgent
 from src.consensus.weighted_voting import WeightedConsensusEngine
 from src.planning.adaptive_planner import AdaptivePlanner
 
 
 def test_architect_cot_reasoning():
     architect = ArchitectAgent()
-    task = {"description": "Design a microservices architecture for e-commerce", "priority": "high"}
+    task = {
+        "description": "Design a microservices architecture for e-commerce",
+        "priority": "high",
+    }
     result = asyncio.run(architect.execute(task))
     assert result["success"] is True
     assert len(result["reasoning"]["reasoning_steps"]) == 5

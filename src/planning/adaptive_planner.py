@@ -1,10 +1,11 @@
 """Adaptive planner capable of replanning when failures occur."""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List
 import logging
 import uuid
+from datetime import datetime, timezone
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -92,9 +93,18 @@ class AdaptivePlanner:
             confidence -= 0.1
         return max(0.3, confidence)
 
-    async def replan_from_point(self, original_plan: Dict[str, Any], failed_step: Dict[str, Any], reflection: Dict[str, Any]) -> Dict[str, Any]:
-        failure_key = f"{failed_step.get('action')}_{reflection.get('reason', 'unknown')}"
-        self.failure_patterns[failure_key] = self.failure_patterns.get(failure_key, 0) + 1
+    async def replan_from_point(
+        self,
+        original_plan: Dict[str, Any],
+        failed_step: Dict[str, Any],
+        reflection: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        failure_key = (
+            f"{failed_step.get('action')}_{reflection.get('reason', 'unknown')}"
+        )
+        self.failure_patterns[failure_key] = (
+            self.failure_patterns.get(failure_key, 0) + 1
+        )
 
         new_plan = dict(original_plan)
         new_plan["plan_id"] = str(uuid.uuid4())
@@ -102,9 +112,17 @@ class AdaptivePlanner:
         new_plan["replanning_reason"] = reflection
         new_plan["parent_plan"] = original_plan.get("plan_id")
 
-        completed = [step for step in original_plan["steps"] if step["step"] < failed_step["step"]]
+        completed = [
+            step
+            for step in original_plan["steps"]
+            if step["step"] < failed_step["step"]
+        ]
         recovery_steps = await self._create_recovery_steps(failed_step, reflection)
-        remaining = [step for step in original_plan["steps"] if step["step"] > failed_step["step"]]
+        remaining = [
+            step
+            for step in original_plan["steps"]
+            if step["step"] > failed_step["step"]
+        ]
 
         reordered: List[Dict[str, Any]] = []
         reordered.extend(completed)
@@ -120,7 +138,9 @@ class AdaptivePlanner:
         self.plan_history.append(new_plan)
         return new_plan
 
-    async def _create_recovery_steps(self, failed_step: Dict[str, Any], reflection: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _create_recovery_steps(
+        self, failed_step: Dict[str, Any], reflection: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         steps: List[Dict[str, Any]] = []
         steps.append(
             {

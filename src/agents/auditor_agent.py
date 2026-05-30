@@ -1,9 +1,10 @@
 """Auditor agent providing reflective quality and security assessments."""
+
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List
-import logging
 
 from src.agents.base_agent import BaseAgent
 
@@ -28,7 +29,13 @@ class AuditorAgent(BaseAgent):
         final.update({"timestamp": datetime.now(timezone.utc).isoformat()})
 
         self.validation_history.append(final)
-        self.log_decision({"task": task, "assessment": final, "confidence": final.get("confidence", 0.0)})
+        self.log_decision(
+            {
+                "task": task,
+                "assessment": final,
+                "confidence": final.get("confidence", 0.0),
+            }
+        )
         return {
             "success": True,
             "agent": self.agent_type,
@@ -51,7 +58,12 @@ class AuditorAgent(BaseAgent):
 
         passed = not issues
         confidence = 0.9 if passed else 0.7
-        return {"issues": issues, "warnings": warnings, "passed": passed, "confidence": confidence}
+        return {
+            "issues": issues,
+            "warnings": warnings,
+            "passed": passed,
+            "confidence": confidence,
+        }
 
     async def reflect_on_assessment(self, assessment: Dict[str, Any]) -> Dict[str, Any]:
         reflection = {
@@ -67,13 +79,21 @@ class AuditorAgent(BaseAgent):
             reflection["suggestions"].append("Focus on critical issues")
         return reflection
 
-    def refine_assessment(self, assessment: Dict[str, Any], reflection: Dict[str, Any]) -> Dict[str, Any]:
+    def refine_assessment(
+        self, assessment: Dict[str, Any], reflection: Dict[str, Any]
+    ) -> Dict[str, Any]:
         final = dict(assessment)
         if reflection["missed_anything"]:
-            final.setdefault("additional_checks", []).extend(["edge_cases", "performance", "scalability"])
+            final.setdefault("additional_checks", []).extend(
+                ["edge_cases", "performance", "scalability"]
+            )
             final["confidence"] = min(final.get("confidence", 0.7), 0.75)
         if reflection["too_strict"]:
-            final["issues"] = [issue for issue in final["issues"] if issue.get("severity") == "critical"]
+            final["issues"] = [
+                issue
+                for issue in final["issues"]
+                if issue.get("severity") == "critical"
+            ]
         final["refined"] = True
         final["reflection_applied"] = reflection
         return final
@@ -89,34 +109,40 @@ class AuditorAgent(BaseAgent):
         issues: List[Dict[str, Any]] = []
         for pattern, description in dangerous_patterns:
             if pattern in code:
-                issues.append({
-                    "type": "security",
-                    "severity": "critical",
-                    "pattern": pattern,
-                    "description": description,
-                })
+                issues.append(
+                    {
+                        "type": "security",
+                        "severity": "critical",
+                        "pattern": pattern,
+                        "description": description,
+                    }
+                )
         return issues
 
     def check_quality(self, metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
         warnings: List[Dict[str, Any]] = []
         complexity = metrics.get("complexity")
         if complexity is not None and complexity > 10:
-            warnings.append({
-                "type": "quality",
-                "severity": "warning",
-                "metric": "complexity",
-                "value": complexity,
-                "threshold": 10,
-            })
+            warnings.append(
+                {
+                    "type": "quality",
+                    "severity": "warning",
+                    "metric": "complexity",
+                    "value": complexity,
+                    "threshold": 10,
+                }
+            )
         coverage = metrics.get("coverage")
         if coverage is not None and coverage < 80:
-            warnings.append({
-                "type": "quality",
-                "severity": "warning",
-                "metric": "coverage",
-                "value": coverage,
-                "threshold": 80,
-            })
+            warnings.append(
+                {
+                    "type": "quality",
+                    "severity": "warning",
+                    "metric": "coverage",
+                    "value": coverage,
+                    "threshold": 80,
+                }
+            )
         return warnings
 
     async def validate_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -130,7 +156,12 @@ class AuditorAgent(BaseAgent):
                 issues.append(f"Low quality from {agent_name}: {score:.2f}")
         approved = not issues
         confidence = sum(scores.values()) / len(scores) if scores else 0.0
-        return {"approved": approved, "confidence": confidence, "issues": issues, "agent_scores": scores}
+        return {
+            "approved": approved,
+            "confidence": confidence,
+            "issues": issues,
+            "agent_scores": scores,
+        }
 
     def score_agent_result(self, result: Dict[str, Any]) -> float:
         score = 0.5

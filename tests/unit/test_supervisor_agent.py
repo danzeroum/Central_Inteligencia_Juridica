@@ -33,7 +33,9 @@ def test_delegate_to_tribunal_agent(mock_agent_class: MagicMock) -> None:
 
     result = supervisor._delegate_to_tribunal_agent("TJSP", "test task")
 
-    mock_agent_class.assert_called_once_with(tribunal_code="TJSP", ledger=supervisor.ledger)
+    mock_agent_class.assert_called_once_with(
+        tribunal_code="TJSP", ledger=supervisor.ledger
+    )
     mock_agent.execute_task.assert_called_once_with("test task")
     assert result == {"result": "test"}
 

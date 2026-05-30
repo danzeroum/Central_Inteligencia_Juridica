@@ -1,4 +1,5 @@
 """Agente dedicado à recuperação após anomalias."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

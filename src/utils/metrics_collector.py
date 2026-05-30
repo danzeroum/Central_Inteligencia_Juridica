@@ -40,7 +40,9 @@ class MetricsCollector:
     """Utility wrapper over Prometheus metrics with safe defaults."""
 
     @staticmethod
-    def record_task(tribunal: str, operation: str, duration: float, success: bool) -> None:
+    def record_task(
+        tribunal: str, operation: str, duration: float, success: bool
+    ) -> None:
         _task_counter.labels(tribunal=tribunal, operation=operation).inc()
         _task_duration.labels(tribunal=tribunal, operation=operation).observe(duration)
         if not success:

@@ -57,10 +57,18 @@ class TribunalAPIClient:
             logger.info("Fetched real status from %s", self.tribunal_code)
             return response.json()
         except httpx.HTTPStatusError as exc:
-            logger.warning("HTTP error from %s status endpoint: %s", self.tribunal_code, exc)
-            return {"error": str(exc), "status_code": exc.response.status_code, "fallback": True}
+            logger.warning(
+                "HTTP error from %s status endpoint: %s", self.tribunal_code, exc
+            )
+            return {
+                "error": str(exc),
+                "status_code": exc.response.status_code,
+                "fallback": True,
+            }
         except httpx.HTTPError as exc:  # pragma: no cover - network variability
-            logger.error("Network error calling %s status endpoint: %s", self.tribunal_code, exc)
+            logger.error(
+                "Network error calling %s status endpoint: %s", self.tribunal_code, exc
+            )
             return {"error": str(exc), "fallback": True}
 
     def query_real_process(self, process_number: str) -> Dict[str, Any]:
@@ -76,7 +84,9 @@ class TribunalAPIClient:
                 headers=self._get_auth_headers(),
             )
             response.raise_for_status()
-            logger.info("Fetched real process %s from %s", process_number, self.tribunal_code)
+            logger.info(
+                "Fetched real process %s from %s", process_number, self.tribunal_code
+            )
             return response.json()
         except httpx.HTTPStatusError as exc:
             logger.warning(
@@ -85,7 +95,11 @@ class TribunalAPIClient:
                 self.tribunal_code,
                 exc,
             )
-            return {"error": str(exc), "status_code": exc.response.status_code, "fallback": True}
+            return {
+                "error": str(exc),
+                "status_code": exc.response.status_code,
+                "fallback": True,
+            }
         except httpx.HTTPError as exc:  # pragma: no cover - network variability
             logger.error(
                 "Network error when querying process %s from %s: %s",
@@ -113,7 +127,9 @@ class TribunalAPIClient:
             self._rate_limit_tracker.popleft()
 
         if len(self._rate_limit_tracker) >= rate_limit:
-            sleep_seconds = (self._rate_limit_tracker[0] + timedelta(minutes=1) - now).total_seconds()
+            sleep_seconds = (
+                self._rate_limit_tracker[0] + timedelta(minutes=1) - now
+            ).total_seconds()
             logger.debug(
                 "Rate limit reached for %s. Sleeping %.2f seconds.",
                 self.tribunal_code,
