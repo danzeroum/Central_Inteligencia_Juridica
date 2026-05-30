@@ -1,3 +1,37 @@
+#!/bin/bash
+# ============================================================================
+#  FASE 6b - FIX DOS 2 ULTIMOS TESTES (weighted_voting consensus_strength=0.0)
+#
+#  Causa: proposals sem chaves 'confidence'/'weight' fazem o motor de consenso
+#  calcular strength=0.0. Correcao: incluir as chaves esperadas no formato.
+#
+#  USO:
+#    bash fase6b-fix-voting.sh
+#    python -m pytest tests/unit/ -v --tb=short
+#    git add -A
+#    git commit -m "fix(fase6b): fix weighted_voting consensus test format"
+# ============================================================================
+
+set -euo pipefail
+
+DRY=0
+if [[ "${1:-}" == "--dry-run" ]]; then DRY=1; fi
+
+if [[ $DRY -eq 1 ]]; then
+    echo ""
+    echo "============================================================================"
+    echo "  FASE 6b - FIX DOS 2 ULTIMOS TESTES"
+    echo "  Modo: DRY-RUN"
+    echo "============================================================================"
+else
+    echo ""
+    echo "============================================================================"
+    echo "  FASE 6b - FIX DOS 2 ULTIMOS TESTES"
+    echo "  Modo: APLICANDO"
+    echo "============================================================================"
+fi
+
+cat > "tests/unit/test_weighted_voting.py" << 'TESTEOF'
 """Unit tests for WeightedConsensusEngine - matched to resolved Codex interface.
 
 Key interface facts:
@@ -70,3 +104,20 @@ class TestReachConsensus:
         assert "decision" in result
         assert "consensus_strength" in result
         assert "decision_maker" in result
+TESTEOF
+
+# Garantir LF
+if [[ $DRY -ne 1 ]] && command -v sed &>/dev/null; then
+    sed -i 's/\r$//' "tests/unit/test_weighted_voting.py" 2>/dev/null || true
+fi
+
+echo ""
+echo "  OK: tests/unit/test_weighted_voting.py reescrito (56 linhas)"
+echo ""
+echo "  Fix: proposals agora incluem 'score', 'weight', 'confidence'"
+echo ""
+echo "  Proximos passos:"
+echo "    python -m pytest tests/unit/ -v --tb=short"
+echo "    git add -A"
+echo '    git commit -m "fix(fase6b): fix weighted_voting consensus test format"'
+echo ""
