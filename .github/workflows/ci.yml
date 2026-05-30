@@ -40,16 +40,35 @@ jobs:
 
       - name: Run Bandit security scan
         run: |
-          bandit -r src/ -ll -x tests/ || true
+          # SECURITY: falhas de severidade ALTA quebram o build (sem "|| true").
+          # Avisos de severidade média/baixa são reportados mas não bloqueiam.
+          bandit -r src/ -x tests/ --severity-level high --confidence-level high
+          bandit -r src/ -x tests/ -ll || echo "WARNING: avisos de severidade media/baixa (nao bloqueiam)"
           echo "Security scan completed"
 
       - name: Check formatting (black --check)
         run: |
           black --check src/ tests/ || echo "WARNING: Some files need formatting. Run: black src/ tests/"
 
-      - name: Run tests with coverage
+      - name: Type check (mypy)
         run: |
-          python -m pytest tests/unit/ -v --tb=short --cov=src --cov-report=term-missing --cov-report=xml:coverage.xml 2>&1
+          # Type checking básico. Ainda não bloqueia o build (typing incremental).
+          mypy src/ --ignore-missing-imports --no-error-summary || echo "WARNING: mypy reportou avisos de tipagem (nao bloqueiam ainda)"
+
+      - name: Run unit tests with coverage threshold
+        env:
+          ENVIRONMENT: test
+        run: |
+          # Cobertura mínima imposta no CI (barreira anti-regressão).
+          python -m pytest tests/unit/ -v --tb=short \
+            --cov=src --cov-report=term-missing --cov-report=xml:coverage.xml \
+            --cov-fail-under=30
+
+      - name: Run integration tests
+        env:
+          ENVIRONMENT: test
+        run: |
+          python -m pytest tests/integration/ -v --tb=short
 
       - name: Upload coverage
         if: matrix.python-version == '3.11'

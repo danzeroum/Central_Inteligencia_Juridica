@@ -33,5 +33,19 @@ class RateLimiter:
 
         timestamps.append(now)
 
+        # SECURITY: evita vazamento de memória. Sem isto, ``_requests`` cresce
+        # indefinidamente — uma entrada por IP, mesmo após a janela expirar. A
+        # cada chamada descartamos IPs cuja janela ficou totalmente vazia.
+        self._evict_stale(window_start)
+
+    def _evict_stale(self, window_start: datetime) -> None:
+        """Remove IPs sem timestamps válidos dentro da janela atual."""
+
+        stale = [
+            ip for ip, ts in self._requests.items() if not ts or ts[-1] < window_start
+        ]
+        for ip in stale:
+            del self._requests[ip]
+
 
 __all__ = ["RateLimiter"]

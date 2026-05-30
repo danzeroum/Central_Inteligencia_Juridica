@@ -22,6 +22,17 @@ class ArchitectAgent:
         self.logger = logging.getLogger(__name__)
         self.sanitizer = InputSanitizer()
         self.reasoning_history: List[Dict[str, Any]] = []
+        self.memory: Any = None
+
+    def attach_memory(self, memory: Any) -> None:
+        """Permite que orquestradores injetem um backend de memória.
+
+        Mantém a paridade de interface com ``BaseAgent.attach_memory`` para que o
+        ArchitectAgent possa ser orquestrado de forma uniforme com os demais
+        agentes (corrige AttributeError no UnifiedOrchestrator).
+        """
+
+        self.memory = memory
 
     def reason_with_cot(self, task_description: str) -> Dict[str, Any]:
         """Generate a structured reasoning payload for the supervisor."""
@@ -72,11 +83,18 @@ class ArchitectAgent:
             if tribunal:
                 detected.append(tribunal)
 
+        # Passo 3: avaliação de multiplicidade (sempre presente, com texto
+        # adaptado ao caso) — mantém a cadeia de raciocínio com numeração
+        # consistente e contagem determinística de etapas.
         if any(
             keyword in tokens for keyword in ["tribunais", "comparar", "comparacao"]
         ):
             analysis_steps.append(
                 "3. Solicitacao sugere multiplos tribunais ou comparacao de jurisprudencia."
+            )
+        else:
+            analysis_steps.append(
+                "3. Avaliar abrangencia: tarefa parece envolver jurisdicao unica."
             )
 
         unique_tribunals = list(dict.fromkeys(detected))
@@ -87,7 +105,10 @@ class ArchitectAgent:
                 unique_tribunals = ["TJSP"]
 
         analysis_steps.append(
-            "4. Construir recomendacao priorizando tribunais identificados e contexto do usuario."
+            "4. Mapear tribunais identificados para os agentes especializados."
+        )
+        analysis_steps.append(
+            "5. Construir recomendacao priorizando tribunais identificados e contexto do usuario."
         )
 
         recommendation = "Consultar tribunais: " + ", ".join(unique_tribunals)
@@ -112,6 +133,28 @@ class ArchitectAgent:
             "ArchitectAgent concluiu CoT com tribunais: %s", unique_tribunals
         )
         return reasoning_payload
+
+    async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        """Interface assíncrona uniforme com os demais agentes.
+
+        Adapta o raciocínio síncrono (``reason_with_cot``) ao contrato
+        ``execute`` esperado pelo UnifiedOrchestrator e pelos testes de
+        integração, expondo ``reasoning_steps`` e ``confidence``.
+        """
+
+        description = task.get("description", "")
+        reasoning = self.reason_with_cot(description)
+        return {
+            "success": True,
+            "agent": "architect",
+            "reasoning": {
+                "reasoning_steps": reasoning["chain_of_thought"],
+                "recommendation": reasoning["recommendation"],
+                "identified_tribunals": reasoning["identified_tribunals"],
+                "problem_analysis": reasoning["problem_analysis"],
+            },
+            "confidence": reasoning["confidence"],
+        }
 
     def create_plan(
         self, task: Dict[str, Any], reasoning: Dict[str, Any]

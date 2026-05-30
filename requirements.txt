@@ -17,6 +17,9 @@ pydantic-settings==2.1.0
 # Environment
 python-dotenv==1.0.1
 
+# Configuration (roteamento de domínios via YAML)
+PyYAML==6.0.1
+
 # AI/ML & Vector Memory
 chromadb==0.4.18
 sentence-transformers==2.2.2

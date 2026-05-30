@@ -105,3 +105,17 @@ class AgentMemorySystem:
             self.logger.warning("Failed to write episodic memory: %s", exc)
 
         return vector_ok
+
+    def remember_decision(self, agent_type: str, entry: Dict[str, Any]) -> bool:
+        """Persiste uma decisão de agente.
+
+        Interface esperada por ``BaseAgent.log_decision`` quando uma memória é
+        injetada via ``attach_memory`` (corrige AttributeError durante a
+        orquestração). Delega para ``remember`` mantendo o trilho de auditoria.
+        """
+
+        return self.remember(
+            task=f"decision::{agent_type}",
+            result={"status": "decision"},
+            metadata=entry,
+        )
