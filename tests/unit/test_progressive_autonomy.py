@@ -56,3 +56,72 @@ class TestAutonomyLevels:
         )
         assert result is True
 
+    def test_update_trust_score_clamps_upper_bound(self) -> None:
+        """Incrementos não podem ultrapassar 1.0."""
+        manager = ProgressiveAutonomyManager()
+        manager.update_trust_score("TestAgent", 0.4)  # 0.5 -> 0.9
+        assert manager.update_trust_score("TestAgent", 0.5) == 1.0  # clamp
+
+
+class TestRequiresHumanReview:
+    """Cobre as três regras de '_requires_human_review' (tabela DMN)."""
+
+    def test_critical_action_always_reviews_even_with_full_consensus(self) -> None:
+        """Regra #1: ação crítica força revisão mesmo com consenso 1.0."""
+        manager = ProgressiveAutonomyManager()
+        manager.update_trust_score("AgenteConfiavel", 0.45)  # vira "full" (0.95)
+        assert manager._requires_human_review("AgenteConfiavel", {"critical": True}, 1.0) is True
+
+    @pytest.mark.parametrize(
+        "consensus, expected",
+        [
+            (0.59, True),   # abaixo do limiar 0.60 -> revisa
+            (0.60, False),  # no limiar (>=) com agente supervisionado -> autônomo
+            (0.95, False),
+        ],
+    )
+    def test_consensus_threshold_boundary(self, consensus, expected) -> None:
+        manager = ProgressiveAutonomyManager()
+        manager.update_trust_score("AgenteSup", 0.15)  # 0.5 -> 0.65 = "supervised"
+        assert manager._requires_human_review("AgenteSup", {"critical": False}, consensus) is expected
+
+    def test_restricted_agent_reviews_despite_high_consensus(self) -> None:
+        """Regra #3: agente restrito (trust baixo) sempre revisa."""
+        manager = ProgressiveAutonomyManager()
+        manager.update_trust_score("AgenteRestrito", -0.2)  # 0.5 -> 0.3 = "restricted"
+        assert manager._requires_human_review("AgenteRestrito", {"critical": False}, 1.0) is True
+
+
+class TestAutonomyLevelTransitions:
+    """get_autonomy_level deve mudar conforme o trust cruza os limiares."""
+
+    @pytest.mark.parametrize(
+        "trust, level",
+        [(0.95, "full"), (0.80, "full"), (0.79, "supervised"), (0.60, "supervised"), (0.59, "restricted"), (0.0, "restricted")],
+    )
+    def test_levels(self, trust, level) -> None:
+        manager = ProgressiveAutonomyManager()
+        manager.agent_trust_scores["A"] = trust
+        assert manager.get_autonomy_level("A") == level
+
+
+class TestConfigValidation:
+    """get_config/update_config — limiares editáveis com validação."""
+
+    def test_update_config_roundtrip(self) -> None:
+        manager = ProgressiveAutonomyManager()
+        cfg = manager.update_config(consensus_threshold=0.7)
+        assert cfg["consensus_threshold"] == 0.7
+        assert manager.get_config()["consensus_threshold"] == 0.7
+
+    @pytest.mark.parametrize("value", [-0.1, 1.5])
+    def test_update_config_rejects_out_of_range(self, value) -> None:
+        manager = ProgressiveAutonomyManager()
+        with pytest.raises(ValueError):
+            manager.update_config(consensus_threshold=value)
+
+    def test_update_config_rejects_inverted_trust_bands(self) -> None:
+        manager = ProgressiveAutonomyManager()
+        with pytest.raises(ValueError):
+            manager.update_config(trust_supervised_threshold=0.9, trust_full_threshold=0.5)
+

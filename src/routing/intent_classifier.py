@@ -281,6 +281,7 @@ Agora analise a seguinte solicitação:
             "últimas movimentações",
             "ultimas movimentacoes",
         ]
+        process_keywords = ["processo", "processar"]
         jurisprudence_keywords = [
             "jurisprudência",
             "jurisprudencia",

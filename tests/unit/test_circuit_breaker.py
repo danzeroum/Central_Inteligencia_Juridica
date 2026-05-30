@@ -13,7 +13,8 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
 from src.tools.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                       CircuitBreakerOpenError)
+                                       CircuitBreakerOpenError,
+                                       get_all_circuit_breakers)
 from src.utils.cache_manager import (CacheManager, CacheManagerConfig,
                                      RedisError)
 
@@ -287,3 +288,27 @@ def test_reset_circuit_allows_redis_retry() -> None:
     cache.redis_client.fail_on_set = False  # type: ignore[attr-defined]
     cache.set_cached("TJSP", "status", {"value": 7})
     assert cache.get_circuit_stats()["state"] == "closed"
+
+
+# ---------------------------------------------------------------------------
+# Registro global (consumido por GET /api/v1/monitoring/health)
+# ---------------------------------------------------------------------------
+def test_circuit_breaker_self_registers_on_creation() -> None:
+    breaker = CircuitBreaker(name="registry_test_unit")
+    registry = get_all_circuit_breakers()
+    assert registry.get("registry_test_unit") is breaker
+
+
+def test_get_all_returns_snapshot_copy() -> None:
+    """O snapshot é uma cópia: mutá-lo não afeta o registro interno."""
+    CircuitBreaker(name="snapshot_probe")
+    snapshot = get_all_circuit_breakers()
+    snapshot.clear()
+    assert "snapshot_probe" in get_all_circuit_breakers()
+
+
+def test_register_replaces_breaker_with_same_name() -> None:
+    first = CircuitBreaker(name="dup_name")
+    second = CircuitBreaker(name="dup_name")
+    assert get_all_circuit_breakers()["dup_name"] is second
+    assert first is not second
