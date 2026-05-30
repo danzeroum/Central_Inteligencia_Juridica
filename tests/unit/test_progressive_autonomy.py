@@ -1,4 +1,13 @@
-"""Unit tests for ProgressiveAutonomyManager."""
+"""Unit tests for ProgressiveAutonomyManager - matched to resolved Codex interface.
+
+Key interface facts (from actual test error analysis):
+- No get_trust_score() method exists; access agent_trust_scores dict directly
+- update_trust_score(agent, delta) -> float (returns new score, clamped 0-1)
+- _requires_human_review(agent, action, consensus) uses positional "consensus"
+  NOT keyword "consensus_strength"
+- default_trust_score attribute holds the default (0.5)
+- agent_trust_scores dict holds per-agent scores
+"""
 
 from __future__ import annotations
 
@@ -7,32 +16,43 @@ import pytest
 from src.hitl.progressive_autonomy import ProgressiveAutonomyManager
 
 
-@pytest.fixture
-def manager() -> ProgressiveAutonomyManager:
-    return ProgressiveAutonomyManager()
-
-
 class TestAutonomyLevels:
-    def test_initial_trust_score(self, manager: ProgressiveAutonomyManager) -> None:
-        score = manager.get_trust_score("TestAgent")
-        assert score is not None
+    """Tests for trust score management and human review determination."""
 
-    def test_update_trust_score(self, manager: ProgressiveAutonomyManager) -> None:
-        manager.update_trust_score("TestAgent", delta=0.1)
-        score = manager.get_trust_score("TestAgent")
-        assert score > 0.5
+    def test_initial_trust_score(self) -> None:
+        """No explicit getter; check dict directly with default fallback."""
+        manager = ProgressiveAutonomyManager()
+        score = manager.agent_trust_scores.get(
+            "TestAgent", manager.default_trust_score
+        )
+        assert score == 0.5
 
-    def test_negative_delta(self, manager: ProgressiveAutonomyManager) -> None:
-        initial = manager.get_trust_score("TestAgent")
-        manager.update_trust_score("TestAgent", delta=-0.05)
-        after = manager.get_trust_score("TestAgent")
-        assert after < initial
+    def test_update_trust_score(self) -> None:
+        """update_trust_score(agent, delta) returns new clamped score."""
+        manager = ProgressiveAutonomyManager()
+        new_score = manager.update_trust_score("TestAgent", 0.1)
+        assert new_score == 0.6
+        assert manager.agent_trust_scores["TestAgent"] == 0.6
 
-    def test_requires_human_review_with_low_consensus(
-        self, manager: ProgressiveAutonomyManager
-    ) -> None:
+    def test_negative_delta(self) -> None:
+        """Negative delta decreases trust, clamped to 0.0."""
+        manager = ProgressiveAutonomyManager()
+        initial = manager.agent_trust_scores.get(
+            "TestAgent", manager.default_trust_score
+        )
+        assert initial == 0.5
+        new_score = manager.update_trust_score("TestAgent", -0.3)
+        assert new_score == 0.2
+
+    def test_requires_human_review_with_low_consensus(self) -> None:
+        """Low consensus (0.3) < threshold (0.6) triggers human review.
+
+        Signature: _requires_human_review(agent, action, consensus) - positional args.
+        """
+        manager = ProgressiveAutonomyManager()
+        # consensus is POSITIONAL (3rd arg), not keyword "consensus_strength"
         result = manager._requires_human_review(
-            consensus_strength=0.3,
-            action="critical_legal_decision",
+            "TestAgent", {"critical": False}, 0.3
         )
         assert result is True
+
