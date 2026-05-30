@@ -107,6 +107,28 @@ _CIRCUIT_TRANSITIONS_TOTAL = _build_counter(
 )
 
 
+# ----------------------------------------------------------------------
+# Global registry — permite que endpoints de monitoramento listem todos
+# os circuit breakers ativos no processo (mesmo padrão de get_hitl_queue).
+# ----------------------------------------------------------------------
+_REGISTRY: "Dict[str, CircuitBreaker]" = {}
+_REGISTRY_LOCK = RLock()
+
+
+def register_circuit_breaker(breaker: "CircuitBreaker") -> None:
+    """Registra (ou substitui) um circuit breaker pelo seu nome."""
+
+    with _REGISTRY_LOCK:
+        _REGISTRY[breaker.config.name] = breaker
+
+
+def get_all_circuit_breakers() -> "Dict[str, CircuitBreaker]":
+    """Retorna um snapshot do registro global de circuit breakers."""
+
+    with _REGISTRY_LOCK:
+        return dict(_REGISTRY)
+
+
 class CircuitBreaker:
     """Thread-safe implementation of the Circuit Breaker pattern."""
 
@@ -143,6 +165,7 @@ class CircuitBreaker:
         self._last_failure_time: float | None = None
 
         self._update_state_metric()
+        register_circuit_breaker(self)
 
     @property
     def state(self) -> CircuitState:
@@ -405,4 +428,6 @@ __all__ = [
     "CircuitBreakerError",
     "CircuitBreakerOpenError",
     "CircuitState",
+    "register_circuit_breaker",
+    "get_all_circuit_breakers",
 ]

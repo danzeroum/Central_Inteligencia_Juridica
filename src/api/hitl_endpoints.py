@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, Dict
 
 from fastapi import (APIRouter, HTTPException, WebSocket, WebSocketDisconnect,
@@ -10,11 +11,11 @@ from fastapi import (APIRouter, HTTPException, WebSocket, WebSocketDisconnect,
 from pydantic import BaseModel, Field
 
 from src.hitl.hitl_queue import get_hitl_queue
-from src.utils.ledger import DecisionLedger
+from src.utils.ledger import get_ledger
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/hitl", tags=["HITL"])
-ledger = DecisionLedger()
+ledger = get_ledger()
 
 
 class HITLDecision(BaseModel):
@@ -38,6 +39,33 @@ async def list_pending_approvals() -> Dict[str, Any]:
     return {
         "count": len(pending),
         "requests": pending,
+    }
+
+
+@router.get("/stats", summary="Estatísticas da fila HITL")
+async def hitl_stats() -> Dict[str, Any]:
+    """Resumo da fila para o cabeçalho do console de aprovações.
+
+    As contagens de aprovadas/rejeitadas são derivadas do Decision Ledger
+    (entradas ``HITL_DECISION``) do dia corrente.
+    """
+    queue = get_hitl_queue()
+    pending = queue.get_pending_requests()
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    approved = rejected = 0
+    for entry in ledger.get_entries(decision_type="HITL_DECISION"):
+        if not entry.get("timestamp", "").startswith(today):
+            continue
+        if entry.get("metadata", {}).get("approved"):
+            approved += 1
+        else:
+            rejected += 1
+
+    return {
+        "pending": len(pending),
+        "approved_today": approved,
+        "rejected_today": rejected,
     }
 
 
