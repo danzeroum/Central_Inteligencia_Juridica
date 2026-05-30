@@ -1,0 +1,1924 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Central Inteligência Jurídica",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/hitl/pending": {
+      "get": {
+        "tags": [
+          "HITL"
+        ],
+        "summary": "Lista aprovações pendentes",
+        "description": "Retorna todas as solicitações de aprovação aguardando decisão humana.",
+        "operationId": "list_pending_approvals_api_v1_hitl_pending_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Pending Approvals Api V1 Hitl Pending Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/stats": {
+      "get": {
+        "tags": [
+          "HITL"
+        ],
+        "summary": "Estatísticas da fila HITL",
+        "description": "Resumo da fila para o cabeçalho do console de aprovações.\n\nAs contagens de aprovadas/rejeitadas são derivadas do Decision Ledger\n(entradas ``HITL_DECISION``) do dia corrente.",
+        "operationId": "hitl_stats_api_v1_hitl_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Hitl Stats Api V1 Hitl Stats Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/decisions": {
+      "post": {
+        "tags": [
+          "HITL"
+        ],
+        "summary": "Registra decisão humana",
+        "description": "Processa decisão do operador humano sobre uma ação proposta por agente.\n\nEsta é a interface crítica que permite supervisão humana em tempo real.",
+        "operationId": "record_decision_api_v1_hitl_decisions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HITLDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Record Decision Api V1 Hitl Decisions Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/feedback": {
+      "post": {
+        "tags": [
+          "Training"
+        ],
+        "summary": "Submit Feedback",
+        "description": "Submit feedback for an agent's performance.",
+        "operationId": "submit_feedback_api_v1_training_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Submit Feedback Api V1 Training Feedback Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/train": {
+      "post": {
+        "tags": [
+          "Training"
+        ],
+        "summary": "Trigger Training",
+        "description": "Trigger a training cycle for a specific agent.",
+        "operationId": "trigger_training_api_v1_training_train_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Trigger Training Api V1 Training Train Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/stats": {
+      "get": {
+        "tags": [
+          "Training"
+        ],
+        "summary": "Get Training Stats",
+        "description": "Get training statistics for agents.",
+        "operationId": "get_training_stats_api_v1_training_stats_get",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingStatsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/active-sessions": {
+      "get": {
+        "tags": [
+          "Training"
+        ],
+        "summary": "Get Active Sessions",
+        "description": "Get all currently active training sessions.",
+        "operationId": "get_active_sessions_api_v1_training_active_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Active Sessions Api V1 Training Active Sessions Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/history": {
+      "get": {
+        "tags": [
+          "Training"
+        ],
+        "summary": "Get Training History",
+        "description": "Get training history.",
+        "operationId": "get_training_history_api_v1_training_history_get",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Type"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Training History Api V1 Training History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/ab-test": {
+      "post": {
+        "tags": [
+          "Training"
+        ],
+        "summary": "Run Ab Test",
+        "description": "Run an A/B test between two agent variants.",
+        "operationId": "run_ab_test_api_v1_training_ab_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ABTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Run Ab Test Api V1 Training Ab Test Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/reset/{agent_type}": {
+      "post": {
+        "tags": [
+          "Training"
+        ],
+        "summary": "Reset Training State",
+        "description": "Reset training state for an agent.",
+        "operationId": "reset_training_state_api_v1_training_reset__agent_type__post",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Reset Training State Api V1 Training Reset  Agent Type  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ledger": {
+      "get": {
+        "tags": [
+          "Ledger"
+        ],
+        "summary": "Lista entradas da trilha de auditoria",
+        "description": "Retorna as entradas mais recentes do Decision Ledger (ordem cronológica).",
+        "operationId": "list_ledger_api_v1_ledger_get",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo de agente",
+              "title": "Agent Type"
+            },
+            "description": "Filtra por tipo de agente"
+          },
+          {
+            "name": "decision_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo de decisão",
+              "title": "Decision Type"
+            },
+            "description": "Filtra por tipo de decisão"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "description": "Número máximo de entradas",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Número máximo de entradas"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List Ledger Api V1 Ledger Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ledger/export.csv": {
+      "get": {
+        "tags": [
+          "Ledger"
+        ],
+        "summary": "Exporta a trilha de auditoria em CSV",
+        "description": "Exporta as entradas como CSV para conformidade/arquivamento.",
+        "operationId": "export_ledger_csv_api_v1_ledger_export_csv_get",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Type"
+            }
+          },
+          {
+            "name": "decision_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Decision Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/autonomy/config": {
+      "get": {
+        "tags": [
+          "Autonomy"
+        ],
+        "summary": "Lê a configuração da regra de autonomia",
+        "description": "Retorna os limiares e a tabela de decisão derivada.",
+        "operationId": "get_config_api_v1_autonomy_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Config Api V1 Autonomy Config Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Autonomy"
+        ],
+        "summary": "Atualiza a configuração da regra de autonomia",
+        "description": "Atualiza os limiares (consenso e faixas de trust).",
+        "operationId": "update_config_api_v1_autonomy_config_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutonomyConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Update Config Api V1 Autonomy Config Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/health": {
+      "get": {
+        "tags": [
+          "Monitoring"
+        ],
+        "summary": "Saúde agregada do sistema",
+        "description": "Retorna circuit breakers, fila HITL e canal A2A num único payload.",
+        "operationId": "monitoring_health_api_v1_monitoring_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Monitoring Health Api V1 Monitoring Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/capabilities": {
+      "get": {
+        "tags": [
+          "MCP"
+        ],
+        "summary": "Lista todas as capacidades dos agentes",
+        "description": "Retorna o registry completo de agentes em formato MCP-compatível.",
+        "operationId": "get_agent_capabilities_api_v1_agents_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Agent Capabilities Api V1 Agents Capabilities Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "tags": [
+          "MCP"
+        ],
+        "summary": "Lista todos os agentes registrados",
+        "description": "Retorna lista simplificada de agentes ativos.",
+        "operationId": "list_agents_api_v1_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Agents Api V1 Agents Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/a2a/send": {
+      "post": {
+        "tags": [
+          "A2A"
+        ],
+        "summary": "Envia mensagem entre agentes",
+        "description": "Permite enviar mensagem direta de um agente para outro.",
+        "operationId": "send_a2a_message_api_v1_a2a_send_post",
+        "parameters": [
+          {
+            "name": "sender_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sender Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/A2AMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Send A2A Message Api V1 A2A Send Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/a2a/messages/{agent_id}": {
+      "get": {
+        "tags": [
+          "A2A"
+        ],
+        "summary": "Recebe mensagens pendentes de um agente",
+        "description": "Retorna lista de mensagens A2A pendentes para um agente.",
+        "operationId": "get_agent_messages_api_v1_a2a_messages__agent_id__get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Agent Messages Api V1 A2A Messages  Agent Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/a2a/history/{agent_id}": {
+      "get": {
+        "tags": [
+          "A2A"
+        ],
+        "summary": "Histórico de mensagens A2A",
+        "description": "Retorna histórico de mensagens enviadas/recebidas por um agente.",
+        "operationId": "get_a2a_history_api_v1_a2a_history__agent_id__get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get A2A History Api V1 A2A History  Agent Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/a2a/broadcast": {
+      "post": {
+        "tags": [
+          "A2A"
+        ],
+        "summary": "Broadcast para múltiplos agentes",
+        "description": "Envia mensagem para múltiplos agentes simultaneamente.",
+        "operationId": "broadcast_a2a_message_api_v1_a2a_broadcast_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/A2ABroadcastRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Broadcast A2A Message Api V1 A2A Broadcast Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/a2a/health": {
+      "get": {
+        "tags": [
+          "A2A"
+        ],
+        "summary": "Status do canal A2A",
+        "description": "Verifica saúde do sistema de comunicação A2A.",
+        "operationId": "a2a_health_check_api_v1_a2a_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response A2A Health Check Api V1 A2A Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "MCP"
+        ],
+        "summary": "Detalhes de um agente específico",
+        "description": "Retorna agent card completo com todas as capacidades.",
+        "operationId": "get_agent_details_api_v1_agents__agent_id__get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Agent Details Api V1 Agents  Agent Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agent_id}/invoke": {
+      "post": {
+        "tags": [
+          "MCP"
+        ],
+        "summary": "Invoca um agente diretamente",
+        "description": "Permite invocar um agente específico sem passar pelo supervisor.",
+        "operationId": "invoke_agent_directly_api_v1_agents__agent_id__invoke_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Invoke Agent Directly Api V1 Agents  Agent Id  Invoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/by-capability/{capability}": {
+      "get": {
+        "tags": [
+          "MCP"
+        ],
+        "summary": "Busca agentes por capacidade",
+        "description": "Retorna agentes que possuem uma capacidade específica.",
+        "operationId": "get_agents_by_capability_api_v1_agents_by_capability__capability__get",
+        "parameters": [
+          {
+            "name": "capability",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Capability"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Agents By Capability Api V1 Agents By Capability  Capability  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "post": {
+        "summary": "Process Task",
+        "description": "Processa uma tarefa jurídica utilizando o SupervisorAgent.",
+        "operationId": "process_task_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessfulTaskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "post": {
+        "tags": [
+          "MCP"
+        ],
+        "summary": "Process Task V1",
+        "description": "Processa tarefa jurídica utilizando o padrão MCP.",
+        "operationId": "process_task_v1_api_v1_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessfulTaskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/advanced": {
+      "post": {
+        "tags": [
+          "Advanced AI Agent"
+        ],
+        "summary": "Processa tarefa com orquestração completa de agentes",
+        "description": "Endpoint avançado que ativa o UnifiedOrchestrator com:\n    - Squad completo de agentes especializados\n    - RAG para enriquecimento de contexto\n    - Chain-of-Thought para raciocínio\n    - Consensus mechanism para decisões complexas\n    - Adaptive planning com replanning automático",
+        "operationId": "process_advanced_task_api_v1_tasks_advanced_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Tarefa processada com sucesso pelo squad",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Process Advanced Task Api V1 Tasks Advanced Post"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/compare": {
+      "post": {
+        "tags": [
+          "Advanced AI Agent"
+        ],
+        "summary": "Compara processamento simples vs avançado",
+        "description": "Executa a mesma tarefa nos dois modos e retorna comparação",
+        "operationId": "compare_modes_api_v1_tasks_compare_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Compare Modes Api V1 Tasks Compare Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consultar-projetos-lei/": {
+      "get": {
+        "tags": [
+          "Consultas"
+        ],
+        "summary": "Consultar Projetos Endpoint",
+        "description": "Consulta projetos de lei diretamente na API da Câmara dos Deputados.",
+        "operationId": "consultar_projetos_endpoint_consultar_projetos_lei__get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Termo de busca para proposições legislativas",
+              "title": "Q"
+            },
+            "description": "Termo de busca para proposições legislativas"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analise-legislativa/": {
+      "post": {
+        "tags": [
+          "Análises de IA"
+        ],
+        "summary": "Analisar Legislacao Endpoint",
+        "description": "Inicia uma análise de IA sobre um tema legislativo.",
+        "operationId": "analisar_legislacao_endpoint_analise_legislativa__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_analisar_legislacao_endpoint_analise_legislativa__post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Endpoint simples de saúde da aplicação.",
+        "operationId": "health_check_health_get",
+        "parameters": [
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Inclui detalhes completos",
+              "default": false,
+              "title": "Verbose"
+            },
+            "description": "Inclui detalhes completos"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Health Check Health Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/history": {
+      "get": {
+        "tags": [
+          "Consultas"
+        ],
+        "summary": "Histórico de consultas do consulente",
+        "description": "Lista as consultas processadas pelo Supervisor.\n\nConsultas cuja ação derivada entrou em revisão humana e ainda está pendente\nsão marcadas com status ``em_revisao_humana``; as demais, ``concluida``.",
+        "operationId": "list_history_api_v1_history_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response List History Api V1 History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "A2ABroadcastRequest": {
+        "properties": {
+          "sender_id": {
+            "type": "string",
+            "title": "Sender Id",
+            "description": "Agente emissor da mensagem"
+          },
+          "receiver_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Receiver Ids",
+            "description": "Lista de agentes destinatários"
+          },
+          "message_type": {
+            "type": "string",
+            "title": "Message Type",
+            "description": "Tipo da mensagem a ser enviada"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "description": "Conteúdo da mensagem"
+          },
+          "priority": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Priority",
+            "description": "Prioridade da mensagem (1-3)",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "sender_id",
+          "receiver_ids",
+          "message_type",
+          "payload"
+        ],
+        "title": "A2ABroadcastRequest",
+        "description": "Payload para broadcast de mensagens A2A."
+      },
+      "A2AMessageRequest": {
+        "properties": {
+          "receiver_id": {
+            "type": "string",
+            "title": "Receiver Id",
+            "description": "Identificador do agente de destino"
+          },
+          "message_type": {
+            "type": "string",
+            "title": "Message Type",
+            "description": "Tipo da mensagem a ser enviada"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "description": "Dados da mensagem"
+          },
+          "priority": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Priority",
+            "description": "Prioridade da mensagem (1-3)",
+            "default": 1
+          },
+          "requires_response": {
+            "type": "boolean",
+            "title": "Requires Response",
+            "description": "Se é necessário aguardar resposta",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "receiver_id",
+          "message_type",
+          "payload"
+        ],
+        "title": "A2AMessageRequest",
+        "description": "Payload para envio de mensagens A2A."
+      },
+      "ABTestRequest": {
+        "properties": {
+          "agent_a_type": {
+            "type": "string",
+            "title": "Agent A Type",
+            "description": "First agent variant"
+          },
+          "agent_b_type": {
+            "type": "string",
+            "title": "Agent B Type",
+            "description": "Second agent variant"
+          },
+          "test_cases": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Test Cases",
+            "description": "Test cases to run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_a_type",
+          "agent_b_type",
+          "test_cases"
+        ],
+        "title": "ABTestRequest",
+        "description": "Request model for A/B testing."
+      },
+      "AutonomyConfigUpdate": {
+        "properties": {
+          "consensus_threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consensus Threshold"
+          },
+          "trust_full_threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Full Threshold"
+          },
+          "trust_supervised_threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Supervised Threshold"
+          }
+        },
+        "type": "object",
+        "title": "AutonomyConfigUpdate",
+        "description": "Atualização parcial dos limiares da regra de autonomia."
+      },
+      "Body_analisar_legislacao_endpoint_analise_legislativa__post": {
+        "properties": {
+          "tema": {
+            "type": "string",
+            "title": "Tema",
+            "description": "Tema legislativo para análise de IA"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tema"
+        ],
+        "title": "Body_analisar_legislacao_endpoint_analise_legislativa__post"
+      },
+      "FeedbackRequest": {
+        "properties": {
+          "agent_type": {
+            "type": "string",
+            "title": "Agent Type",
+            "description": "Type of agent (e.g., 'TJSP', 'TJMG')"
+          },
+          "task_result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Task Result",
+            "description": "Result of the task execution"
+          },
+          "user_rating": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Rating",
+            "description": "User satisfaction rating (0-1)"
+          },
+          "corrections": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrections",
+            "description": "Corrections or improvements suggested by user"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_type",
+          "task_result"
+        ],
+        "title": "FeedbackRequest",
+        "description": "Request model for submitting agent feedback."
+      },
+      "HITLDecision": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "ID da solicitação de aprovação"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "Se a ação foi aprovada"
+          },
+          "modifications": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modifications",
+            "description": "Modificações nos parâmetros"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback",
+            "description": "Feedback textual do operador"
+          },
+          "operator_id": {
+            "type": "string",
+            "title": "Operator Id",
+            "description": "ID do operador",
+            "default": "manual_operator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "approved"
+        ],
+        "title": "HITLDecision",
+        "description": "Modelo para decisão do operador humano."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ProblemDetail": {
+        "properties": {
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "HTTP status code do erro"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Resumo do problema"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Detalhes adicionais"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "title",
+          "detail"
+        ],
+        "title": "ProblemDetail"
+      },
+      "SuccessfulTaskResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "supervisor_result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Supervisor Result"
+          },
+          "tribunals_used": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tribunals Used"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "execution_time": {
+            "type": "number",
+            "title": "Execution Time"
+          },
+          "parallel": {
+            "type": "boolean",
+            "title": "Parallel"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "supervisor_result",
+          "tribunals_used",
+          "task_id",
+          "execution_time",
+          "parallel",
+          "timestamp"
+        ],
+        "title": "SuccessfulTaskResponse"
+      },
+      "TaskRequest": {
+        "properties": {
+          "task_description": {
+            "type": "string",
+            "title": "Task Description",
+            "description": "Descrição da tarefa jurídica"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_description"
+        ],
+        "title": "TaskRequest"
+      },
+      "TrainingRequest": {
+        "properties": {
+          "agent_type": {
+            "type": "string",
+            "title": "Agent Type",
+            "description": "Type of agent to train"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "description": "Force training even if conditions not met",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_type"
+        ],
+        "title": "TrainingRequest",
+        "description": "Request model for triggering agent training."
+      },
+      "TrainingStatsResponse": {
+        "properties": {
+          "agent_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Type"
+          },
+          "stats": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Stats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_type",
+          "stats"
+        ],
+        "title": "TrainingStatsResponse",
+        "description": "Response model for training statistics."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

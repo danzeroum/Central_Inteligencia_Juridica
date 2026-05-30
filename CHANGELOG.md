@@ -6,6 +6,37 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.0] - 2026-05-30
+
+### ✅ Added
+- **SPA React + Vite** com 12 telas (Espaço de Trabalho + Administração), servida
+  pelo FastAPI em `/app`; substitui as páginas estáticas isoladas.
+- Endpoints de suporte à UI: `/api/v1/ledger` (+ export CSV), `/api/v1/autonomy/config`
+  (GET/PUT), `/api/v1/monitoring/health`, `/api/v1/hitl/stats`, `/api/v1/history`;
+  `/api/v1/agents` enriquecido com trust score e nível de autonomia.
+- Console HITL acessível (aria-live, foco, atalhos) com "Modificar" funcional,
+  confirmação proporcional ao risco e rejeição com justificativa.
+- Registro global de circuit breakers (consumido pelo monitoramento).
+- Manual do Estudante (`docs/MANUAL_ESTUDANTE.md`) e arquitetura C4
+  (`docs/ARCHITECTURE_C4.md`).
+
+### 🐛 Fixed
+- `IntentClassifier`: `NameError` no fallback (`process_keywords` indefinido) que
+  derrubava buscas de jurisprudência e consultas genéricas sem LLM.
+
+### 🔧 Changed
+- Trilha de auditoria e gestor de autonomia agora usam singletons compartilhados
+  (`get_ledger()`, `get_autonomy_manager()`).
+- Documentação: consolidação dos ADRs numa única pasta `docs/ADRs/`, reescrita do
+  getting-started e dos user-flows, OpenAPI gerada do app (`/docs`), limpeza de
+  scaffolding (`scripts/dev/`).
+
+### 🧪 Tests
+- Suíte ampliada para 231 casos (+ `test_intent_classifier`, `test_hitl_queue`;
+  reforço de consenso, autonomia, circuit breaker e endpoints da SPA).
+
+---
+
 ## [1.0.0] - 2025-09-30
 
 ### ✅ Added
@@ -20,8 +51,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Dashboard Grafana completo
 - Decision ledger para auditoria
 - UI web interativa
-- Documentação completa (11 ADRs)
-- Testes com 92% coverage
+- Documentação completa (ADRs)
+- Suíte de testes unitários e de integração
 
 ### 🔧 Changed
 - Movido sandbox para `experimental/security/` (ADR-011)

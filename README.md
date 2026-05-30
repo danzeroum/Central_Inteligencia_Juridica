@@ -101,14 +101,30 @@ curl http://localhost:8000/health
 ## Testes
 
 ```bash
-# 78 testes unitarios (100% passando)
+# Testes unitarios
 pytest tests/unit/ -v
 
-# Com cobertura
-pytest tests/unit/ --cov=src --cov-report=term-missing --cov-report=html
+# Unit + integracao
+pytest tests/unit tests/integration -q
 
-# Relatorio HTML: htmlcov/index.html
+# Com cobertura (relatorio HTML em htmlcov/index.html)
+pytest tests/unit --cov=src --cov-report=term-missing --cov-report=html
 ```
+
+## Documentacao
+
+| Documento | Conteudo |
+|---|---|
+| [Manual do Estudante](docs/MANUAL_ESTUDANTE.md) | Todas as funcionalidades da interface |
+| [Primeiros passos](docs/tutorials/getting_started.md) | Setup local + primeira consulta |
+| [Arquitetura C4](docs/ARCHITECTURE_C4.md) | Contexto -> Codigo + sequencias |
+| [ADRs](docs/ADRs/README.md) | Decisoes arquiteturais |
+| [Novo dominio/tribunal](docs/ADICIONAR_NOVO_DOMINIO.md) | Como estender via YAML |
+| [Troubleshooting](docs/troubleshooting.md) | Problemas comuns |
+| **API (Swagger)** | http://localhost:8000/docs (gerado do app) |
+
+> A spec OpenAPI versionada (`docs/API/openapi.json`) e gerada por
+> `python scripts/dev/export_openapi.py` — a fonte da verdade e o codigo.
 
 ## Estrutura de Diretorios
 
@@ -122,11 +138,17 @@ Central_Inteligencia_Juridica/
 |   +-- protocols/       # A2A protocol
 |   +-- routing/         # IntentClassifier, LearningRouter
 |   +-- tools/           # TribunalAPIAdapter, CircuitBreaker, schemas
+|   +-- api/             # FastAPI (endpoints + static/spa servida em /app)
 |   +-- utils/           # CacheManager, InputSanitizer, Ledger, Metrics
++-- frontend/            # SPA React + Vite (build -> src/api/static/spa)
 +-- tests/
-|   +-- unit/            # 78 testes unitarios
-+-- config/              # Configuracoes
-+-- monitoring/           # Prometheus + Grafana
+|   +-- unit/            # testes unitarios
+|   +-- integration/     # testes de integracao
++-- docs/                # ADRs, manual, arquitetura C4, tutoriais
++-- examples/            # demos do projeto (+ patterns/ genericos)
++-- scripts/dev/         # utilitarios de dev (export_openapi, etc.)
++-- config/              # Configuracoes (routing, agents)
++-- monitoring/          # Prometheus + Grafana
 +-- .github/workflows/   # CI/CD
 +-- docker-compose.yml
 +-- Dockerfile
