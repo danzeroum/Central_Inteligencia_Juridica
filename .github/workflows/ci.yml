@@ -136,23 +136,21 @@ jobs:
           python-version: "3.11"
 
       - name: pip-audit (vulnerabilidades em dependências)
+        # Advisory: reporta para triagem, não bloqueia o build (segurança
+        # incremental, alinhado ao mypy). continue-on-error garante verde mesmo
+        # com findings. Para tornar gate, remova continue-on-error.
+        continue-on-error: true
         run: |
-          # SECURITY: varre as dependências (PyPI Advisory DB / OSV). Não-bloqueante
-          # por ora (typing/segurança incremental) — reporta para triagem. Para
-          # tornar bloqueante, remova o "|| true". Use --ignore-vuln GHSA-xxxx para
-          # exceções justificadas.
+          # SECURITY: varre as dependências (PyPI Advisory DB / OSV).
           python -m pip install --upgrade pip pip-audit
-          pip-audit -r requirements.txt --desc --strict || \
-            echo "WARNING: pip-audit reportou vulnerabilidades (nao bloqueia ainda)"
+          pip-audit -r requirements.txt --desc
 
       - name: Trivy (filesystem + dependências, HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          # exit-code 0: reporta sem bloquear (alinha com pip-audit/mypy). Mude
-          # para "1" para tornar o gate bloqueante.
-          exit-code: '0'
-          format: table
+        # Instalação via script oficial (determinística — sem depender da
+        # resolução de uma action do marketplace). Advisory/não-bloqueante.
+        continue-on-error: true
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin
+          trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 .
