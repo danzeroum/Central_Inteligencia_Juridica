@@ -22,6 +22,18 @@ Sem memória persistente:
 
 ## Decisão
 
+> ⚠️ **Nota de conformidade (sync com o código — D03/D13).** Este ADR descreve a
+> intenção original; a **implementação real** (`src/memory/vector_memory.py`)
+> divergiu em dois pontos e o que vale é o descrito aqui:
+> - **ChromaDB roda embarcado/persistente local** (cliente in-process), **não**
+>   há serviço ChromaDB HTTP no `docker-compose.yml` (D03). O modo HTTP/remoto
+>   existe como opção (`VECTOR_MEMORY_MODE`), mas não é provisionado por padrão.
+> - **Embeddings usam, por padrão, uma função hash determinística**
+>   (`HashEmbeddingFunction`), **sem** dependência de chave de API externa (D13).
+>   Embeddings de provedores (ex.: OpenAI) são uma evolução opcional.
+>
+> O texto abaixo é mantido como registro histórico da decisão original.
+
 Implementar **Vector Memory** usando:
 
 ### Stack Tecnológico

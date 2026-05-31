@@ -8,9 +8,15 @@ Para garantir consistência, DX e manutenção, a API da Central de Inteligênci
 
 ## Decisão
 - **URLs RESTful** com substantivos no plural (ex.: `/users`, `/orders`).
-- **Versionamento obrigatório**: prefixo `/api/v1/`.
+- **Versionamento obrigatório**: prefixo `/api/v1/` para **novos** endpoints.
 - **Métodos HTTP semânticos**: GET (leitura), POST (criação), PUT/PATCH (atualização), DELETE (remoção).
 - **Status HTTP consistentes** e **OpenAPI com exemplos** (request/response + erros `application/problem+json`).
+
+> Nota de conformidade — exceções de versionamento (D12): alguns endpoints
+> legados **não** seguem o prefixo `/api/v1` por compatibilidade retroativa:
+> `POST /tasks`, `GET /consultar-projetos-lei/` e `POST /analise-legislativa/`.
+> São exceções conhecidas e mantidas; **novos** endpoints devem nascer sob
+> `/api/v1`.
 
 ## Alternativas Consideradas
 - GraphQL (flexível, porém extrapola o MVP e complica os gates).
@@ -21,10 +27,14 @@ Para garantir consistência, DX e manutenção, a API da Central de Inteligênci
 - **Negativas:** exige validação contínua dos contratos em PRs.
 
 ## Validação
-- Gate automatizado em `scripts/gates-v6.sh`:
-  - Verifica prefixo `/api/vX/` na OpenAPI.
-  - Heurística contra verbos nos caminhos.
-  - YAML bem-formado.
+- A validação de qualidade antes do merge é feita pelo pipeline de CI em
+  `.github/workflows/ci.yml` (Black, Bandit, pytest com cobertura, gitleaks,
+  e — para a SPA — ESLint/Vitest/build).
+- O schema OpenAPI pode ser exportado via `scripts/dev/export_openapi.py`.
+
+> Nota de conformidade (D09/D10): a referência anterior a `scripts/gates-v6.sh`
+> foi removida — esse script nunca existiu no repositório. A "qualidade antes do
+> merge" é assegurada pelo CI do GitHub Actions descrito acima.
 
 ## Referências
 - OpenAPI Specification
