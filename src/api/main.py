@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Query, status
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
+from src.api.auth import AuthManager
 from src.api.autonomy_endpoints import router as autonomy_router
 from src.api.hitl_endpoints import router as hitl_router
 from src.api.ledger_endpoints import router as ledger_router
@@ -23,6 +26,7 @@ from src.hitl.hitl_queue import get_hitl_queue
 from src.hitl.progressive_autonomy import get_autonomy_manager
 from src.orchestration.unified_orchestrator import UnifiedOrchestrator
 from src.protocols.a2a_channel import get_a2a_channel
+from src.api.rate_limiter import RateLimiter
 from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.services.camara_client import buscar_projetos_de_lei
 from src.utils.metrics_collector import MetricsCollector
@@ -33,7 +37,55 @@ app = FastAPI(title="Central Inteligência Jurídica")
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 
-AUTH_REQUIRED = False
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+# SECURITY (SEC-001): autenticação JWT é EXIGIDA por padrão. Em ``ENVIRONMENT=test``
+# ela é relaxada para que a suíte exercite os endpoints sem emitir tokens; o
+# comportamento é sobrescrevível via ``AUTH_REQUIRED``. O ``AuthManager`` real
+# (JWT, thread-safe) substitui o antigo stub que retornava sempre "anonymous".
+AUTH_REQUIRED = _env_flag("AUTH_REQUIRED", default=ENVIRONMENT != "test")
+AuthManager.configure(required=AUTH_REQUIRED)
+
+# SECURITY (SEC-002): rate limiting real por IP (janela deslizante de 1 min).
+# Em teste o limite é elevado o suficiente para não introduzir flakiness, já que
+# toda a suíte compartilha o mesmo IP de ``TestClient`` contra um único limiter.
+_DEFAULT_RATE_LIMIT = 100_000 if ENVIRONMENT == "test" else 60
+RATE_LIMIT_PER_MINUTE = int(
+    os.getenv("RATE_LIMIT_PER_MINUTE", str(_DEFAULT_RATE_LIMIT))
+)
+_rate_limiter = RateLimiter(requests_per_minute=RATE_LIMIT_PER_MINUTE)
+
+
+async def enforce_rate_limit(request: Request) -> None:
+    """Dependência FastAPI que aplica o rate limiting por IP."""
+
+    await _rate_limiter(request)
+
+
+# SECURITY (P0-5): identificadores de agente (A2A) seguem um allowlist estrito —
+# alfanuméricos e ``_ . -`` com comprimento limitado — fechando o vetor de injeção
+# de ``sender_id``/``receiver_id`` recebidos como entrada controlada pelo usuário.
+_AGENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.\-]{1,64}$")
+
+
+def _validate_agent_id(agent_id: str, field: str) -> str:
+    """Valida um identificador de agente A2A contra o allowlist estrito."""
+
+    if not isinstance(agent_id, str) or not _AGENT_ID_PATTERN.match(agent_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Identificador de agente inválido em '{field}'",
+        )
+    return agent_id
+
 
 # CORS — permite o dev server do Vite (localhost:5173) durante o desenvolvimento.
 # Em produção a SPA é servida pela mesma origem (StaticFiles), tornando isto inócuo.
@@ -96,16 +148,6 @@ class A2ABroadcastRequest(BaseModel):
     message_type: str = Field(..., description="Tipo da mensagem a ser enviada")
     payload: Dict[str, Any] = Field(..., description="Conteúdo da mensagem")
     priority: int = Field(1, ge=1, le=3, description="Prioridade da mensagem (1-3)")
-
-
-class AuthManager:
-    @staticmethod
-    async def verify_token() -> str:
-        return "anonymous"
-
-
-async def enforce_rate_limit() -> None:  # pragma: no cover - placeholder
-    return None
 
 
 supervisor_agent = SupervisorAgent()
@@ -214,6 +256,9 @@ async def send_a2a_message(
 ) -> Dict[str, Any]:
     """Envia mensagem entre agentes utilizando o canal A2A."""
 
+    _validate_agent_id(sender_id, "sender_id")
+    _validate_agent_id(message.receiver_id, "receiver_id")
+
     message_id = await a2a_channel.send_message(
         sender_id=sender_id,
         receiver_id=message.receiver_id,
@@ -285,6 +330,10 @@ async def broadcast_a2a_message(
     user_id: str = Depends(AuthManager.verify_token),
 ) -> Dict[str, Any]:
     """Realiza broadcast de mensagens para múltiplos agentes."""
+
+    _validate_agent_id(request.sender_id, "sender_id")
+    for receiver_id in request.receiver_ids:
+        _validate_agent_id(receiver_id, "receiver_id")
 
     message_ids = []
 
@@ -525,10 +574,22 @@ async def process_advanced_task(
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - defensive safeguard
-        logger.error(f"❌ ADVANCED MODE: Erro no processamento: {exc}")
+        # SECURITY (SEC-004 / CWE-209): não devolver ``str(exc)`` ao cliente.
+        # O detalhe completo (com stack trace) fica apenas no log do servidor;
+        # o cliente recebe uma referência opaca para correlação com o suporte.
+        correlation_id = uuid.uuid4().hex
+        logger.error(
+            "❌ ADVANCED MODE: erro no processamento [%s]: %s",
+            correlation_id,
+            exc,
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro no orquestrador avançado: {str(exc)}",
+            detail=(
+                "Erro interno ao processar a tarefa avançada. "
+                f"Referência para suporte: {correlation_id}"
+            ),
         )
 
 

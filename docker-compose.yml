@@ -53,8 +53,11 @@ services:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # SECURITY (QAL-001/CWE-798): sem credenciais hardcoded. O usuário tem
+      # default "admin", mas a senha é OBRIGATÓRIA via .env (sem fallback) —
+      # docker compose falha se GF_SECURITY_ADMIN_PASSWORD não estiver definida.
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?defina GF_SECURITY_ADMIN_PASSWORD no .env (veja .env.example)}
     depends_on:
       - prometheus
     restart: unless-stopped

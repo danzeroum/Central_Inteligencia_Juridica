@@ -15,6 +15,24 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def relax_auth():
+    """Garante acesso anônimo determinístico nos testes de integração.
+
+    Os testes de integração exercitam os endpoints sem emitir JWT. Como a
+    configuração de autenticação do ``AuthManager`` é estado de classe global,
+    outro teste (ex.: ``test_security_hardening``) pode tê-la deixado em
+    ``required=True`` num run combinado (``pytest`` na raiz). Forçar
+    ``required=False`` por teste remove essa contaminação cruzada. A enforcement
+    real de autenticação é coberta pelos testes unitários dedicados.
+    """
+
+    from src.api.auth import AuthManager
+
+    AuthManager.configure(required=False)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def isolate_vector_memory(monkeypatch, tmp_path_factory):
     """Aponta o VectorMemory para um diretório temporário exclusivo por teste."""
 

@@ -30,3 +30,5 @@ numpy<2.0.0,>=1.22.0
 
 # LLM Integration
 ollama==0.1.9
+# LangChain (classificação de intenção via LLM) é OPCIONAL — o classificador tem
+# fallback heurístico determinístico. Veja requirements-llm.txt para instalá-la.
