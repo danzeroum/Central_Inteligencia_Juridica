@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from src.api.rbac import Principal, require_permissions
 from src.hitl.hitl_queue import get_hitl_queue
 from src.utils.ledger import get_ledger
-from src.utils.request_context import get_correlation_id
+from src.utils.request_context import get_audit_context
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/hitl", tags=["HITL"])
@@ -132,8 +132,8 @@ async def record_decision(
             detail="Failed to record decision",
         )
 
-    # Gravar no ledger para auditoria. O correlation_id permite rastrear a
-    # decisão de volta à requisição HTTP original (mesmo entre réplicas).
+    # Gravar no ledger para auditoria. O contexto (correlation_id, IP de origem,
+    # User-Agent) permite rastrear a decisão de volta à requisição HTTP original.
     ledger.log_decision(
         agent_type="HumanOperator",
         decision_type="HITL_DECISION",
@@ -145,7 +145,7 @@ async def record_decision(
             "modifications": decision.modifications,
             "feedback": decision.feedback,
             "operator_id": operator_id,
-            "correlation_id": get_correlation_id(),
+            **get_audit_context(),
         },
     )
 

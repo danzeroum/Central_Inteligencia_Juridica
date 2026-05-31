@@ -95,11 +95,20 @@ sem dependência de nuvem:
   `DecisionLedger.anonymize_entries(...)` e remove embeddings via
   `VectorMemory.delete_by_metadata(...)`, registrando a própria operação para
   accountability (Art. 37). Leitura exige `lgpd:read`; exclusão exige `lgpd:write`.
+- **Detecção/redação de PII (LGPD-005)** — `src/safety/pii.py`. Detector BR
+  (CPF, CNPJ, e-mail, OAB, telefone, CEP) usado no **output** (guardrail
+  `check_no_pii`) e no **input** (redige PII antes de persistir na trilha de
+  auditoria — minimização de dados; o processamento segue com o conteúdo real).
+- **Metadados de auditoria (IP/User-Agent)** — `src/utils/request_context.py` +
+  middleware. A trilha de decisões (HITL, LGPD) registra `correlation_id`,
+  `client_ip` (respeitando `X-Forwarded-For` atrás de proxy/ingress) e
+  `user_agent` — rastreabilidade de "quem, de onde, com qual cliente".
 
 ## Fora de escopo (próximos passos, exigem nuvem real)
 
 Módulos Terraform/K8s + HPA/auto-scaling; KMS/Vault de fato (a interface já
 existe); serviços gerenciados (ElastiCache/Pinecone); pub/sub para wake-up HITL
-entre réplicas; multi-region/DR; CD canary/blue-green. Da camada de compliance,
-resta **PII no input** (+OAB/email) e os **metadados de auditoria** (IP/UA) —
-candidatos a uma próxima entrega.
+entre réplicas; multi-region/DR; CD canary/blue-green. A camada de compliance do
+audit está coberta (RBAC, LGPD, binding de identidade, PII in/out, auditoria de
+origem); restam itens de governança operacional (alert rules + Alertmanager,
+pip-audit/Trivy no CI, redução do timeout JWT para operações privilegiadas).

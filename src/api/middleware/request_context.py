@@ -16,16 +16,27 @@ from src.utils.request_context import (
     REQUEST_ID_HEADER,
     generate_correlation_id,
     set_correlation_id,
+    set_request_metadata,
 )
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
-    """Estabelece o ``correlation_id`` por requisição."""
+    """Estabelece o ``correlation_id`` e os metadados de auditoria por requisição."""
 
     async def dispatch(self, request: Request, call_next) -> Response:
         incoming = request.headers.get(REQUEST_ID_HEADER)
         correlation_id = incoming or generate_correlation_id()
         set_correlation_id(correlation_id)
+
+        # Auditoria: captura IP de origem (respeitando X-Forwarded-For atrás de
+        # proxy/ingress) e User-Agent para registro na trilha de decisões.
+        forwarded = request.headers.get("x-forwarded-for")
+        client_ip = (
+            forwarded.split(",")[0].strip()
+            if forwarded
+            else (request.client.host if request.client else None)
+        )
+        set_request_metadata(client_ip, request.headers.get("user-agent"))
 
         response = await call_next(request)
         response.headers[REQUEST_ID_HEADER] = correlation_id

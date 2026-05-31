@@ -16,13 +16,14 @@ Autorização (RBAC): leitura exige ``lgpd:read`` (auditor/admin); exclusão exi
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Query
 
 from src.api.rbac import Principal, require_permissions
 from src.utils.ledger import get_ledger
-from src.utils.request_context import get_correlation_id
+from src.utils.request_context import get_audit_context
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/lgpd", tags=["LGPD"])
@@ -89,7 +90,7 @@ async def export_subject_data(
     return {
         "format": "json",
         "subject_id": subject_id,
-        "exported_at": get_correlation_id(),
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "record_count": len(entries),
         "records": entries,
     }
@@ -123,7 +124,7 @@ async def delete_subject_data(
             "operator_id": operator,
             "ledger_entries_anonymized": anonymized,
             "vector_records_deleted": vector_deleted,
-            "correlation_id": get_correlation_id(),
+            **get_audit_context(),
         },
     )
 
