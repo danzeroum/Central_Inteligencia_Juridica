@@ -75,10 +75,31 @@ O `ChromaDB` já suporta modo `HttpClient` (`VECTOR_MEMORY_MODE=remote`), então
 memória vetorial vira um serviço gerenciado sem mudança de código. O JWT é
 stateless por design.
 
+## Compliance & IAM (implementado)
+
+Fecha as lacunas críticas IAM-001/002/003 e LGPD-001 do audit — tudo código,
+sem dependência de nuvem:
+
+- **RBAC** — `src/api/rbac.py`. Papéis (`admin`, `operator`, `auditor`,
+  `readonly`) viajam no JWT (claim `roles`, autorização *stateless*).
+  `require_permissions("recurso:ação")` protege endpoints sensíveis. Relaxado
+  quando a autenticação está desligada (dev/testes), mesmo contrato do acesso
+  anônimo. Tokens emitidos via `AuthManager.create_token(user_id, roles=[...])`.
+- **Binding de identidade** — A2A (`src/api/main.py`): `sender_id` é amarrado ao
+  `sub` do JWT (IAM-002); `agents:manage` permite atuar como qualquer agente.
+  HITL (`src/api/hitl_endpoints.py`): `operator_id` vem do token, não do corpo
+  (IAM-003), e exige `hitl:write`.
+- **Direitos do titular (LGPD)** — `src/api/lgpd_endpoints.py`:
+  `GET /api/v1/lgpd/data/{subject_id}` (acesso), `.../export` (portabilidade) e
+  `DELETE` (exclusão). A exclusão **anonimiza** a trilha append-only via
+  `DecisionLedger.anonymize_entries(...)` e remove embeddings via
+  `VectorMemory.delete_by_metadata(...)`, registrando a própria operação para
+  accountability (Art. 37). Leitura exige `lgpd:read`; exclusão exige `lgpd:write`.
+
 ## Fora de escopo (próximos passos, exigem nuvem real)
 
 Módulos Terraform/K8s + HPA/auto-scaling; KMS/Vault de fato (a interface já
 existe); serviços gerenciados (ElastiCache/Pinecone); pub/sub para wake-up HITL
-entre réplicas; multi-region/DR; CD canary/blue-green. Camada de compliance
-ampla (RBAC, endpoints LGPD, PII no input, bind de `operator_id`/`sender_id` ao
-JWT) também fica para uma entrega seguinte.
+entre réplicas; multi-region/DR; CD canary/blue-green. Da camada de compliance,
+resta **PII no input** (+OAB/email) e os **metadados de auditoria** (IP/UA) —
+candidatos a uma próxima entrega.

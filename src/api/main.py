@@ -18,9 +18,11 @@ from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
 from src.api.auth import AuthManager
 from src.api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
+from src.api.rbac import Principal, current_principal, require_permissions
 from src.api.autonomy_endpoints import router as autonomy_router
 from src.api.hitl_endpoints import router as hitl_router
 from src.api.ledger_endpoints import router as ledger_router
+from src.api.lgpd_endpoints import router as lgpd_router
 from src.api.monitoring_endpoints import router as monitoring_router
 from src.api.training_endpoints import router as training_router
 from src.hitl.hitl_queue import get_hitl_queue
@@ -94,6 +96,24 @@ def _validate_agent_id(agent_id: str, field: str) -> str:
     return agent_id
 
 
+def _enforce_agent_identity(sender_id: str, principal: Principal) -> None:
+    """SECURITY (IAM-002): amarra o ``sender_id`` à identidade autenticada.
+
+    Impede que um cliente personifique outro agente. Um principal com a permissão
+    ``agents:manage`` (ex.: admin/serviço) pode atuar em nome de qualquer agente.
+    Quando a autenticação está desligada (dev/testes), não há identidade a
+    vincular e a checagem é ignorada — mesmo contrato do acesso anônimo.
+    """
+
+    if principal.is_anonymous or principal.has_permission("agents:manage"):
+        return
+    if sender_id != principal.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="sender_id não corresponde à identidade autenticada",
+        )
+
+
 # CORS — permite o dev server do Vite (localhost:5173) durante o desenvolvimento.
 # Em produção a SPA é servida pela mesma origem (StaticFiles), tornando isto inócuo.
 app.add_middleware(
@@ -123,6 +143,7 @@ configure_tracing(app)
 app.include_router(hitl_router)
 app.include_router(training_router)
 app.include_router(ledger_router)
+app.include_router(lgpd_router)
 app.include_router(autonomy_router)
 app.include_router(monitoring_router)
 
@@ -271,12 +292,13 @@ async def list_agents() -> Dict[str, Any]:
 async def send_a2a_message(
     sender_id: str,
     message: A2AMessageRequest,
-    user_id: str = Depends(AuthManager.verify_token),
+    principal: Principal = Depends(current_principal),
 ) -> Dict[str, Any]:
     """Envia mensagem entre agentes utilizando o canal A2A."""
 
     _validate_agent_id(sender_id, "sender_id")
     _validate_agent_id(message.receiver_id, "receiver_id")
+    _enforce_agent_identity(sender_id, principal)
 
     message_id = await a2a_channel.send_message(
         sender_id=sender_id,
@@ -346,13 +368,14 @@ async def get_a2a_history(
 )
 async def broadcast_a2a_message(
     request: A2ABroadcastRequest,
-    user_id: str = Depends(AuthManager.verify_token),
+    principal: Principal = Depends(current_principal),
 ) -> Dict[str, Any]:
     """Realiza broadcast de mensagens para múltiplos agentes."""
 
     _validate_agent_id(request.sender_id, "sender_id")
     for receiver_id in request.receiver_ids:
         _validate_agent_id(receiver_id, "receiver_id")
+    _enforce_agent_identity(request.sender_id, principal)
 
     message_ids = []
 

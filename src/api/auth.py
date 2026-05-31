@@ -10,7 +10,7 @@ import logging
 import os
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Dict, Optional, Sequence
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -62,21 +62,38 @@ class AuthManager:
                 cls.REQUIRED = required
 
     @classmethod
-    def create_token(cls, user_id: str, expires_in_hours: int = 24) -> str:
+    def create_token(
+        cls,
+        user_id: str,
+        expires_in_hours: int = 24,
+        roles: Optional[Sequence[str]] = None,
+    ) -> str:
         now = datetime.now(timezone.utc)
-        payload = {
+        payload: Dict[str, Any] = {
             "sub": user_id,
             "exp": now + timedelta(hours=expires_in_hours),
             "iat": now,
         }
+        # RBAC: papéis viajam no próprio token (autorização stateless). Tokens
+        # sem ``roles`` recebem papéis padrão em src/api/rbac.py.
+        if roles is not None:
+            payload["roles"] = list(roles)
         with cls._lock:
             secret, algorithm = cls.SECRET_KEY, cls.ALGORITHM
         return jwt.encode(payload, secret, algorithm=algorithm)
 
     @classmethod
-    async def verify_token(
+    def verify_token_payload(
         cls, credentials: HTTPAuthorizationCredentials = Depends(security)
-    ) -> str:
+    ) -> Dict[str, Any]:
+        """Valida o JWT e retorna o payload completo (incl. ``roles``).
+
+        Base compartilhada por :meth:`verify_token` (que devolve só o ``sub``) e
+        pela camada de RBAC (que precisa dos papéis). Mantém o mesmo contrato de
+        erro: 401 quando exigido e ausente/ inválido; ``anonymous`` quando a
+        autenticação está desligada e nenhuma credencial é enviada.
+        """
+
         with cls._lock:
             secret, algorithm, required = cls.SECRET_KEY, cls.ALGORITHM, cls.REQUIRED
 
@@ -86,12 +103,11 @@ class AuthManager:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication credentials were not provided",
                 )
-            return "anonymous"
+            return {"sub": "anonymous"}
 
         token = credentials.credentials
         try:
-            payload = jwt.decode(token, secret, algorithms=[algorithm])
-            return str(payload["sub"])
+            return jwt.decode(token, secret, algorithms=[algorithm])
         except jwt.ExpiredSignatureError as exc:  # pragma: no cover
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -102,6 +118,13 @@ class AuthManager:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
             ) from exc
+
+    @classmethod
+    async def verify_token(
+        cls, credentials: HTTPAuthorizationCredentials = Depends(security)
+    ) -> str:
+        payload = cls.verify_token_payload(credentials)
+        return str(payload.get("sub", "anonymous"))
 
 
 __all__ = ["AuthManager", "security"]
