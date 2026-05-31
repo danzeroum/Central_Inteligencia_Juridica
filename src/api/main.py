@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
 from src.api.auth import AuthManager
+from src.api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from src.api.autonomy_endpoints import router as autonomy_router
 from src.api.hitl_endpoints import router as hitl_router
 from src.api.ledger_endpoints import router as ledger_router
@@ -29,7 +30,13 @@ from src.protocols.a2a_channel import get_a2a_channel
 from src.api.rate_limiter import RateLimiter
 from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.services.camara_client import buscar_projetos_de_lei
+from src.utils.logging_config import configure_logging
 from src.utils.metrics_collector import MetricsCollector
+from src.utils.tracing import configure_tracing
+
+# CLOUD-READINESS: logging estruturado (JSON em produção) com correlation_id por
+# requisição — pré-requisito para agregação de logs e tracing entre réplicas.
+configure_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +106,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# SECURITY: cabeçalhos de segurança (nosniff, X-Frame-Options, CSP, HSTS via
+# ENABLE_HSTS quando há TLS à frente). Middlewares Starlette executam na ordem
+# inversa de registro, então registramos o de contexto por último para que o
+# correlation_id já esteja definido quando os demais (e os handlers) rodarem.
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestContextMiddleware)
+
+# CLOUD-READINESS: tracing distribuído OTLP — no-op a menos que
+# OTEL_EXPORTER_OTLP_ENDPOINT esteja definido (Jaeger/Tempo local hoje, backend
+# gerenciado na nuvem amanhã, sem mudar código).
+configure_tracing(app)
 
 
 app.include_router(hitl_router)

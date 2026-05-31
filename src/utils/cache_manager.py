@@ -18,11 +18,21 @@ except Exception:  # pragma: no cover - redis not installed
     redis = None  # type: ignore
     RedisError = RuntimeError  # type: ignore
 
+try:  # pragma: no cover - optional dependency guard
+    # BaseException: bindings nativas (pyo3) podem lançar PanicException, que NÃO
+    # herda de Exception. O cache deve degradar para texto puro mesmo assim.
+    from cryptography.fernet import Fernet, InvalidToken
+except BaseException:  # pragma: no cover - cryptography ausente/quebrado
+    Fernet = None  # type: ignore
+    InvalidToken = Exception  # type: ignore
+
 from src.tools.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerOpenError,
 )
+from src.utils.key_provider import get_key_provider
+from src.utils.redis_client import create_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +66,10 @@ class CacheManager:
         self.config = config or CacheManagerConfig()
         self._lock = RLock()
         self._memory_store: Dict[str, tuple[Any, float | None]] = {}
+        # CLOUD-READINESS: cifragem opcional dos valores em repouso no Redis.
+        # A chave vem do KeyProvider (env hoje, KMS/Vault no futuro). Desligada
+        # por padrão para não impactar dev/testes.
+        self._cipher = self._build_cipher()
 
         self.redis_client = redis_client or self._create_redis_client()
         self.circuit_breaker = CircuitBreaker(config=self.config.circuit_breaker)
@@ -191,27 +205,36 @@ class CacheManager:
     # Internal helpers
     # ------------------------------------------------------------------
     def _create_redis_client(self) -> Optional["redis.Redis"]:
-        if redis is None:
+        # Reaproveita a fábrica compartilhada (mesma configuração de ambiente
+        # usada por rate limiter, ledger e fila HITL).
+        return create_redis_client(decode_responses=False)
+
+    @staticmethod
+    def _build_cipher():
+        """Constrói o cipher Fernet se a cifragem estiver habilitada e disponível."""
+
+        enabled = os.getenv("CACHE_ENCRYPTION_ENABLED", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+        if not enabled:
             return None
-
-        url = os.getenv("REDIS_URL")
-        if url:
-            try:
-                return redis.from_url(url)
-            except RedisError as exc:  # pragma: no cover - connection error path
-                logger.error("Failed to connect to Redis via URL: %s", exc)
-                return None
-
-        host = os.getenv("REDIS_HOST", "localhost")
-        port = int(os.getenv("REDIS_PORT", "6379"))
-        db = int(os.getenv("REDIS_DB", "0"))
-        password = os.getenv("REDIS_PASSWORD")
-
-        try:
-            return redis.Redis(host=host, port=port, db=db, password=password)
-        except RedisError as exc:  # pragma: no cover - connection error path
-            logger.error("Failed to initialise Redis client: %s", exc)
+        if Fernet is None:
+            logger.warning(
+                "CACHE_ENCRYPTION_ENABLED=true mas 'cryptography' não está "
+                "instalado; cache permanecerá em texto puro."
+            )
             return None
+        key = get_key_provider().get_encryption_key()
+        if not key:
+            logger.warning(
+                "CACHE_ENCRYPTION_ENABLED=true mas nenhuma chave disponível "
+                "(CACHE_ENCRYPTION_KEY); cache permanecerá em texto puro."
+            )
+            return None
+        return Fernet(key)
 
     def _test_redis_connection(self) -> bool:
         if self.redis_client is None:
@@ -277,16 +300,24 @@ class CacheManager:
             raise RuntimeError("Redis client not configured")
         return int(self.redis_client.delete(key))
 
-    @staticmethod
-    def _serialize(value: Any) -> str:
+    def _serialize(self, value: Any) -> str:
         try:
-            return json.dumps(value, ensure_ascii=False)
+            payload = json.dumps(value, ensure_ascii=False)
         except TypeError:
-            return json.dumps(value, ensure_ascii=False, default=str)
+            payload = json.dumps(value, ensure_ascii=False, default=str)
+        if self._cipher is not None:
+            return self._cipher.encrypt(payload.encode("utf-8")).decode("utf-8")
+        return payload
 
-    @staticmethod
-    def _deserialize(value: str) -> Any:
+    def _deserialize(self, value: str) -> Any:
+        payload = value
+        if self._cipher is not None:
+            try:
+                payload = self._cipher.decrypt(value.encode("utf-8")).decode("utf-8")
+            except InvalidToken:
+                # Compat: valor gravado antes da cifragem ser habilitada.
+                payload = value
         try:
-            return json.loads(value)
+            return json.loads(payload)
         except json.JSONDecodeError:
-            return value
+            return payload

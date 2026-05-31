@@ -15,6 +15,20 @@ prometheus-client==0.17.1
 
 # Security
 PyJWT==2.8.0
+# Cifragem opcional de dados sensíveis em repouso no cache (Fernet). A chave vem
+# do KeyProvider (env hoje, KMS/Vault no futuro). Veja src/utils/key_provider.py.
+cryptography>=42.0,<46.0
+
+# Observability — logging estruturado (JSON) com correlation_id.
+python-json-logger>=2.0,<4.0
+
+# CLOUD-READINESS: tracing distribuído (OPCIONAL — inerte sem
+# OTEL_EXPORTER_OTLP_ENDPOINT). Descomente para habilitar exportação OTLP.
+# opentelemetry-sdk>=1.27,<2.0
+# opentelemetry-exporter-otlp-proto-http>=1.27,<2.0
+# opentelemetry-instrumentation-fastapi>=0.48b0
+# opentelemetry-instrumentation-redis>=0.48b0
+# opentelemetry-instrumentation-httpx>=0.48b0
 
 # Data Validation
 pydantic==2.6.0
