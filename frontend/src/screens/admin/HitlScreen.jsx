@@ -4,8 +4,10 @@ import { useToast } from '../../components/toast.jsx';
 import { api } from '../../api/client.js';
 import { connectHitl } from '../../api/hitlSocket.js';
 import { store, humanizeAction, fmt } from '../../state.js';
+import { operatorId } from '../../api/auth.js';
 
-const OPERATOR_ID = 'm.ribeiro';
+// CRÍTICO-10: o operador é derivado da sessão autenticada (claim do JWT), não
+// mais fixo em 'm.ribeiro'. O backend ainda reforça isso (IAM-003).
 const UNDO_MS = 6000;
 
 function ApprovalCard({ req, focused, onApprove, onReject, onModify, cardRef }) {
@@ -114,7 +116,7 @@ export default function HitlScreen({ go, onPendingChange }) {
 
   const sendDecision = useCallback(async (req, { approved, feedback }) => {
     try {
-      await api.hitlDecision({ request_id: req.request_id, approved, feedback, operator_id: OPERATOR_ID });
+      await api.hitlDecision({ request_id: req.request_id, approved, feedback, operator_id: operatorId() });
       setList((l) => l.filter((r) => r.request_id !== req.request_id));
       setStats((s) => approved ? { ...s, approved_today: s.approved_today + 1 } : { ...s, rejected_today: s.rejected_today + 1 });
     } catch (e) {

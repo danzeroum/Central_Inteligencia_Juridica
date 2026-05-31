@@ -64,8 +64,10 @@ class SupervisorAgent(A2ACapable):
         self.intent_classifier = IntentClassifier(confidence_threshold=0.7)
         self.use_intelligent_routing = True
 
-        # Vector Memory (Onda 2.2)
-        self.memory = VectorMemory()
+        # Vector Memory (Onda 2.2) — H10: instanciado preguiçosamente para NÃO
+        # bloquear o startup quando o ChromaDB está indisponível/lento. O cliente
+        # só é criado no primeiro acesso a ``self.memory``.
+        self._memory: VectorMemory | None = None
         self.memory_system = AgentMemorySystem()
 
         # Architect Agent for chain-of-thought reasoning
@@ -75,11 +77,18 @@ class SupervisorAgent(A2ACapable):
             "SupervisorAgent inicializado com capacidades avançadas (CoT + Consenso)"
         )
 
-        if not self.memory.is_available():
-            self.logger.warning(
-                "VectorMemory not available. Memory features disabled. "
-                "Start ChromaDB with: docker-compose up -d chromadb"
-            )
+    @property
+    def memory(self) -> VectorMemory:
+        """VectorMemory lazy (H10): criado e checado apenas no primeiro uso."""
+
+        if self._memory is None:
+            self._memory = VectorMemory()
+            if not self._memory.is_available():
+                self.logger.warning(
+                    "VectorMemory not available. Memory features disabled. "
+                    "Start ChromaDB with: docker-compose up -d chromadb"
+                )
+        return self._memory
 
     async def _classify_intent(self, sanitized_task: str) -> ClassifiedIntent:
         """Classifica a intenção do usuário usando LLM ou fallback keyword-based."""

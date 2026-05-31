@@ -61,13 +61,14 @@ export default function DmnScreen() {
           <div className="card-title">Limiares</div>
           <button className="btn btn-primary btn-sm" disabled={saving} onClick={save}><Icon name="check" /> Salvar</button>
         </div>
+        {/* M12: inputs numéricos com faixa válida (0–1) — rejeitam texto/valores fora do intervalo. */}
         <div className="grid3">
           <div className="field" style={{ marginBottom: 0 }}><label>Limiar de consenso</label>
-            <input className="input" value={draft.consensus_threshold} onChange={(e) => setDraft({ ...draft, consensus_threshold: e.target.value })} /></div>
+            <input className="input" type="number" min="0" max="1" step="0.01" value={draft.consensus_threshold} onChange={(e) => setDraft({ ...draft, consensus_threshold: e.target.value })} /></div>
           <div className="field" style={{ marginBottom: 0 }}><label>Trust → Pleno (≥)</label>
-            <input className="input" value={draft.trust_full_threshold} onChange={(e) => setDraft({ ...draft, trust_full_threshold: e.target.value })} /></div>
+            <input className="input" type="number" min="0" max="1" step="0.01" value={draft.trust_full_threshold} onChange={(e) => setDraft({ ...draft, trust_full_threshold: e.target.value })} /></div>
           <div className="field" style={{ marginBottom: 0 }}><label>Trust → Supervisionado (≥)</label>
-            <input className="input" value={draft.trust_supervised_threshold} onChange={(e) => setDraft({ ...draft, trust_supervised_threshold: e.target.value })} /></div>
+            <input className="input" type="number" min="0" max="1" step="0.01" value={draft.trust_supervised_threshold} onChange={(e) => setDraft({ ...draft, trust_supervised_threshold: e.target.value })} /></div>
         </div>
       </div>
 

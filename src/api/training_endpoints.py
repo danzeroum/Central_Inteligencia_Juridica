@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from src.api.rate_limit import enforce_rate_limit
 from src.api.rbac import Principal, require_permissions
 from src.training.training_manager import AgentTrainingState, TrainingManager
 
@@ -63,6 +64,7 @@ class TrainingStatsResponse(BaseModel):
 async def submit_feedback(
     feedback: FeedbackRequest,
     _principal: Principal = Depends(require_permissions("agents:manage")),
+    _rl: None = Depends(enforce_rate_limit),
 ) -> Dict[str, str]:
     """Submit feedback for an agent's performance."""
 
@@ -85,6 +87,7 @@ async def submit_feedback(
 async def trigger_training(
     request: TrainingRequest,
     _principal: Principal = Depends(require_permissions("agents:manage")),
+    _rl: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Trigger a training cycle for a specific agent."""
 
@@ -191,6 +194,7 @@ async def get_training_history(
 async def run_ab_test(
     request: ABTestRequest,
     _principal: Principal = Depends(require_permissions("agents:manage")),
+    _rl: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Run an A/B test between two agent variants."""
 
@@ -215,6 +219,7 @@ async def run_ab_test(
 async def reset_training_state(
     agent_type: str,
     _principal: Principal = Depends(require_permissions("config:write")),
+    _rl: None = Depends(enforce_rate_limit),
 ) -> Dict[str, str]:
     """Reset training state for an agent."""
 

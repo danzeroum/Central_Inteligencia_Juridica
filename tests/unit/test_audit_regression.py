@@ -72,6 +72,18 @@ def test_metrics_endpoint_exposes_prometheus():
     assert "text/plain" in resp.headers.get("content-type", "")
 
 
+# --- H10: VectorMemory é lazy (não bloqueia o startup) ----------------------
+def test_supervisor_vector_memory_is_lazy():
+    from src.agents.supervisor_agent import SupervisorAgent
+
+    agent = SupervisorAgent()
+    # Logo após a construção, o cliente de memória ainda NÃO foi instanciado.
+    assert agent._memory is None
+    # O primeiro acesso instancia sob demanda.
+    _ = agent.memory
+    assert agent._memory is not None
+
+
 # --- H06: API pública do supervisor (sem chamar métodos privados na HTTP) ---
 def test_supervisor_exposes_public_methods():
     from src.api.main import supervisor_agent

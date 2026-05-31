@@ -35,7 +35,15 @@ class ArchitectAgent:
         self.memory = memory
 
     def reason_with_cot(self, task_description: str) -> Dict[str, Any]:
-        """Generate a structured reasoning payload for the supervisor."""
+        """Generate a structured reasoning payload for the supervisor.
+
+        NOTA DE PROJETO (H18): este "chain-of-thought" é uma heurística
+        DETERMINÍSTICA baseada em correspondência de palavras-chave — não uma
+        chamada a LLM. A escolha é intencional: garante reprodutibilidade e
+        independência de serviço externo no roteamento. Um modo LLM real pode ser
+        plugado no futuro via ``IntentClassifier`` (que já tem fallback heurístico),
+        sem alterar o contrato deste método.
+        """
 
         sanitized = self.sanitizer.sanitize_text(task_description)
         tokens = sanitized.lower().split()

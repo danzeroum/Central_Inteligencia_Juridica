@@ -2,6 +2,8 @@
 // tratamento de erros (resolve o "API_BASE hardcoded" apontado na auditoria).
 // Em dev, o Vite faz proxy de /api -> :8000; em produção, mesma origem.
 
+import { getToken, setToken } from './auth.js';
+
 const BASE = import.meta.env.VITE_API_BASE || '';
 
 export class ApiError extends Error {
@@ -13,15 +15,22 @@ export class ApiError extends Error {
 }
 
 async function request(path, { method = 'GET', body, headers } = {}) {
+  // FH01: injeta o token de autenticação (Authorization: Bearer) quando há sessão.
+  const token = getToken();
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
   let res;
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: { 'Content-Type': 'application/json', ...authHeaders, ...headers },
       body: body != null ? JSON.stringify(body) : undefined,
     });
   } catch (networkErr) {
     throw new ApiError('Falha de rede — verifique sua conexão e tente novamente.', 0);
+  }
+  if (res.status === 401) {
+    // Sessão expirada/inválida: limpa o token para forçar novo login.
+    setToken(null);
   }
   if (!res.ok) {
     let detail = `Erro ${res.status}`;
@@ -38,14 +47,22 @@ async function request(path, { method = 'GET', body, headers } = {}) {
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-// WebSocket base (mantém o esquema correto ws/wss e a origem).
+// WebSocket base (mantém o esquema correto ws/wss e a origem). O token de
+// autenticação viaja por query param (H04: o WS HITL valida o JWT no handshake).
 export function wsUrl(path) {
-  if (BASE) return BASE.replace(/^http/, 'ws') + path;
+  const token = getToken();
+  const sep = path.includes('?') ? '&' : '?';
+  const auth = token ? `${sep}token=${encodeURIComponent(token)}` : '';
+  if (BASE) return BASE.replace(/^http/, 'ws') + path + auth;
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}${path}`;
+  return `${proto}//${window.location.host}${path}${auth}`;
 }
 
 export const api = {
+  // Autenticação (CRÍTICO-09)
+  login: (username, password) =>
+    request('/auth/login', { method: 'POST', body: { username, password } }),
+
   // Tarefas / consultas (consulente + advogado)
   submitTask: (task_description) =>
     request('/api/v1/tasks', { method: 'POST', body: { task_description } }),
