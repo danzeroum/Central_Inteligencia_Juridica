@@ -10,13 +10,19 @@ from threading import Lock
 from typing import Any, Deque, Dict, Optional
 
 import httpx
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_exponential)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from src.tools.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                       CircuitBreakerOpenError)
-from src.tools.schemas.tribunal_schemas import (ProcessoResponse,
-                                                TribunalStatusResponse)
+from src.tools.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+)
+from src.tools.schemas.tribunal_schemas import ProcessoResponse, TribunalStatusResponse
 
 logger = logging.getLogger(__name__)
 

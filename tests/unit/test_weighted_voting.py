@@ -36,8 +36,18 @@ class TestReachConsensus:
     def test_two_proposals_full_agreement_is_stronger(self) -> None:
         engine = WeightedConsensusEngine()
         proposals = {
-            "TJSP": {"score": 0.9, "weight": 1.0, "confidence": 0.9, "proposal": {"result": "ok"}},
-            "TJMG": {"score": 0.85, "weight": 0.95, "confidence": 0.85, "proposal": {"result": "ok"}},
+            "TJSP": {
+                "score": 0.9,
+                "weight": 1.0,
+                "confidence": 0.9,
+                "proposal": {"result": "ok"},
+            },
+            "TJMG": {
+                "score": 0.85,
+                "weight": 0.95,
+                "confidence": 0.85,
+                "proposal": {"result": "ok"},
+            },
         }
         result = engine.reach_consensus(proposals, "test_decision")
         # Dois proponentes concordando -> consenso máximo e sem dissidência.
@@ -48,8 +58,18 @@ class TestReachConsensus:
     def test_disagreement_lowers_consensus_and_records_dissent(self) -> None:
         engine = WeightedConsensusEngine()
         proposals = {
-            "A": {"score": 0.9, "weight": 1.0, "confidence": 0.9, "proposal": {"result": "x"}},
-            "B": {"score": 0.9, "weight": 1.0, "confidence": 0.9, "proposal": {"result": "y"}},
+            "A": {
+                "score": 0.9,
+                "weight": 1.0,
+                "confidence": 0.9,
+                "proposal": {"result": "x"},
+            },
+            "B": {
+                "score": 0.9,
+                "weight": 1.0,
+                "confidence": 0.9,
+                "proposal": {"result": "y"},
+            },
         }
         result = engine.reach_consensus(proposals, "test_decision")
         # Propostas divergentes: vence um cluster e o outro vira dissidência.

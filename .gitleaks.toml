@@ -1,0 +1,20 @@
+title = "gitleaks — Central Inteligência Jurídica"
+
+# Estende as regras padrão do gitleaks (cobre AWS, tokens, chaves privadas, etc.).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Falsos positivos conhecidos: templates, fixtures de teste e exemplos"
+# Caminhos sem segredos reais — placeholders/valores de exemplo.
+paths = [
+  '''\.env\.example$''',
+  '''(^|/)tests/''',
+  '''(^|/)examples/''',
+  '''(^|/)docs/''',
+]
+# Strings de baixa entropia usadas como segredo fictício em testes/dev.
+regexes = [
+  '''x{16,}''',
+  '''(prodpass|devpass|admin)''',
+]

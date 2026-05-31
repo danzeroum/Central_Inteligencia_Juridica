@@ -32,10 +32,34 @@ def _decision_table(manager: Any) -> List[Dict[str, Any]]:
 
     threshold = manager.consensus_threshold
     return [
-        {"rule": 1, "critical": "verdadeiro", "consensus": "—", "autonomy": "—", "requires_hitl": True},
-        {"rule": 2, "critical": "falso", "consensus": f"< {threshold:.2f}", "autonomy": "—", "requires_hitl": True},
-        {"rule": 3, "critical": "falso", "consensus": f"≥ {threshold:.2f}", "autonomy": "restrito", "requires_hitl": True},
-        {"rule": 4, "critical": "falso", "consensus": f"≥ {threshold:.2f}", "autonomy": "supervisionado, pleno", "requires_hitl": False},
+        {
+            "rule": 1,
+            "critical": "verdadeiro",
+            "consensus": "—",
+            "autonomy": "—",
+            "requires_hitl": True,
+        },
+        {
+            "rule": 2,
+            "critical": "falso",
+            "consensus": f"< {threshold:.2f}",
+            "autonomy": "—",
+            "requires_hitl": True,
+        },
+        {
+            "rule": 3,
+            "critical": "falso",
+            "consensus": f"≥ {threshold:.2f}",
+            "autonomy": "restrito",
+            "requires_hitl": True,
+        },
+        {
+            "rule": 4,
+            "critical": "falso",
+            "consensus": f"≥ {threshold:.2f}",
+            "autonomy": "supervisionado, pleno",
+            "requires_hitl": False,
+        },
     ]
 
 

@@ -58,7 +58,15 @@ async def export_ledger_csv(
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(
-        ["id", "timestamp", "agent_type", "decision_type", "approved", "operator", "agent_alvo"]
+        [
+            "id",
+            "timestamp",
+            "agent_type",
+            "decision_type",
+            "approved",
+            "operator",
+            "agent_alvo",
+        ]
     )
     for entry in entries:
         meta = entry.get("metadata", {})

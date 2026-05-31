@@ -48,7 +48,8 @@ jobs:
 
       - name: Check formatting (black --check)
         run: |
-          black --check src/ tests/ || echo "WARNING: Some files need formatting. Run: black src/ tests/"
+          # BLOQUEANTE: formatação inconsistente quebra o build. Rode `black src/ tests/`.
+          black --check src/ tests/
 
       - name: Type check (mypy)
         run: |
@@ -99,3 +100,24 @@ jobs:
           tags: central-inteligencia-juridica:ci-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  secret-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: gitleaks (árvore atual, sem histórico)
+        run: |
+          # SECURITY (MED-009): detecta segredos commitados acidentalmente.
+          # --no-git escaneia apenas os arquivos versionados na árvore atual
+          # (não reescreve nem varre o histórico), com allowlist em .gitleaks.toml.
+          # Binário pinado em vez de Docker image (determinístico e sem
+          # ambiguidade de tag/namespace).
+          GL_VER=8.18.4
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VER}/gitleaks_${GL_VER}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks detect --source . --no-git --redact --verbose \
+            --config .gitleaks.toml

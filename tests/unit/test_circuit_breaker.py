@@ -12,11 +12,13 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from src.tools.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                       CircuitBreakerOpenError,
-                                       get_all_circuit_breakers)
-from src.utils.cache_manager import (CacheManager, CacheManagerConfig,
-                                     RedisError)
+from src.tools.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+    get_all_circuit_breakers,
+)
+from src.utils.cache_manager import CacheManager, CacheManagerConfig, RedisError
 
 
 class FakeRedis:
