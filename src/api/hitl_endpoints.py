@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from src.hitl.hitl_queue import get_hitl_queue
 from src.utils.ledger import get_ledger
+from src.utils.request_context import get_correlation_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/hitl", tags=["HITL"])
@@ -111,7 +112,8 @@ async def record_decision(decision: HITLDecision) -> Dict[str, Any]:
             detail="Failed to record decision",
         )
 
-    # Gravar no ledger para auditoria
+    # Gravar no ledger para auditoria. O correlation_id permite rastrear a
+    # decisão de volta à requisição HTTP original (mesmo entre réplicas).
     ledger.log_decision(
         agent_type="HumanOperator",
         decision_type="HITL_DECISION",
@@ -123,6 +125,7 @@ async def record_decision(decision: HITLDecision) -> Dict[str, Any]:
             "modifications": decision.modifications,
             "feedback": decision.feedback,
             "operator_id": decision.operator_id,
+            "correlation_id": get_correlation_id(),
         },
     )
 

@@ -11,7 +11,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings loaded from environment."""
 
-    jwt_secret: str = "CHANGE-ME-IN-PRODUCTION"
+    # SECURITY: sem default hardcoded. A fonte de verdade do segredo JWT é
+    # ``src/api/auth.py``, que EXIGE ``JWT_SECRET`` (mín. 32 chars, fail-fast)
+    # fora de ``ENVIRONMENT=test``. Manter um default aqui seria enganoso.
+    jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expiry_minutes: int = 60
 

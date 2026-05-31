@@ -9,14 +9,54 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./src:/app/src
-      - ./tests:/app/tests
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
       - ./logs:/app/logs
+      - vector_memory_data:/app/.vector_memory
     working_dir: /app
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
+      # read_only root FS: direciona caches graváveis (modelos, HF) para o tmpfs.
+      - HOME=/tmp
+      - XDG_CACHE_HOME=/tmp/cache
+      - HF_HOME=/tmp/hf
+      - TRANSFORMERS_CACHE=/tmp/hf
+      - SENTENCE_TRANSFORMERS_HOME=/tmp/hf
+      - VECTOR_MEMORY_PERSIST_PATH=/app/.vector_memory
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      # SECURITY: JWT_SECRET é OBRIGATÓRIO (mín. 32 chars). Sem ele a app não sobe.
+      - JWT_SECRET=${JWT_SECRET:?defina JWT_SECRET no .env (veja .env.example)}
+      - AUTH_REQUIRED=${AUTH_REQUIRED:-true}
+      # Aponta o cache/A2A para o serviço redis (não localhost) e usa a senha.
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}
+      # CLOUD-READINESS: backends de estado compartilhado. Padrão single-node;
+      # ligue para 'redis' ao escalar horizontalmente (multi-réplica).
+      - RATE_LIMIT_BACKEND=${RATE_LIMIT_BACKEND:-memory}
+      - LEDGER_BACKEND=${LEDGER_BACKEND:-file}
+      - HITL_BACKEND=${HITL_BACKEND:-memory}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      - CACHE_ENCRYPTION_ENABLED=${CACHE_ENCRYPTION_ENABLED:-false}
+      - CACHE_ENCRYPTION_KEY=${CACHE_ENCRYPTION_KEY:-}
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     depends_on:
       - redis
       - prometheus
@@ -24,14 +64,33 @@ services:
   redis:
     image: redis:7-alpine
     container_name: tribunal-redis
+    # SECURITY (SEC-003/CWE-306): Redis exige autenticação. Sem REDIS_PASSWORD
+    # o compose falha em vez de subir um Redis aberto.
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   prometheus:
-    image: prom/prometheus:latest
+    # Imagem fixada (sem :latest) para builds reproduzíveis e proteção contra drift.
+    image: prom/prometheus:v2.54.1
     container_name: tribunal-prometheus
     ports:
       - "9090:9090"
@@ -43,9 +102,20 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 
   grafana:
-    image: grafana/grafana:latest
+    # Imagem fixada (sem :latest).
+    image: grafana/grafana:11.2.0
     container_name: tribunal-grafana
     ports:
       - "3000:3000"
@@ -61,8 +131,34 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # CLOUD-READINESS: coletor de tracing opcional. Sobe apenas com o profile
+  # 'tracing' (docker compose --profile tracing up). Na nuvem, troque o
+  # OTEL_EXPORTER_OTLP_ENDPOINT para um backend gerenciado (X-Ray/Tempo/Datadog).
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: tribunal-jaeger
+    profiles:
+      - tracing
+    ports:
+      - "16686:16686"  # UI
+      - "4318:4318"    # OTLP HTTP
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   redis_data:
   prometheus_data:
   grafana_data:
+  vector_memory_data:
