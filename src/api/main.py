@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field, field_validator
 from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
 from src.api.auth import AuthManager
+from src.api.auth_endpoints import router as auth_router
 from src.api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from src.api.rbac import Principal, current_principal, require_permissions
 from src.api.autonomy_endpoints import router as autonomy_router
@@ -162,6 +163,7 @@ app.add_middleware(RequestContextMiddleware)
 configure_tracing(app)
 
 
+app.include_router(auth_router)
 app.include_router(hitl_router)
 app.include_router(training_router)
 app.include_router(ledger_router)

@@ -1,6 +1,6 @@
 // Primitivas de UI — ícones monoline + componentes base (de shared.jsx do mockup),
 // acrescidos de Toast, Modal e Confirm para substituir alert()/prompt()/confirm().
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 const ICONS = {
   spark: 'M13 2 4 14h6l-1 8 9-12h-6z',
@@ -114,14 +114,44 @@ export function Gauge({ value, label, color = 'var(--ok)' }) {
 
 // ----- Modal acessível (substitui alert/confirm/prompt) -----
 export function Modal({ title, children, onClose, actions }) {
+  const dialogRef = useRef(null);
+
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose?.();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  // M15: focus trap — mantém o Tab dentro do diálogo e foca o primeiro elemento.
+  useEffect(() => {
+    const node = dialogRef.current;
+    if (!node) return undefined;
+    const SELECTOR =
+      'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])';
+    const focusables = () => Array.from(node.querySelectorAll(SELECTOR));
+    const first = focusables()[0];
+    if (first) first.focus();
+    const onKeyDown = (e) => {
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    };
+    node.addEventListener('keydown', onKeyDown);
+    return () => node.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{title}</h3>
           <button className="icon-btn" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button>

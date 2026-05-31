@@ -1,0 +1,25 @@
+{
+  "root": true,
+  "env": { "browser": true, "es2022": true, "node": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module", "ecmaFeatures": { "jsx": true } },
+  "settings": { "react": { "version": "detect" } },
+  "plugins": ["react"],
+  "extends": ["eslint:recommended"],
+  "rules": {
+    "react/jsx-uses-vars": "error",
+    "react/jsx-uses-react": "error",
+    "no-unused-vars": ["warn", { "varsIgnorePattern": "^(React|_)", "argsIgnorePattern": "^_" }],
+    "no-restricted-properties": [
+      "error",
+      { "property": "innerHTML", "message": "SECURITY: innerHTML é vetor de XSS. Use textContent/createElement ou escape o conteúdo." },
+      { "property": "outerHTML", "message": "SECURITY: outerHTML é vetor de XSS." }
+    ],
+    "react/no-danger": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.js", "**/*.test.jsx"],
+      "env": { "node": true }
+    }
+  ]
+}

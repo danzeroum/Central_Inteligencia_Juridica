@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Icon } from './components/primitives.jsx';
 import { ToastProvider } from './components/toast.jsx';
+import { api } from './api/client.js';
+import { setToken, logout, isAuthed, getPrincipal, isAdmin } from './api/auth.js';
 
 import AssistantScreen from './screens/user/AssistantScreen.jsx';
 import ProcessScreen from './screens/user/ProcessScreen.jsx';
@@ -53,40 +55,91 @@ function BrandMark({ className }) {
   return <div className={'brand-mark ' + (className || '')}><Icon name="scale" /></div>;
 }
 
-function Login({ onEnter }) {
+// CRÍTICO-09/M14: login REAL — formulário semântico que autentica via
+// /auth/login e armazena o JWT. Sem mais authed=true sem credenciais nem senha
+// hardcoded. Os botões "Demo" só funcionam quando o backend expõe usuários de
+// desenvolvimento (ENVIRONMENT=development/test ou AUTH_USERS configurado).
+function Login({ onAuthenticated }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const doLogin = async (user, pass) => {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await api.login(user, pass);
+      setToken(res.access_token);
+      onAuthenticated();
+    } catch (e) {
+      setError(e?.message || 'Falha ao autenticar.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    doLogin(username.trim(), password);
+  };
+
   return (
     <div className="login-wrap">
-      <div className="login">
+      <form className="login" onSubmit={onSubmit}>
         <BrandMark />
         <h1>Central de Inteligência Jurídica</h1>
         <div className="sub">Plataforma de agentes jurídicos</div>
-        <div className="field"><label>E-mail corporativo</label><input className="input" defaultValue="m.ribeiro@escritorio.adv.br" /></div>
-        <div className="field"><label>Senha</label><input className="input" type="password" defaultValue="········" /></div>
-        <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }} onClick={() => onEnter('user')}>
-          <Icon name="lock" /> Entrar
+        <div className="field">
+          <label htmlFor="login-user">Usuário</label>
+          <input id="login-user" className="input" type="text" autoComplete="username"
+            value={username} onChange={(e) => setUsername(e.target.value)} required />
+        </div>
+        <div className="field">
+          <label htmlFor="login-pass">Senha</label>
+          <input id="login-pass" className="input" type="password" autoComplete="current-password"
+            value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </div>
+        {error && (
+          <div className="login-error" role="alert" style={{ color: 'var(--danger, #c0392b)', fontSize: 13, marginTop: 4 }}>
+            {error}
+          </div>
+        )}
+        <button type="submit" className="btn btn-primary" disabled={busy}
+          style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
+          <Icon name="lock" /> {busy ? 'Entrando…' : 'Entrar'}
         </button>
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button className="btn btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => onEnter('user')}>Entrar como Usuário</button>
-          <button className="btn btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => onEnter('admin')}>Entrar como Admin</button>
+          <button type="button" className="btn btn-sm" disabled={busy} style={{ flex: 1, justifyContent: 'center' }}
+            onClick={() => doLogin('operator', 'operator')}>Demo: Operador</button>
+          <button type="button" className="btn btn-sm" disabled={busy} style={{ flex: 1, justifyContent: 'center' }}
+            onClick={() => doLogin('admin', 'admin')}>Demo: Admin</button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
 
 export default function App() {
-  const [authed, setAuthed] = useState(false);
-  const [mode, setMode] = useState('user');
-  const [route, setRoute] = useState('assistant');
+  const [authed, setAuthed] = useState(isAuthed());
+  const [mode, setMode] = useState(isAdmin() ? 'admin' : 'user');
+  const [route, setRoute] = useState(isAdmin() ? 'hitl' : 'assistant');
   const [pendingCount, setPendingCount] = useState(0);
 
-  const enter = (m) => { const mm = m === 'admin' ? 'admin' : 'user'; setMode(mm); setRoute(mm === 'admin' ? 'hitl' : 'assistant'); setAuthed(true); };
   const switchMode = (m) => { setMode(m); setRoute(m === 'admin' ? 'hitl' : 'assistant'); };
   const go = (r) => setRoute(r);
 
-  if (!authed) return <ToastProvider><Login onEnter={enter} /></ToastProvider>;
+  const onAuthenticated = () => {
+    const admin = isAdmin();
+    setMode(admin ? 'admin' : 'user');
+    setRoute(admin ? 'hitl' : 'assistant');
+    setAuthed(true);
+  };
+  const doLogout = () => { logout(); setAuthed(false); };
 
-  const screens = {
+  // M13: o objeto de telas é memoizado (não é recriado a cada render). O hook é
+  // chamado SEMPRE (antes de qualquer return) para respeitar as regras de hooks.
+  const screens = useMemo(() => ({
     assistant: <AssistantScreen />,
     process: <ProcessScreen />,
     juris: <JurisScreen />,
@@ -99,7 +152,12 @@ export default function App() {
     ledger: <LedgerScreen />,
     dmn: <DmnScreen />,
     monitor: <MonitorScreen />,
-  };
+  }), []);
+
+  if (!authed) return <ToastProvider><Login onAuthenticated={onAuthenticated} /></ToastProvider>;
+
+  const principal = getPrincipal();
+  const displayName = principal?.userId || 'Usuário';
   const crumb = TITLES[route] || ['', ''];
   const isChat = route === 'assistant';
 
@@ -138,9 +196,12 @@ export default function App() {
           </nav>
           <div className="sidebar-foot">
             <button className="user-chip">
-              <div className="avatar">MR</div>
-              <div style={{ flex: 1 }}><div className="user-name">Mariana Ribeiro</div><div className="user-role">{mode === 'admin' ? 'Operadora HITL' : 'Advogada'}</div></div>
+              <div className="avatar">{displayName.slice(0, 2).toUpperCase()}</div>
+              <div style={{ flex: 1 }}><div className="user-name">{displayName}</div><div className="user-role">{(principal?.roles || []).join(', ') || 'sem papel'}</div></div>
               <Icon name="cog" style={{ width: 15, height: 15, color: 'var(--faint)' }} />
+            </button>
+            <button className="btn btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={doLogout}>
+              <Icon name="lock" /> Sair
             </button>
           </div>
         </aside>

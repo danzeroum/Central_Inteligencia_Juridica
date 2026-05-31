@@ -3,8 +3,9 @@ import { Icon } from '../../components/primitives.jsx';
 import { useToast } from '../../components/toast.jsx';
 import { api } from '../../api/client.js';
 import { store, humanizeAction, fmt } from '../../state.js';
+import { operatorId } from '../../api/auth.js';
 
-const OPERATOR_ID = 'm.ribeiro';
+// CRÍTICO-10: operador derivado da sessão autenticada (não mais hardcoded).
 
 // Editor estruturado que pré-preenche a ação proposta e envia `modifications`
 // (encerra o alert "em desenvolvimento" — contrato já suportado pela API).
@@ -44,7 +45,7 @@ export default function HitlDetailScreen({ go }) {
         approved,
         modifications: approved ? { ...action, ...form } : null,
         feedback: justify.trim(),
-        operator_id: OPERATOR_ID,
+        operator_id: operatorId(),
       });
       toast.success(approved ? 'Ação modificada e aprovada.' : 'Solicitação rejeitada.');
       store.selectedRequest = null;

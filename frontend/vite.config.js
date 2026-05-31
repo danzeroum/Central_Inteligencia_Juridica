@@ -7,6 +7,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/app/',
   plugins: [react()],
+  // Vitest: ambiente jsdom para exercitar auth/cliente (localStorage, fetch).
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{js,jsx}'],
+  },
   build: {
     outDir: '../src/api/static/spa',
     emptyOutDir: true,
