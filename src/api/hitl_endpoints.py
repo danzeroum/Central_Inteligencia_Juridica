@@ -14,8 +14,10 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
+from src.api.auth import AuthManager
 from src.api.rbac import Principal, require_permissions
 from src.hitl.hitl_queue import get_hitl_queue
 from src.utils.ledger import get_ledger
@@ -24,6 +26,38 @@ from src.utils.request_context import get_audit_context
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/hitl", tags=["HITL"])
 ledger = get_ledger()
+
+
+def _authorize_ws(websocket: WebSocket) -> bool:
+    """Valida o JWT do handshake do WebSocket HITL (H04).
+
+    Retorna ``True`` quando a autenticação está desligada (dev/testes) ou quando
+    o token é válido e concede ``hitl:write``. Caso contrário ``False``, levando
+    o chamador a fechar a conexão.
+    """
+
+    if not AuthManager.REQUIRED:
+        return True
+
+    token = websocket.query_params.get("token")
+    if not token:
+        header = websocket.headers.get("authorization", "")
+        if header.lower().startswith("bearer "):
+            token = header.split(" ", 1)[1]
+    if not token:
+        return False
+
+    try:
+        payload = AuthManager.verify_token_payload(
+            HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+        )
+    except HTTPException:
+        return False
+
+    # Reutiliza a álgebra de permissões do RBAC para exigir ``hitl:write``.
+    from src.api.rbac import permissions_for, roles_from_payload
+
+    return "hitl:write" in permissions_for(roles_from_payload(payload))
 
 
 class HITLDecision(BaseModel):
@@ -39,7 +73,9 @@ class HITLDecision(BaseModel):
 
 
 @router.get("/pending", summary="Lista aprovações pendentes")
-async def list_pending_approvals() -> Dict[str, Any]:
+async def list_pending_approvals(
+    _principal: Principal = Depends(require_permissions("hitl:write")),
+) -> Dict[str, Any]:
     """Retorna todas as solicitações de aprovação aguardando decisão humana."""
     queue = get_hitl_queue()
     pending = queue.get_pending_requests()
@@ -51,7 +87,9 @@ async def list_pending_approvals() -> Dict[str, Any]:
 
 
 @router.get("/stats", summary="Estatísticas da fila HITL")
-async def hitl_stats() -> Dict[str, Any]:
+async def hitl_stats(
+    _principal: Principal = Depends(require_permissions("hitl:write")),
+) -> Dict[str, Any]:
     """Resumo da fila para o cabeçalho do console de aprovações.
 
     As contagens de aprovadas/rejeitadas são derivadas do Decision Ledger
@@ -173,7 +211,17 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         "event": "new_request" | "decision_made",
         "data": { ... request details ... }
     }
+
+    SECURITY (H04): quando a autenticação está ligada, o handshake exige um JWT
+    válido com permissão ``hitl:write``. O token é aceito via query param
+    ``?token=`` (WebSockets não carregam header ``Authorization`` de forma
+    confiável em navegadores) ou via header ``Authorization: Bearer``. Sem token
+    válido a conexão é fechada com *policy violation* (1008) antes do ``accept``.
     """
+    if not _authorize_ws(websocket):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
     logger.info("WebSocket HITL conectado: %s", websocket.client)
 

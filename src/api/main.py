@@ -240,7 +240,9 @@ async def training_dashboard() -> HTMLResponse:
     summary="Lista todas as capacidades dos agentes",
     description="Retorna o registry completo de agentes em formato MCP-compatível.",
 )
-async def get_agent_capabilities() -> Dict[str, Any]:
+async def get_agent_capabilities(
+    _principal: Principal = Depends(current_principal),
+) -> Dict[str, Any]:
     """Endpoint MCP para discovery de capacidades dos agentes."""
 
     initialize_agent_registry()
@@ -253,7 +255,9 @@ async def get_agent_capabilities() -> Dict[str, Any]:
     summary="Lista todos os agentes registrados",
     description="Retorna lista simplificada de agentes ativos.",
 )
-async def list_agents() -> Dict[str, Any]:
+async def list_agents(
+    _principal: Principal = Depends(current_principal),
+) -> Dict[str, Any]:
     """Lista todos os agentes registrados no sistema."""
 
     initialize_agent_registry()
@@ -327,9 +331,11 @@ async def send_a2a_message(
 async def get_agent_messages(
     agent_id: str,
     limit: int = Query(10, ge=1, le=100),
+    _principal: Principal = Depends(current_principal),
 ) -> Dict[str, Any]:
     """Recupera mensagens pendentes para um agente específico."""
 
+    _validate_agent_id(agent_id, "agent_id")
     messages = await a2a_channel.receive_messages(agent_id, limit)
 
     return {
@@ -348,9 +354,11 @@ async def get_agent_messages(
 async def get_a2a_history(
     agent_id: str,
     limit: int = Query(50, ge=1, le=200),
+    _principal: Principal = Depends(current_principal),
 ) -> Dict[str, Any]:
     """Retorna histórico de mensagens para o agente informado."""
 
+    _validate_agent_id(agent_id, "agent_id")
     history = a2a_channel.get_message_history(agent_id, limit)
 
     return {
@@ -416,7 +424,10 @@ async def a2a_health_check() -> Dict[str, Any]:
     summary="Detalhes de um agente específico",
     description="Retorna agent card completo com todas as capacidades.",
 )
-async def get_agent_details(agent_id: str) -> Dict[str, Any]:
+async def get_agent_details(
+    agent_id: str,
+    _principal: Principal = Depends(current_principal),
+) -> Dict[str, Any]:
     """Retorna detalhes completos de um agente específico."""
 
     initialize_agent_registry()
@@ -498,7 +509,10 @@ async def invoke_agent_directly(
     summary="Busca agentes por capacidade",
     description="Retorna agentes que possuem uma capacidade específica.",
 )
-async def get_agents_by_capability(capability: str) -> Dict[str, Any]:
+async def get_agents_by_capability(
+    capability: str,
+    _principal: Principal = Depends(current_principal),
+) -> Dict[str, Any]:
     """Busca agentes que possuem determinada capacidade."""
 
     initialize_agent_registry()
@@ -681,6 +695,7 @@ async def compare_modes(
 @app.get("/consultar-projetos-lei/", tags=["Consultas"])
 async def consultar_projetos_endpoint(
     q: str = Query(..., description="Termo de busca para proposições legislativas"),
+    _principal: Principal = Depends(current_principal),
 ):
     """Consulta projetos de lei diretamente na API da Câmara dos Deputados."""
 
@@ -699,6 +714,7 @@ async def analisar_legislacao_endpoint(
     tema: str = Body(
         ..., embed=True, description="Tema legislativo para análise de IA"
     ),
+    _principal: Principal = Depends(current_principal),
 ):
     """Inicia uma análise de IA sobre um tema legislativo."""
 
@@ -749,6 +765,7 @@ async def health_check(
 )
 async def list_history(
     limit: int = Query(20, ge=1, le=100),
+    _principal: Principal = Depends(current_principal),
 ) -> Dict[str, Any]:
     """Lista as consultas processadas pelo Supervisor.
 
