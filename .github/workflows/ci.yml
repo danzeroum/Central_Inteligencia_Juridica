@@ -121,3 +121,38 @@ jobs:
             | tar -xz -C /usr/local/bin gitleaks
           gitleaks detect --source . --no-git --redact --verbose \
             --config .gitleaks.toml
+
+  dependency-scan:
+    name: Dependency & FS Scan (pip-audit + Trivy)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip-audit (vulnerabilidades em dependências)
+        run: |
+          # SECURITY: varre as dependências (PyPI Advisory DB / OSV). Não-bloqueante
+          # por ora (typing/segurança incremental) — reporta para triagem. Para
+          # tornar bloqueante, remova o "|| true". Use --ignore-vuln GHSA-xxxx para
+          # exceções justificadas.
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r requirements.txt --desc --strict || \
+            echo "WARNING: pip-audit reportou vulnerabilidades (nao bloqueia ainda)"
+
+      - name: Trivy (filesystem + dependências, HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          # exit-code 0: reporta sem bloquear (alinha com pip-audit/mypy). Mude
+          # para "1" para tornar o gate bloqueante.
+          exit-code: '0'
+          format: table

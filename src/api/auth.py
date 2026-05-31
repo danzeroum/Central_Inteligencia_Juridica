@@ -31,6 +31,11 @@ class AuthManager:
     ALGORITHM: str = "HS256"
     REQUIRED: bool = True  # SECURITY: Changed from False to True
 
+    # SECURITY (BACEN 4.658): timeout de sessão JWT. O padrão de 24h era alto
+    # demais; o BACEN recomenda 15-30 min para operações privilegiadas. O default
+    # cai para 30 min, configurável via ``JWT_EXPIRY_MINUTES``.
+    EXPIRY_MINUTES: int = int(os.environ.get("JWT_EXPIRY_MINUTES", "30"))
+
     # SECURITY: ``RLock`` (reentrante) serializa leituras/escritas das
     # configurações de classe, evitando race conditions ao reconfigurar o
     # ``SECRET_KEY`` em ambientes multi-thread (ex.: uvicorn workers/threadpool).
@@ -51,6 +56,7 @@ class AuthManager:
         secret_key: Optional[str] = None,
         algorithm: Optional[str] = None,
         required: Optional[bool] = None,
+        expiry_minutes: Optional[int] = None,
     ) -> None:
         """Override class-level settings. Primarily used for testing."""
         with cls._lock:
@@ -60,18 +66,29 @@ class AuthManager:
                 cls.ALGORITHM = algorithm
             if required is not None:
                 cls.REQUIRED = required
+            if expiry_minutes is not None:
+                cls.EXPIRY_MINUTES = expiry_minutes
 
     @classmethod
     def create_token(
         cls,
         user_id: str,
-        expires_in_hours: int = 24,
+        expires_in_hours: Optional[int] = None,
         roles: Optional[Sequence[str]] = None,
+        expires_in_minutes: Optional[int] = None,
     ) -> str:
+        # Precedência: minutos explícitos > horas explícitas > default (env/30min).
+        if expires_in_minutes is not None:
+            delta = timedelta(minutes=expires_in_minutes)
+        elif expires_in_hours is not None:
+            delta = timedelta(hours=expires_in_hours)
+        else:
+            delta = timedelta(minutes=cls.EXPIRY_MINUTES)
+
         now = datetime.now(timezone.utc)
         payload: Dict[str, Any] = {
             "sub": user_id,
-            "exp": now + timedelta(hours=expires_in_hours),
+            "exp": now + delta,
             "iat": now,
         }
         # RBAC: papéis viajam no próprio token (autorização stateless). Tokens

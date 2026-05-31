@@ -104,11 +104,25 @@ sem dependência de nuvem:
   `client_ip` (respeitando `X-Forwarded-For` atrás de proxy/ingress) e
   `user_agent` — rastreabilidade de "quem, de onde, com qual cliente".
 
+## Governança operacional (implementado)
+
+- **Alertas Prometheus** — `monitoring/alert_rules.yml` (+ `rule_files`/`alerting`
+  em `prometheus.yml`): `APITargetDown`, `HighErrorRate`, `CircuitBreakerOpen`,
+  `HITLQueueBacklog`, `HITLSlowResponse`. Roteados pelo **Alertmanager**
+  (`monitoring/alertmanager.yml`, serviço no compose, porta 9093); canais reais
+  (Slack/e-mail) plugam no receiver via secret/env.
+- **Scan de dependências no CI** — job `dependency-scan` em `ci.yml`: `pip-audit`
+  (PyPI Advisory/OSV) + **Trivy** (fs, HIGH/CRITICAL, ignore-unfixed).
+  Não-bloqueantes por ora (reportam para triagem); viram gate trocando o
+  `|| true`/`exit-code` por falha.
+- **Timeout de sessão JWT (BACEN 4.658)** — default reduzido de 24h → **30 min**
+  (`JWT_EXPIRY_MINUTES`); operações privilegiadas (admin/operator/auditor) usam
+  **15 min** (`JWT_PRIVILEGED_EXPIRY_MINUTES`) via `rbac.issue_token(...)`.
+
 ## Fora de escopo (próximos passos, exigem nuvem real)
 
 Módulos Terraform/K8s + HPA/auto-scaling; KMS/Vault de fato (a interface já
 existe); serviços gerenciados (ElastiCache/Pinecone); pub/sub para wake-up HITL
-entre réplicas; multi-region/DR; CD canary/blue-green. A camada de compliance do
-audit está coberta (RBAC, LGPD, binding de identidade, PII in/out, auditoria de
-origem); restam itens de governança operacional (alert rules + Alertmanager,
-pip-audit/Trivy no CI, redução do timeout JWT para operações privilegiadas).
+entre réplicas; multi-region/DR; CD canary/blue-green. A camada de compliance e a
+governança operacional do audit estão cobertas; o que resta é, essencialmente,
+infraestrutura de nuvem real e a configuração de canais de notificação reais.

@@ -23,6 +23,8 @@ from src.api.rbac import (  # noqa: E402
     DEFAULT_ROLES,
     Principal,
     Role,
+    is_privileged,
+    issue_token,
     permissions_for,
     roles_from_payload,
 )
@@ -90,6 +92,37 @@ class TestTokenRoles:
         token = AuthManager.create_token("u1")
         payload = AuthManager.verify_token_payload(_creds(token))
         assert "roles" not in payload
+
+
+class TestSessionTimeout:
+    """BACEN 4.658: timeout de sessão reduzido, mais curto para privilegiados."""
+
+    def _exp_minutes(self, token: str) -> float:
+        payload = AuthManager.verify_token_payload(_creds(token))
+        return (payload["exp"] - payload["iat"]) / 60
+
+    def test_default_token_expiry_is_30_min(self) -> None:
+        AuthManager.configure(secret_key="x" * 40, expiry_minutes=30)
+        assert round(self._exp_minutes(AuthManager.create_token("u"))) == 30
+
+    def test_explicit_minutes_override(self) -> None:
+        AuthManager.configure(secret_key="x" * 40)
+        token = AuthManager.create_token("u", expires_in_minutes=5)
+        assert round(self._exp_minutes(token)) == 5
+
+    def test_privileged_roles_get_shorter_session(self) -> None:
+        AuthManager.configure(secret_key="x" * 40, expiry_minutes=30)
+        assert round(self._exp_minutes(issue_token("a", ["admin"]))) == 15
+        assert round(self._exp_minutes(issue_token("o", ["operator"]))) == 15
+
+    def test_readonly_uses_standard_session(self) -> None:
+        AuthManager.configure(secret_key="x" * 40, expiry_minutes=30)
+        assert round(self._exp_minutes(issue_token("r", ["readonly"]))) == 30
+
+    def test_is_privileged_classification(self) -> None:
+        assert is_privileged([Role.ADMIN])
+        assert is_privileged([Role.AUDITOR])
+        assert not is_privileged([Role.READONLY])
 
 
 class TestA2AIdentityBinding:

@@ -13,9 +13,10 @@ mesmo princípio do acesso "anonymous" já existente. Em produção
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable, List, Set
+from typing import Iterable, List, Sequence, Set
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
@@ -52,6 +53,40 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
 # Propositadamente NÃO incluem admin: operações sensíveis (LGPD, config) exigem
 # um token emitido explicitamente com o papel apropriado.
 DEFAULT_ROLES: List[Role] = [Role.OPERATOR]
+
+# SECURITY (BACEN 4.658): papéis com acesso de escrita/leitura sensível são
+# considerados "privilegiados" e recebem um timeout de sessão mais curto. Apenas
+# ``readonly`` é não-privilegiado.
+PRIVILEGED_ROLES: Set[Role] = {Role.ADMIN, Role.OPERATOR, Role.AUDITOR}
+
+
+def privileged_expiry_minutes() -> int:
+    """Timeout (min) para tokens privilegiados (``JWT_PRIVILEGED_EXPIRY_MINUTES``)."""
+
+    return int(os.getenv("JWT_PRIVILEGED_EXPIRY_MINUTES", "15"))
+
+
+def is_privileged(roles: Iterable[Role]) -> bool:
+    return any(role in PRIVILEGED_ROLES for role in roles)
+
+
+def issue_token(user_id: str, roles: Sequence[str]) -> str:
+    """Emite um JWT aplicando a política de timeout conforme o privilégio.
+
+    Operações privilegiadas (admin/operator/auditor) recebem um token de vida
+    curta (``JWT_PRIVILEGED_EXPIRY_MINUTES``, padrão 15 min); demais usam o
+    padrão (``JWT_EXPIRY_MINUTES``, 30 min). Centraliza a regra de sessão.
+    """
+
+    coerced = _coerce_roles(roles)
+    minutes = (
+        privileged_expiry_minutes()
+        if is_privileged(coerced)
+        else AuthManager.EXPIRY_MINUTES
+    )
+    return AuthManager.create_token(
+        user_id, roles=[r.value for r in coerced], expires_in_minutes=minutes
+    )
 
 
 def _coerce_roles(raw: Iterable[object]) -> List[Role]:
@@ -148,9 +183,13 @@ __all__ = [
     "Role",
     "ROLE_PERMISSIONS",
     "DEFAULT_ROLES",
+    "PRIVILEGED_ROLES",
     "Principal",
     "current_principal",
     "require_permissions",
     "permissions_for",
     "roles_from_payload",
+    "is_privileged",
+    "privileged_expiry_minutes",
+    "issue_token",
 ]
