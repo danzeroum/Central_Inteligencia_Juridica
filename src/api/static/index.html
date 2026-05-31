@@ -188,12 +188,22 @@
             }
         }
 
+        // SECURITY (CRÍTICO-12): escapa dados da API antes do innerHTML (anti-XSS).
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function formatSuccess(data) {
             const result = data.supervisor_result;
             const formattedJson = JSON.stringify(result, null, 2);
             return `
-                <h3>Tribunal Utilizado: ${data.tribunal_used}</h3>
-                <pre>${formattedJson}</pre>
+                <h3>Tribunal Utilizado: ${escapeHtml(data.tribunal_used)}</h3>
+                <pre>${escapeHtml(formattedJson)}</pre>
             `;
         }
 
@@ -201,7 +211,7 @@
             resultArea.classList.add('error');
             return `
                 <h4>Erro ao Processar</h4>
-                <p>${errorData.detail || 'Ocorreu um erro desconhecido.'}</p>
+                <p>${escapeHtml(errorData.detail || 'Ocorreu um erro desconhecido.')}</p>
             `;
         }
 

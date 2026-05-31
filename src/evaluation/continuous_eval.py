@@ -5,7 +5,14 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
-class ContinuousEvaluator:
+class TrajectoryEvaluator:
+    """Avalia a trajetória de execução de um agente.
+
+    BUGFIX (CRÍTICO-08): renomeada de ``ContinuousEvaluator`` para eliminar a
+    colisão com :class:`src.evaluation.continuous_evaluator.ContinuousEvaluator`,
+    que tem responsabilidade distinta (histórico de avaliações de treinamento).
+    """
+
     def __init__(self, metrics_config: Dict[str, Any]) -> None:
         self.metrics = metrics_config
         self.baseline = None
@@ -39,3 +46,7 @@ class ContinuousEvaluator:
 
         violations = getattr(trajectory, "guardrail_violations", 0)
         return 1.0 if violations == 0 else 0.0
+
+
+# Compatibilidade retroativa para chamadores que ainda usem o nome antigo.
+ContinuousEvaluator = TrajectoryEvaluator

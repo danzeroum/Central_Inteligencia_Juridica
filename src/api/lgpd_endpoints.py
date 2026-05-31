@@ -16,10 +16,11 @@ Autorização (RBAC): leitura exige ``lgpd:read`` (auditor/admin); exclusão exi
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.api.rbac import Principal, require_permissions
 from src.utils.ledger import get_ledger
@@ -30,6 +31,19 @@ router = APIRouter(prefix="/api/v1/lgpd", tags=["LGPD"])
 
 # Campo de metadata usado para identificar o titular dos dados nas entradas.
 SUBJECT_FIELD = "subject_id"
+
+# SECURITY (M09): valida o formato do ``subject_id`` (allowlist estrito) antes de
+# usá-lo em buscas/anonimização, fechando entradas malformadas/abusivas.
+_SUBJECT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.@\-]{1,128}$")
+
+
+def _validate_subject_id(subject_id: str) -> str:
+    if not _SUBJECT_ID_PATTERN.match(subject_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="subject_id inválido (formato não permitido)",
+        )
+    return subject_id
 
 
 def _entries_for_subject(subject_id: str) -> List[Dict[str, Any]]:
@@ -68,6 +82,7 @@ async def get_subject_data(
 ) -> Dict[str, Any]:
     """Retorna os registros de auditoria associados ao titular."""
 
+    _validate_subject_id(subject_id)
     entries = _entries_for_subject(subject_id)
     return {
         "subject_id": subject_id,
@@ -86,6 +101,7 @@ async def export_subject_data(
 ) -> Dict[str, Any]:
     """Exporta os dados do titular em formato estruturado (JSON) e portável."""
 
+    _validate_subject_id(subject_id)
     entries = _entries_for_subject(subject_id)
     return {
         "format": "json",
@@ -109,6 +125,7 @@ async def delete_subject_data(
 ) -> Dict[str, Any]:
     """Anonimiza os dados do titular e registra a operação para auditoria."""
 
+    _validate_subject_id(subject_id)
     ledger = get_ledger()
     anonymized = ledger.anonymize_entries(field_name=SUBJECT_FIELD, value=subject_id)
     vector_deleted = _try_delete_vector_memory(subject_id)

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from src.api.rbac import Principal, require_permissions
 from src.training.training_manager import AgentTrainingState, TrainingManager
 
 router = APIRouter(prefix="/api/v1/training", tags=["Training"])
@@ -59,7 +60,10 @@ class TrainingStatsResponse(BaseModel):
 
 
 @router.post("/feedback", status_code=status.HTTP_202_ACCEPTED)
-async def submit_feedback(feedback: FeedbackRequest) -> Dict[str, str]:
+async def submit_feedback(
+    feedback: FeedbackRequest,
+    _principal: Principal = Depends(require_permissions("agents:manage")),
+) -> Dict[str, str]:
     """Submit feedback for an agent's performance."""
 
     manager = get_training_manager()
@@ -78,7 +82,10 @@ async def submit_feedback(feedback: FeedbackRequest) -> Dict[str, str]:
 
 
 @router.post("/train")
-async def trigger_training(request: TrainingRequest) -> Dict[str, Any]:
+async def trigger_training(
+    request: TrainingRequest,
+    _principal: Principal = Depends(require_permissions("agents:manage")),
+) -> Dict[str, Any]:
     """Trigger a training cycle for a specific agent."""
 
     manager = get_training_manager()
@@ -107,7 +114,10 @@ async def trigger_training(request: TrainingRequest) -> Dict[str, Any]:
 
 
 @router.get("/stats")
-async def get_training_stats(agent_type: Optional[str] = None) -> TrainingStatsResponse:
+async def get_training_stats(
+    agent_type: Optional[str] = None,
+    _principal: Principal = Depends(require_permissions("agents:read")),
+) -> TrainingStatsResponse:
     """Get training statistics for agents."""
 
     manager = get_training_manager()
@@ -117,7 +127,9 @@ async def get_training_stats(agent_type: Optional[str] = None) -> TrainingStatsR
 
 
 @router.get("/active-sessions")
-async def get_active_sessions() -> Dict[str, Any]:
+async def get_active_sessions(
+    _principal: Principal = Depends(require_permissions("agents:read")),
+) -> Dict[str, Any]:
     """Get all currently active training sessions."""
 
     manager = get_training_manager()
@@ -140,7 +152,9 @@ async def get_active_sessions() -> Dict[str, Any]:
 
 @router.get("/history")
 async def get_training_history(
-    agent_type: Optional[str] = None, limit: int = 10
+    agent_type: Optional[str] = None,
+    limit: int = 10,
+    _principal: Principal = Depends(require_permissions("agents:read")),
 ) -> Dict[str, Any]:
     """Get training history."""
 
@@ -174,7 +188,10 @@ async def get_training_history(
 
 
 @router.post("/ab-test")
-async def run_ab_test(request: ABTestRequest) -> Dict[str, Any]:
+async def run_ab_test(
+    request: ABTestRequest,
+    _principal: Principal = Depends(require_permissions("agents:manage")),
+) -> Dict[str, Any]:
     """Run an A/B test between two agent variants."""
 
     manager = get_training_manager()
@@ -195,7 +212,10 @@ async def run_ab_test(request: ABTestRequest) -> Dict[str, Any]:
 
 
 @router.post("/reset/{agent_type}")
-async def reset_training_state(agent_type: str) -> Dict[str, str]:
+async def reset_training_state(
+    agent_type: str,
+    _principal: Principal = Depends(require_permissions("config:write")),
+) -> Dict[str, str]:
     """Reset training state for an agent."""
 
     manager = get_training_manager()

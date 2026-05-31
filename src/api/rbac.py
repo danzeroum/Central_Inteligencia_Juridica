@@ -37,6 +37,7 @@ class Role(str, Enum):
 ROLE_PERMISSIONS: dict[Role, Set[str]] = {
     Role.ADMIN: {
         "hitl:write",
+        "agents:read",
         "agents:manage",
         "config:write",
         "lgpd:read",

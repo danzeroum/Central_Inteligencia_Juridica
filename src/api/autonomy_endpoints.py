@@ -10,9 +10,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from src.api.rbac import Principal, require_permissions
 from src.hitl.progressive_autonomy import get_autonomy_manager
 
 logger = logging.getLogger(__name__)
@@ -75,7 +76,10 @@ async def get_config() -> Dict[str, Any]:
 
 
 @router.put("/config", summary="Atualiza a configuração da regra de autonomia")
-async def update_config(update: AutonomyConfigUpdate) -> Dict[str, Any]:
+async def update_config(
+    update: AutonomyConfigUpdate,
+    _principal: Principal = Depends(require_permissions("config:write")),
+) -> Dict[str, Any]:
     """Atualiza os limiares (consenso e faixas de trust)."""
 
     manager = get_autonomy_manager()

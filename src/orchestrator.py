@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 
 from src.core.safe_agent_base import AgentExecution, SafeAgentBase
-from src.evaluation.continuous_eval import ContinuousEvaluator
+from src.evaluation.continuous_eval import TrajectoryEvaluator
 from src.protocols.mcp_server import MCPServer
 from src.tools.rag_tool import RAGTool
 
@@ -39,7 +39,7 @@ class AgentOrchestrator:
         self.base_agent.add_capability("memory")
         self.base_agent.add_capability("planning")
 
-        self.evaluator = ContinuousEvaluator(metrics_config or {})
+        self.evaluator = TrajectoryEvaluator(metrics_config or {})
         self.rag_tool = RAGTool(vector_db_url)
         self.observer = NullObserver()
         self.mcp_server = MCPServer(self.base_agent)

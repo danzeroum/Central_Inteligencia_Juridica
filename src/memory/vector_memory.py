@@ -412,7 +412,14 @@ class VectorMemory:
             recalled = []
             effective_min_similarity = min_similarity
             if self._use_manual_embeddings and adaptive_threshold:
-                effective_min_similarity = 0.1
+                # H13: o piso de similaridade para embeddings-hash (fallback de
+                # baixa resolução) é configurável via env em vez de fixo em 0.1
+                # — um valor muito baixo recupera memórias irrelevantes. O default
+                # foi elevado para 0.35 (mais seletivo) e pode ser ajustado por
+                # ``VECTOR_CACHE_MIN_SIMILARITY`` sem alterar código.
+                effective_min_similarity = float(
+                    os.getenv("VECTOR_CACHE_MIN_SIMILARITY", "0.35")
+                )
 
             for metadata, distance in zip(metadatas, distances):
                 metadata_copy = self._restore_metadata(metadata)

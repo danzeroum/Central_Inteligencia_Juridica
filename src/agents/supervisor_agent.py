@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -223,10 +224,21 @@ class SupervisorAgent(A2ACapable):
             }
 
         except Exception as exc:  # pragma: no cover - defensive safeguard
-            self.logger.error("Erro no processamento avançado: %s", exc, exc_info=True)
+            # SECURITY (H17/CWE-209): não devolver ``str(exc)``; loga o detalhe e
+            # responde com uma referência opaca para correlação no suporte.
+            correlation_id = uuid.uuid4().hex
+            self.logger.error(
+                "Erro no processamento avançado [%s]: %s",
+                correlation_id,
+                exc,
+                exc_info=True,
+            )
             return {
                 "status": "error",
-                "message": str(exc),
+                "message": (
+                    "Erro interno no processamento avançado. "
+                    f"Referência para suporte: {correlation_id}"
+                ),
                 "fallback": "use_simple_mode",
                 "timestamp": self._get_timestamp(),
             }
@@ -850,6 +862,21 @@ class SupervisorAgent(A2ACapable):
         """Retorna todos os tribunais mencionados preservando ordem de aparição."""
 
         return self.tribunal_identifier.identify_all(task)
+
+    # API pública (H06): a camada HTTP não deve depender de métodos privados
+    # (``_`` prefixado). Estes wrappers expõem a funcionalidade necessária ao
+    # endpoint de invocação direta sem quebrar o encapsulamento.
+    def identify_all_tribunals(self, task: str) -> List[str]:
+        """Wrapper público de :meth:`_identify_all_tribunals`."""
+
+        return self._identify_all_tribunals(task)
+
+    async def delegate_to_tribunal_agent(
+        self, tribunal_code: str, task: str
+    ) -> Dict[str, Any]:
+        """Wrapper público de :meth:`_delegate_to_tribunal_agent`."""
+
+        return await self._delegate_to_tribunal_agent(tribunal_code, task)
 
     def _get_or_create_tribunal_agent(self, tribunal_code: str) -> TribunalAgent:
         """Retorna agente existente ou cria novo delegado para o tribunal."""
