@@ -405,6 +405,17 @@
         }
 
         // Adicionar card de request
+        // SECURITY (CRÍTICO-11): escapa valores dinâmicos vindos da API antes de
+        // injetá-los via innerHTML, neutralizando XSS armazenado/refletido.
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function addRequestCard(request) {
             const container = document.getElementById('requests-container');
             const existing = document.getElementById(`request-${request.request_id}`);
@@ -427,11 +438,11 @@
                 <div class="request-header">
                     <div>
                         <div class="request-title">
-                            ${request.agent} - Solicitação de Aprovação
+                            ${escapeHtml(request.agent)} - Solicitação de Aprovação
                         </div>
                         <div class="request-meta">
-                            <span>🆔 ${request.request_id.substring(0, 8)}</span>
-                            <span>🕐 ${new Date(request.created_at).toLocaleString('pt-BR')}</span>
+                            <span>🆔 ${escapeHtml(String(request.request_id).substring(0, 8))}</span>
+                            <span>🕐 ${escapeHtml(new Date(request.created_at).toLocaleString('pt-BR'))}</span>
                         </div>
                     </div>
                     <div>
@@ -442,22 +453,22 @@
                 
                 <div class="context-section">
                     <strong>Ação Proposta:</strong>
-                    <pre>${JSON.stringify(request.action, null, 2)}</pre>
+                    <pre>${escapeHtml(JSON.stringify(request.action, null, 2))}</pre>
                 </div>
-                
+
                 <div class="context-section">
                     <strong>Contexto:</strong>
-                    <pre>${JSON.stringify(request.context, null, 2)}</pre>
+                    <pre>${escapeHtml(JSON.stringify(request.context, null, 2))}</pre>
                 </div>
-                
+
                 <div class="actions">
-                    <button class="btn-approve" onclick="approve('${request.request_id}')">
+                    <button class="btn-approve" onclick="approve('${encodeURIComponent(request.request_id)}')">
                         ✅ Aprovar
                     </button>
-                    <button class="btn-modify" onclick="modify('${request.request_id}')">
+                    <button class="btn-modify" onclick="modify('${encodeURIComponent(request.request_id)}')">
                         ✏️ Modificar
                     </button>
-                    <button class="btn-reject" onclick="reject('${request.request_id}')">
+                    <button class="btn-reject" onclick="reject('${encodeURIComponent(request.request_id)}')">
                         ❌ Rejeitar
                     </button>
                 </div>

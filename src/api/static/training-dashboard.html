@@ -325,9 +325,19 @@
             }
         }
 
+        // SECURITY (CRÍTICO-13): escapa valores dinâmicos antes do innerHTML (anti-XSS).
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function showError(message) {
             const container = document.getElementById('error-container');
-            container.innerHTML = `<div class="error">${message}</div>`;
+            container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
             setTimeout(() => container.innerHTML = '', 5000);
         }
 
@@ -363,8 +373,8 @@
                     return;
                 }
 
-                agentList.innerHTML = agents.map(agent => 
-                    `<li class="agent-item" onclick="selectAgent('${agent}')">${agent}</li>`
+                agentList.innerHTML = agents.map(agent =>
+                    `<li class="agent-item" onclick="selectAgent('${encodeURIComponent(agent)}')">${escapeHtml(agent)}</li>`
                 ).join('');
             } catch (error) {
                 console.error('Failed to load agents:', error);
@@ -372,6 +382,8 @@
         }
 
         async function selectAgent(agentType) {
+            // O valor chega URL-encoded (defesa XSS no onclick); decodifica aqui.
+            agentType = decodeURIComponent(agentType);
             selectedAgent = agentType;
 
             document.querySelectorAll('.agent-item').forEach(item => {
@@ -395,7 +407,7 @@
                         const sign = value >= 0 ? '+' : '';
                         return `
                             <div class="metric">
-                                <span class="metric-label">${metric}</span>
+                                <span class="metric-label">${escapeHtml(metric)}</span>
                                 <span class="metric-value ${className}">${sign}${value.toFixed(2)}%</span>
                             </div>
                         `;
@@ -416,7 +428,7 @@
                     </div>
                     ${improvementHTML || '<p style="color: #666; margin-top: 12px;">Nenhuma melhoria registrada ainda</p>'}
                     <div style="margin-top: 16px;">
-                        <button onclick="triggerTraining('${agentType}')">
+                        <button onclick="triggerTraining('${encodeURIComponent(agentType)}')">
                             Treinar Agora
                         </button>
                     </div>
@@ -437,10 +449,10 @@
                 }
 
                 container.innerHTML = history.sessions.map(session => `
-                    <div class="history-item ${session.status}">
+                    <div class="history-item ${escapeHtml(session.status)}">
                         <div class="history-header">
-                            <strong>${session.agent_type}</strong>
-                            <span class="status-badge ${session.status}">${session.status}</span>
+                            <strong>${escapeHtml(session.agent_type)}</strong>
+                            <span class="status-badge ${escapeHtml(session.status)}">${escapeHtml(session.status)}</span>
                         </div>
                         <div class="history-timestamp">
                             ${new Date(session.start_time).toLocaleString('pt-BR')}
@@ -453,7 +465,7 @@
                         ${session.improvements && Object.keys(session.improvements).length > 0 ? `
                             <div style="margin-top: 8px; font-size: 0.85rem;">
                                 <strong>Melhorias:</strong> ${Object.entries(session.improvements)
-                                    .map(([k, v]) => `${k}: ${v >= 0 ? '+' : ''}${v.toFixed(2)}%`)
+                                    .map(([k, v]) => `${escapeHtml(k)}: ${v >= 0 ? '+' : ''}${Number(v).toFixed(2)}%`)
                                     .join(', ')}
                             </div>
                         ` : ''}
@@ -465,6 +477,8 @@
         }
 
         async function triggerTraining(agentType) {
+            // Recebe o valor URL-encoded (defesa XSS no onclick); decodifica aqui.
+            agentType = decodeURIComponent(agentType);
             if (!confirm(`Iniciar treinamento para ${agentType}?`)) return;
 
             try {
