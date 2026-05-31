@@ -5,6 +5,9 @@ uvicorn[standard]==0.29.0
 # ollama 0.1.9 (>=0.27.0,<0.28.0). O pino anterior (0.24.1) era incompatível
 # com ollama e quebrava `pip install` no CI (ResolutionImpossible).
 httpx>=0.27.0,<0.28.0
+# Resiliência de chamadas HTTP (retry/backoff) usada em
+# src/tools/tribunal_api_adapter.py. Sem deps pesadas.
+tenacity>=8.2,<10.0
 
 # Cache & Monitoring
 redis==4.6.0

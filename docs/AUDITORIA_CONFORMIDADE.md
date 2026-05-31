@@ -99,7 +99,8 @@ Legenda de status: ✅ Comprovada · 🟡 Parcial · ❌ Não comprovada
 | Isolamento do marker `integration` | 🟡 | `pyproject.toml` define marker; testes de integração sem `@pytest.mark.integration` (isolam por diretório) | `pytest` sem alvo roda ~200 testes juntos | Aplicar o decorator e `addopts = -m "not integration"` por padrão |
 | Secret scanning no CI (MED-009) | ❌ | Ausente em `.github/workflows/*.yml` | Segredos comitados não detectados | Adicionar `gitleaks`/`trufflehog` como step no `ci.yml` |
 | Dependency scanning no CI (MED-010) | ❌ | Ausente em `.github/workflows/*.yml` | CVEs em dependências não detectados | Adicionar `pip-audit`/`safety` como step no `ci.yml` |
-| Completude do `requirements.txt` | ❌ | `src/routing/intent_classifier.py:20-22` importa `langchain`/`langchain_openai`, ausentes em `requirements.txt` | **Achado novo** — risco de `ImportError` em runtime/deploy limpo | Pinar `langchain`/`langchain-openai` no `requirements.txt` |
+| Completude do `requirements.txt` (`tenacity`) | ✅ *(corrigido)* | `src/tools/tribunal_api_adapter.py` importa `tenacity` (não-opcional); estava ausente do `requirements.txt` | Quebra de boot em deploy limpo (`ModuleNotFoundError`) | **Resolvido**: `tenacity>=8.2,<10.0` adicionado ao `requirements.txt` |
+| Completude do `requirements.txt` (`langchain`) | 🟡 *(reclassificado)* | `src/routing/intent_classifier.py:20-22` importa `langchain`/`langchain_openai` sob `try/except` com fallback heurístico | Dependência **opcional** não declarada (severidade menor que a inicialmente avaliada — não causa falha de runtime) | **Resolvido**: declarado como extra opcional em `requirements-llm.txt` (forçar no core quebraria a árvore `httpx<0.28`) |
 | Atualização de dependências (P2-2) | 🟡 | `requirements.txt`: `httpx>=0.27,<0.28`, `numpy<2.0`, `fastapi 0.111.0`, `uvicorn 0.29.0`, `chromadb 0.4.18`, `redis 4.6.0`, `sentence-transformers 2.2.2` | Pacotes desatualizados e pins extremos bloqueiam upgrades | Atualizar em ondas, com o dep-scanning acima validando cada bump |
 | Request ID / logs estruturados (MED-011) | 🟡 | `correlation_id` em `src/protocols/a2a_mixin.py`; `request_id` em `src/hitl/hitl_queue.py`; logs `logger.info` em string | Sem middleware central nem JSON | Middleware FastAPI propagando `correlation_id` (já usado no A2A) + logs JSON |
 | Coerência das configs de governança | ❌ | `config/agents/constitution.yaml` declara 3 agentes vs. 5-12 reais; `tribunals.yaml` referencia TJBA/TJPE/TJCE sem agentes | Configuração desatualizada/morta | Sincronizar YAML ao estado real; teste de contrato (acima) garante regressão |
@@ -131,7 +132,8 @@ parte do princípio de independência e evita decisões baseadas em premissas er
 | "78 testes unitários + 12 de integração" | ⚠️ **IMPRECISO** | Aproximadamente **120 unit + 80 integração** |
 | "12 ADRs" / constitution "3 vs 7+" | ⚠️ **IMPRECISO** | **11** ADRs; 3 declarados vs **5-12** ativos conforme contexto |
 | Bypass de sanitizador via `union\nselect` (CWE-185) | ⚠️ **PARCIAL** | O bypass **não** ocorre (flag `re.DOTALL`); o gap real é `$ % &` em `allowed_chars` |
-| (não destacado) Dependências LangChain | ➕ **ACHADO NOVO** | `langchain`/`langchain-openai` importados em `intent_classifier.py:20-22`, **ausentes** do `requirements.txt` |
+| (não destacado) Dependência `tenacity` | ➕ **ACHADO NOVO** | `tenacity` importado em `tribunal_api_adapter.py` (não-opcional) e **ausente** do `requirements.txt` — quebra boot em deploy limpo. **Corrigido** (pinado no core). |
+| (não destacado) Dependência LangChain | ➕ **ACHADO NOVO (reclassificado)** | `langchain`/`langchain-openai` importados em `intent_classifier.py:20-22` sob `try/except` com fallback — **opcional**, sem risco de runtime (severidade ALTA inicial era exagerada). **Corrigido** como extra em `requirements-llm.txt`. |
 
 ---
 
@@ -151,7 +153,7 @@ e pipeline existentes** (baixo esforço, alto impacto).
 ### P1 — Curto Prazo (Arquitetura & Pipeline)
 1. Tornar `black`/`mypy`/`bandit` bloqueantes no CI (remover `|| echo "WARNING"`).
 2. Decompor `process_task()` em métodos testáveis.
-3. Adicionar `langchain`/`langchain-openai` ao `requirements.txt` (**achado novo**).
+3. ~~Declarar dependências ausentes~~ — **feito**: `tenacity` no core; `langchain` em `requirements-llm.txt` (extra opcional).
 4. Migrar singletons para injeção de dependências.
 5. Conectar `SafeAgentBase`/`validate_tool_call` ao fluxo principal.
 
