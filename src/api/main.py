@@ -8,11 +8,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
+import json as _json
+
 from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.agents.agente_legislativo import analisar_cenario_legislativo
 from src.agents.supervisor_agent import SupervisorAgent
@@ -32,8 +34,10 @@ from src.protocols.a2a_channel import get_a2a_channel
 from src.api.rate_limiter import RateLimiter
 from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.services.camara_client import buscar_projetos_de_lei
+from src.utils.input_sanitizer import InputSanitizer
 from src.utils.logging_config import configure_logging
 from src.utils.metrics_collector import MetricsCollector
+from src.utils.request_context import get_correlation_id
 from src.utils.tracing import configure_tracing
 
 # CLOUD-READINESS: logging estruturado (JSON em produção) com correlation_id por
@@ -116,15 +120,24 @@ def _enforce_agent_identity(sender_id: str, principal: Principal) -> None:
 
 # CORS — permite o dev server do Vite (localhost:5173) durante o desenvolvimento.
 # Em produção a SPA é servida pela mesma origem (StaticFiles), tornando isto inócuo.
+# SECURITY (H15/M01): com ``allow_credentials=True``, métodos/headers ``*`` são
+# excessivamente permissivos. Agora são listas EXPLÍCITAS e configuráveis por
+# variável de ambiente (defaults = comportamento atual), evitando expor verbos
+# como TRACE e aceitar qualquer header arbitrário.
+def _csv_env(name: str, default: str) -> List[str]:
+    return [
+        item.strip() for item in os.getenv(name, default).split(",") if item.strip()
+    ]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_csv_env(
+        "CORS_ALLOW_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=_csv_env("CORS_ALLOW_METHODS", "GET,POST,PUT,DELETE,OPTIONS"),
+    allow_headers=_csv_env("CORS_ALLOW_HEADERS", "Authorization,Content-Type"),
 )
 
 # SECURITY: cabeçalhos de segurança (nosniff, X-Frame-Options, CSP, HSTS via
@@ -148,8 +161,63 @@ app.include_router(autonomy_router)
 app.include_router(monitoring_router)
 
 
+# SECURITY (SEC-004 / CWE-209): handler global de exceções não tratadas. Em vez
+# de deixar o stack trace vazar na resposta, devolve um ProblemDetail opaco com
+# uma referência (correlation_id) para correlação no suporte; o detalhe completo
+# fica apenas no log do servidor.
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    correlation_id = get_correlation_id() or uuid.uuid4().hex
+    logger.error(
+        "Erro não tratado [%s] em %s %s: %s",
+        correlation_id,
+        request.method,
+        request.url.path,
+        exc,
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "status": 500,
+            "title": "Internal Server Error",
+            "detail": f"Erro interno. Referência para suporte: {correlation_id}",
+        },
+    )
+
+
+# SECURITY (H09): o InputSanitizer — antes implementado mas nunca usado na borda
+# da API — agora higieniza o texto livre das requisições (remoção de scripts/
+# tags e truncamento), complementando os limites declarativos do Pydantic.
+_input_sanitizer = InputSanitizer(max_length=5000)
+
+# SECURITY (M05/M10): teto para o tamanho serializado de payloads A2A e para o
+# número de destinatários de um broadcast, evitando abuso/DoS via payloads enormes.
+_MAX_A2A_PAYLOAD_BYTES = 64 * 1024
+_MAX_BROADCAST_RECEIVERS = 50
+
+
+def _validate_payload_size(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if len(_json.dumps(payload, default=str)) > _MAX_A2A_PAYLOAD_BYTES:
+        raise ValueError("payload excede o tamanho máximo permitido")
+    return payload
+
+
 class TaskRequest(BaseModel):
-    task_description: str = Field(..., description="Descrição da tarefa jurídica")
+    # SECURITY (H07/M07): limite de tamanho impede payloads gigantes (DoS).
+    task_description: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+        description="Descrição da tarefa jurídica",
+    )
+
+    @field_validator("task_description")
+    @classmethod
+    def _sanitize_description(cls, value: str) -> str:
+        return _input_sanitizer.sanitize_text(value)
 
 
 class SuccessfulTaskResponse(BaseModel):
@@ -172,22 +240,41 @@ class A2AMessageRequest(BaseModel):
     """Payload para envio de mensagens A2A."""
 
     receiver_id: str = Field(..., description="Identificador do agente de destino")
-    message_type: str = Field(..., description="Tipo da mensagem a ser enviada")
+    message_type: str = Field(
+        ..., min_length=1, max_length=128, description="Tipo da mensagem a ser enviada"
+    )
     payload: Dict[str, Any] = Field(..., description="Dados da mensagem")
     priority: int = Field(1, ge=1, le=3, description="Prioridade da mensagem (1-3)")
     requires_response: bool = Field(
         False, description="Se é necessário aguardar resposta"
     )
 
+    @field_validator("payload")
+    @classmethod
+    def _check_payload(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        return _validate_payload_size(value)
+
 
 class A2ABroadcastRequest(BaseModel):
     """Payload para broadcast de mensagens A2A."""
 
     sender_id: str = Field(..., description="Agente emissor da mensagem")
-    receiver_ids: List[str] = Field(..., description="Lista de agentes destinatários")
-    message_type: str = Field(..., description="Tipo da mensagem a ser enviada")
+    receiver_ids: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=_MAX_BROADCAST_RECEIVERS,
+        description="Lista de agentes destinatários",
+    )
+    message_type: str = Field(
+        ..., min_length=1, max_length=128, description="Tipo da mensagem a ser enviada"
+    )
     payload: Dict[str, Any] = Field(..., description="Conteúdo da mensagem")
     priority: int = Field(1, ge=1, le=3, description="Prioridade da mensagem (1-3)")
+
+    @field_validator("payload")
+    @classmethod
+    def _check_payload(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        return _validate_payload_size(value)
 
 
 supervisor_agent = SupervisorAgent()
@@ -297,6 +384,7 @@ async def send_a2a_message(
     sender_id: str,
     message: A2AMessageRequest,
     principal: Principal = Depends(current_principal),
+    _: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Envia mensagem entre agentes utilizando o canal A2A."""
 
@@ -377,6 +465,7 @@ async def get_a2a_history(
 async def broadcast_a2a_message(
     request: A2ABroadcastRequest,
     principal: Principal = Depends(current_principal),
+    _: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Realiza broadcast de mensagens para múltiplos agentes."""
 
@@ -696,6 +785,7 @@ async def compare_modes(
 async def consultar_projetos_endpoint(
     q: str = Query(..., description="Termo de busca para proposições legislativas"),
     _principal: Principal = Depends(current_principal),
+    _: None = Depends(enforce_rate_limit),
 ):
     """Consulta projetos de lei diretamente na API da Câmara dos Deputados."""
 
@@ -715,6 +805,7 @@ async def analisar_legislacao_endpoint(
         ..., embed=True, description="Tema legislativo para análise de IA"
     ),
     _principal: Principal = Depends(current_principal),
+    _: None = Depends(enforce_rate_limit),
 ):
     """Inicia uma análise de IA sobre um tema legislativo."""
 

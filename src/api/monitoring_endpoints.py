@@ -30,8 +30,10 @@ async def monitoring_health() -> Dict[str, Any]:
     try:
         a2a_health = await a2a_channel.health_check()
     except Exception as exc:  # pragma: no cover - defensive
-        logger.warning("Falha ao checar saúde A2A: %s", exc)
-        a2a_health = {"status": "unknown", "error": str(exc)}
+        # SECURITY (H08/CWE-209): não expor ``str(exc)`` ao cliente; o detalhe
+        # fica apenas no log do servidor.
+        logger.warning("Falha ao checar saúde A2A: %s", exc, exc_info=True)
+        a2a_health = {"status": "unknown"}
 
     pending = get_hitl_queue().get_pending_requests()
 

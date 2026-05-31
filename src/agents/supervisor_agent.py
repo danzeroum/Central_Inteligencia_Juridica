@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -223,10 +224,21 @@ class SupervisorAgent(A2ACapable):
             }
 
         except Exception as exc:  # pragma: no cover - defensive safeguard
-            self.logger.error("Erro no processamento avançado: %s", exc, exc_info=True)
+            # SECURITY (H17/CWE-209): não devolver ``str(exc)``; loga o detalhe e
+            # responde com uma referência opaca para correlação no suporte.
+            correlation_id = uuid.uuid4().hex
+            self.logger.error(
+                "Erro no processamento avançado [%s]: %s",
+                correlation_id,
+                exc,
+                exc_info=True,
+            )
             return {
                 "status": "error",
-                "message": str(exc),
+                "message": (
+                    "Erro interno no processamento avançado. "
+                    f"Referência para suporte: {correlation_id}"
+                ),
                 "fallback": "use_simple_mode",
                 "timestamp": self._get_timestamp(),
             }
