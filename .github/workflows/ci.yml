@@ -100,3 +100,20 @@ jobs:
           tags: central-inteligencia-juridica:ci-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  secret-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: gitleaks (árvore atual, sem histórico)
+        run: |
+          # SECURITY (MED-009): detecta segredos commitados acidentalmente.
+          # --no-git escaneia apenas os arquivos versionados na árvore atual
+          # (não reescreve nem varre o histórico), com allowlist em .gitleaks.toml.
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source /repo --no-git --redact --verbose \
+            --config /repo/.gitleaks.toml
