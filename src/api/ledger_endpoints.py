@@ -15,6 +15,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
+from src.api.rate_limit import enforce_rate_limit
 from src.api.rbac import Principal, require_permissions
 from src.utils.ledger import get_ledger
 
@@ -33,6 +34,7 @@ async def list_ledger(
     ),
     limit: int = Query(100, ge=1, le=1000, description="Número máximo de entradas"),
     _principal: Principal = Depends(require_permissions("ledger:read")),
+    _rl: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Retorna as entradas mais recentes do Decision Ledger (ordem cronológica)."""
 
@@ -53,6 +55,7 @@ async def export_ledger_csv(
     agent_type: Optional[str] = Query(None),
     decision_type: Optional[str] = Query(None),
     _principal: Principal = Depends(require_permissions("ledger:read")),
+    _rl: None = Depends(enforce_rate_limit),
 ) -> StreamingResponse:
     """Exporta as entradas como CSV para conformidade/arquivamento."""
 

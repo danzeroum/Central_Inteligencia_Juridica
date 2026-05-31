@@ -119,17 +119,29 @@ def test_cors_methods_are_explicit_not_wildcard():
     assert "POST" in allow_methods
 
 
-# --- H14: rate limiting aplicado a rota adicional ---------------------------
+# --- H14: rate limiting aplicado a rotas adicionais (main + routers) ---------
 def test_rate_limit_applies_to_a2a_send(monkeypatch):
     """Com o limite reduzido a 1/min, a 2ª chamada deve receber 429."""
 
+    from src.api import rate_limit
     from src.api.rate_limiter import RateLimiter
 
-    monkeypatch.setattr(
-        main_module, "_rate_limiter", RateLimiter(requests_per_minute=1)
-    )
+    monkeypatch.setattr(rate_limit, "limiter", RateLimiter(requests_per_minute=1))
     body = {"receiver_id": "agent_b", "message_type": "ping", "payload": {}}
     first = client.post("/api/v1/a2a/send", params={"sender_id": "agent_a"}, json=body)
     second = client.post("/api/v1/a2a/send", params={"sender_id": "agent_a"}, json=body)
+    assert first.status_code != 429
+    assert second.status_code == 429
+
+
+def test_rate_limit_applies_to_ledger_router(monkeypatch):
+    """H14: routers (ledger) agora também têm rate limit via módulo compartilhado."""
+
+    from src.api import rate_limit
+    from src.api.rate_limiter import RateLimiter
+
+    monkeypatch.setattr(rate_limit, "limiter", RateLimiter(requests_per_minute=1))
+    first = client.get("/api/v1/ledger")
+    second = client.get("/api/v1/ledger")
     assert first.status_code != 429
     assert second.status_code == 429

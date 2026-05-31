@@ -6,6 +6,50 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Não lançado] - Remediação da auditoria técnica
+
+### 🔒 Security
+- **AuthZ/RBAC** em todos os endpoints sensíveis antes desprotegidos: training,
+  autonomy `PUT /config`, ledger (lista/export), A2A messages/history, agent
+  discovery, HITL pending/stats e o handshake do WebSocket HITL; consultas
+  legislativas e histórico passam a exigir autenticação (CRÍTICO-01..04, H02–H04).
+- **Login real** da SPA via novo `POST /auth/login` (emite JWT com papéis/timeout);
+  remove o login fake e o `OPERATOR_ID` hardcoded (CRÍTICO-09/10). O frontend
+  injeta `Authorization: Bearer`, limpa a sessão no 401 e envia o token no WS (FH01).
+- **XSS** eliminado nas páginas estáticas (`hitl.html`, `index.html`,
+  `training-dashboard.html`) via `escapeHtml()` (CRÍTICO-11/12/13).
+- `SafetyProtocol.validate_output` deixa de ser no-op (redação de PII + truncamento)
+  (CRÍTICO-14); segredo JWT nunca mais vazio em `ENVIRONMENT=test` (H01).
+- Handler global de exceções (sem vazar stack trace), CORS com métodos/headers
+  explícitos por env, validação/limite de entrada (task/payload/subject_id) e
+  rate limiting estendido a mais endpoints (H07/H08/H14/H15/H17/M01/M05/M07/M09/M10).
+
+### 🐛 Fixed
+- `llm_client`: `NameError` (`_OLLAMA_CLIENT` indefinido) → cliente lazy + fallback
+  gracioso (CRÍTICO-05). `AdaptiveReplanner` agora replaneja de fato (CRÍTICO-07).
+- Colisões de nome de classe resolvidas (`AdaptiveReplanner`, `TrajectoryEvaluator`)
+  (CRÍTICO-08); `asyncio.get_running_loop()` no A2A (CRÍTICO-15).
+- `VectorMemory` instanciado preguiçosamente (não bloqueia o startup) (H10);
+  `tribunal_api_client` fecha o HTTP client (context manager) (H12);
+  `datetime.now(timezone.utc)` em observability (M06).
+
+### ✅ Added
+- Endpoint `/metrics` (Prometheus). Tooling de frontend: Vitest + ESLint
+  (regra anti-`innerHTML`/`no-danger`). Acessibilidade: focus trap no Modal e
+  inputs numéricos no DMN (M12/M15).
+
+### 🧹 Removed
+- Código morto: `src/config.py`, `src/protocols/squad_orchestrator.py`,
+  `src/memory/intelligent_forgetting.py`, `config/prompts/advanced_agent_prompts.py`,
+  `config/agents/constitution.yaml` (D06 e correlatos).
+
+### 📝 Docs
+- Auditoria reavaliada: itens já resolvidos confirmados com testes de regressão
+  (validação de `agent_id`, **CI/CD existente** — corrige a alegação D11 de que
+  `.github/` não existiria).
+
+---
+
 ## [1.1.0] - 2026-05-30
 
 ### ✅ Added

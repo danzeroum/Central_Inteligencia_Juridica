@@ -164,7 +164,7 @@ Central_Inteligencia_Juridica/
 |---|---|
 | Health Check | http://localhost:8000/health |
 | Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 (admin/admin) |
+| Grafana | http://localhost:3000 (usuário/senha via `GF_SECURITY_ADMIN_USER`/`GF_SECURITY_ADMIN_PASSWORD` no `.env`) |
 
 ## Cobertura de Codigo (30% overall)
 

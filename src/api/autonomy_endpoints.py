@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from src.api.rate_limit import enforce_rate_limit
 from src.api.rbac import Principal, require_permissions
 from src.hitl.progressive_autonomy import get_autonomy_manager
 
@@ -79,6 +80,7 @@ async def get_config() -> Dict[str, Any]:
 async def update_config(
     update: AutonomyConfigUpdate,
     _principal: Principal = Depends(require_permissions("config:write")),
+    _rl: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Atualiza os limiares (consenso e faixas de trust)."""
 

@@ -41,7 +41,6 @@ from src.hitl.hitl_queue import get_hitl_queue
 from src.hitl.progressive_autonomy import get_autonomy_manager
 from src.orchestration.unified_orchestrator import UnifiedOrchestrator
 from src.protocols.a2a_channel import get_a2a_channel
-from src.api.rate_limiter import RateLimiter
 from src.protocols.agent_card import AgentCard, AgentRegistry
 from src.services.camara_client import buscar_projetos_de_lei
 from src.utils.input_sanitizer import InputSanitizer
@@ -77,20 +76,9 @@ def _env_flag(name: str, default: bool) -> bool:
 AUTH_REQUIRED = _env_flag("AUTH_REQUIRED", default=ENVIRONMENT != "test")
 AuthManager.configure(required=AUTH_REQUIRED)
 
-# SECURITY (SEC-002): rate limiting real por IP (janela deslizante de 1 min).
-# Em teste o limite é elevado o suficiente para não introduzir flakiness, já que
-# toda a suíte compartilha o mesmo IP de ``TestClient`` contra um único limiter.
-_DEFAULT_RATE_LIMIT = 100_000 if ENVIRONMENT == "test" else 60
-RATE_LIMIT_PER_MINUTE = int(
-    os.getenv("RATE_LIMIT_PER_MINUTE", str(_DEFAULT_RATE_LIMIT))
-)
-_rate_limiter = RateLimiter(requests_per_minute=RATE_LIMIT_PER_MINUTE)
-
-
-async def enforce_rate_limit(request: Request) -> None:
-    """Dependência FastAPI que aplica o rate limiting por IP."""
-
-    await _rate_limiter(request)
+# SECURITY (SEC-002 / H14): rate limiting real por IP, agora num módulo
+# compartilhado para que os routers também o apliquem (sem import circular).
+from src.api.rate_limit import enforce_rate_limit  # noqa: E402
 
 
 # SECURITY (P0-5): identificadores de agente (A2A) seguem um allowlist estrito —
