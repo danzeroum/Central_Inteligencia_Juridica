@@ -10,7 +10,16 @@ from typing import Any, Dict, List
 
 import json as _json
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi import (
+    Body,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -550,8 +559,8 @@ async def invoke_agent_directly(
     card = agent_registry.get_agent(agent_id)
     if not card and agent_id.endswith("_agent"):
         tribunal_code = agent_id[:-6].upper()
-        if tribunal_code in supervisor_agent._identify_all_tribunals(tribunal_code):
-            result = await supervisor_agent._delegate_to_tribunal_agent(
+        if tribunal_code in supervisor_agent.identify_all_tribunals(tribunal_code):
+            result = await supervisor_agent.delegate_to_tribunal_agent(
                 tribunal_code,
                 task_request.task_description,
             )
@@ -573,7 +582,7 @@ async def invoke_agent_directly(
         result = await supervisor_agent.process_task(task_request.task_description)
     elif card.agent_type == "TribunalAgent":
         tribunal_code = card.specialization
-        result = await supervisor_agent._delegate_to_tribunal_agent(
+        result = await supervisor_agent.delegate_to_tribunal_agent(
             tribunal_code,
             task_request.task_description,
         )
@@ -816,6 +825,20 @@ async def analisar_legislacao_endpoint(
     resultado_analise = analisar_cenario_legislativo(tema_legislativo)
 
     return {"tema_analisado": tema_legislativo, "analise_ia": resultado_analise}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> Response:
+    """Expõe as métricas Prometheus do registry padrão (observabilidade).
+
+    A dependência ``prometheus-client`` já era usada por circuit breakers e
+    coletores de métricas, mas nenhum endpoint as expunha para scraping. Este
+    endpoint fecha essa lacuna (formato text/plain ``# HELP/# TYPE``).
+    """
+
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/health")

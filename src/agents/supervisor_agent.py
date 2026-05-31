@@ -863,6 +863,21 @@ class SupervisorAgent(A2ACapable):
 
         return self.tribunal_identifier.identify_all(task)
 
+    # API pública (H06): a camada HTTP não deve depender de métodos privados
+    # (``_`` prefixado). Estes wrappers expõem a funcionalidade necessária ao
+    # endpoint de invocação direta sem quebrar o encapsulamento.
+    def identify_all_tribunals(self, task: str) -> List[str]:
+        """Wrapper público de :meth:`_identify_all_tribunals`."""
+
+        return self._identify_all_tribunals(task)
+
+    async def delegate_to_tribunal_agent(
+        self, tribunal_code: str, task: str
+    ) -> Dict[str, Any]:
+        """Wrapper público de :meth:`_delegate_to_tribunal_agent`."""
+
+        return await self._delegate_to_tribunal_agent(tribunal_code, task)
+
     def _get_or_create_tribunal_agent(self, tribunal_code: str) -> TribunalAgent:
         """Retorna agente existente ou cria novo delegado para o tribunal."""
 

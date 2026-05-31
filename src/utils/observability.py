@@ -4,8 +4,14 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
+
+def _utcnow() -> datetime:
+    """Horário UTC tz-aware (M06: substitui ``datetime.utcnow()`` depreciado)."""
+
+    return datetime.now(timezone.utc)
 
 
 def generate_trace_id() -> str:
@@ -19,7 +25,7 @@ class SpanRecord:
 
     operation: str
     metadata: Dict[str, Any]
-    start_time: datetime = field(default_factory=datetime.utcnow)
+    start_time: datetime = field(default_factory=_utcnow)
     reasoning_log: List[str] = field(default_factory=list)
     end_time: Optional[datetime] = None
 
@@ -29,7 +35,7 @@ class SpanRecord:
 
     def close(self) -> None:
         """Mark the span as completed."""
-        self.end_time = datetime.utcnow()
+        self.end_time = _utcnow()
 
 
 class AgentObserver:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Sequence
@@ -41,13 +42,19 @@ class AuthManager:
     # ``SECRET_KEY`` em ambientes multi-thread (ex.: uvicorn workers/threadpool).
     _lock: threading.RLock = threading.RLock()
 
-    # Load secret from environment (no fallback default)
+    # Load secret from environment (no fallback default).
     _raw_secret: str = os.environ.get("JWT_SECRET", "")
-    if len(_raw_secret) < 32 and os.environ.get("ENVIRONMENT", "") != "test":
-        raise RuntimeError(
-            "JWT_SECRET environment variable must be set (min 32 characters). "
-            'Generate: python -c "import secrets; print(secrets.token_urlsafe(48))"'
-        )
+    if len(_raw_secret) < 32:
+        if os.environ.get("ENVIRONMENT", "") != "test":
+            raise RuntimeError(
+                "JWT_SECRET environment variable must be set (min 32 characters). "
+                'Generate: python -c "import secrets; print(secrets.token_urlsafe(48))"'
+            )
+        # SECURITY (H01): mesmo em ``ENVIRONMENT=test`` o segredo NUNCA é vazio.
+        # Antes, definir ENVIRONMENT=test em produção deixava ``SECRET_KEY=""``,
+        # permitindo forjar tokens. Agora geramos um segredo efêmero aleatório —
+        # a suíte que precisa de um valor conhecido chama ``configure()``.
+        _raw_secret = secrets.token_urlsafe(48)
     SECRET_KEY: str = _raw_secret
 
     @classmethod
