@@ -17,7 +17,7 @@ Utilizar **PostgreSQL 15** como banco de dados primário para os ambientes lite 
 ## Consequências
 ### Positivas
 - Comunidade ativa e suporte amplo
-- Facilidade de integração com Spring Data JPA
+- Facilidade de integração com o stack Python (ex.: SQLAlchemy/`asyncpg`)
 - Compatível com estratégias de replicação e HA
 
 ### Negativas
