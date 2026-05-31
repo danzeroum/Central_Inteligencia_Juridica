@@ -1,0 +1,47 @@
+# SECURITY (P0-4 / MED-003): impede que segredos e artefatos de desenvolvimento
+# entrem na imagem Docker via `COPY . /app/`.
+
+# Controle de versão
+.git
+.gitignore
+.github
+
+# Segredos e ambiente (mantém o template de exemplo)
+.env
+.env.*
+!.env.example
+
+# Artefatos Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Memória vetorial / dados locais
+.vector_memory/
+
+# Logs
+logs/
+*.log
+
+# Ambientes virtuais
+.venv/
+venv/
+
+# Frontend (build vai para src/api/static/spa)
+node_modules/
+frontend/node_modules/
+
+# Documentação e testes não são necessários em runtime
+docs/
+tests/
+
+# SO / editor
+.DS_Store
+.idea/
+.vscode/
