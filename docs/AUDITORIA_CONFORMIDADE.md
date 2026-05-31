@@ -32,11 +32,16 @@ confirma o que é verdadeiro, **refuta** o que o PDF afirma incorretamente e reg
 
 ### Placar de Conformidade
 
-| Estado | Qtde. | Significado |
-|---|---|---|
-| ✅ Comprovada | 8 | Controle implementado e efetivamente em uso |
-| 🟡 Parcial | 6 | Implementado parcialmente ou com lacuna conhecida |
-| ❌ Não comprovada | 10 | Esperado/documentado, mas **sem aplicação efetiva** (risco) |
+Sobre **40 controles mapeados** nas tabelas das §2.1–§2.4:
+
+| Estado | Qtde. | % | Significado |
+|---|---|---|---|
+| ✅ Comprovada | 7 | 17,5% | Controle implementado e efetivamente em uso (§2.4) |
+| 🟡 Parcial | 10 | 25% | Implementado parcialmente ou com lacuna conhecida |
+| ❌ Não comprovada | 23 | 57,5% | Esperado/documentado, mas **sem aplicação efetiva** (risco) |
+
+> Detalhamento: §2.1 Segurança (8 ❌, 2 🟡) · §2.2 Qualidade (7 ❌, 3 🟡) · §2.3 Testes/CI/Deps
+> (8 ❌, 5 🟡) · §2.4 Fortalezas (7 ✅).
 
 > **Conclusão executiva:** a base arquitetural é sólida e há controles exemplares prontos
 > para produção, porém os controles de **segurança de borda mais importantes** (autenticação,
