@@ -115,6 +115,22 @@ class TribunalAPIClient:
         if self._client:
             self._client.close()
 
+    # BUGFIX (H12): garante o fechamento do ``httpx.Client`` para não vazar
+    # conexões TCP. Suporta uso como context manager e fecha no GC como rede de
+    # segurança quando o chamador esquece de chamar ``close()``.
+    def __enter__(self) -> "TribunalAPIClient":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        self.close()
+        return False
+
+    def __del__(self) -> None:  # pragma: no cover - acionado pelo GC
+        try:
+            self.close()
+        except Exception:
+            pass
+
     def _respect_rate_limit(self) -> None:
         if not self.config:
             return

@@ -25,9 +25,9 @@ def connect_to_redis():
 
 
 def processar_tarefa(tarefa: dict):
+    # BUGFIX (CRÍTICO-06): removido o ``time.sleep(5)`` bloqueante que apenas
+    # simulava "busca intensiva" e travava o worker. A função é leve e rápida.
     logger.info("Recebi a tarefa: %s", tarefa.get("descricao"))
-    logger.debug("Simulando busca intensiva...")
-    time.sleep(5)
     resultado = {
         "id_tarefa": tarefa.get("id_tarefa"),
         "agente": "jurisprudencia",
@@ -49,9 +49,14 @@ def main():
             tarefa = json.loads(tarefa_json)
             resultado = processar_tarefa(tarefa)
             redis_conn.lpush(OUTPUT_QUEUE, json.dumps(resultado))
-        except Exception as e:  # pragma: no cover - laço resiliente
-            logger.error("Erro inesperado: %s", e)
-            time.sleep(5)
+        except KeyboardInterrupt:  # encerramento limpo do worker
+            logger.info("Encerrando worker de jurisprudência.")
+            break
+        except (redis.exceptions.RedisError, json.JSONDecodeError) as e:
+            # BUGFIX (CRÍTICO-06): exceções específicas (antes era genérico),
+            # mantendo a resiliência do laço sem mascarar erros inesperados.
+            logger.error("Erro ao processar item da fila: %s", e)
+            time.sleep(1)
 
 
 if __name__ == "__main__":

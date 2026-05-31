@@ -206,6 +206,23 @@ class SafeAgentBase:
             "guardrail_violations": 0,
         }
 
+    async def aexecute(
+        self,
+        task: str,
+        context: str | None = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Wrapper assíncrono de :meth:`execute` (H11).
+
+        Permite que pipelines ``async`` (orquestradores) integrem o agente base
+        sem bloquear o event loop por chamadas síncronas longas: a execução
+        síncrona é despachada para um *thread* via ``asyncio.to_thread``.
+        """
+
+        import asyncio
+
+        return await asyncio.to_thread(self.execute, task, context, **kwargs)
+
     def execute_tool(self, tool_name: str, **kwargs: Any) -> Dict[str, Any]:
         """Record tool usage ensuring it is approved by an active capability."""
         if tool_name not in self._tools_in_use:

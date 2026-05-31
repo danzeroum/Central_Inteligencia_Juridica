@@ -290,8 +290,12 @@ class A2AChannel:
             await self.memory_channel.publish(message)
 
         # Wait for response
-        start_time = asyncio.get_event_loop().time()
-        while (asyncio.get_event_loop().time() - start_time) < timeout:
+        # BUGFIX (CRÍTICO-15): o antigo acessor de loop é depreciado no Python
+        # 3.10+ dentro de corrotinas; usamos ``get_running_loop()``, que é o
+        # contrato correto quando já há um loop em execução.
+        loop = asyncio.get_running_loop()
+        start_time = loop.time()
+        while (loop.time() - start_time) < timeout:
             messages = await self.receive_messages(sender_id, limit=50)
 
             for msg in messages:
