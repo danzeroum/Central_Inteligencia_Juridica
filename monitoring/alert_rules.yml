@@ -1,0 +1,71 @@
+# Regras de alerta Prometheus — Central de Inteligência Jurídica
+#
+# OBSERVABILITY (audit §6.1): a auditoria apontou "30+ métricas Prometheus mas
+# SEM alertas configurados". Estas regras fecham essa lacuna cobrindo
+# disponibilidade, taxa de erro, resiliência (circuit breaker) e backlog HITL.
+# Os nomes de métrica correspondem aos definidos em src/utils/* e src/tools/*.
+
+groups:
+  - name: cij-availability
+    rules:
+      - alert: APITargetDown
+        expr: up{job="agent-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API de agentes inacessível"
+          description: "O alvo {{ $labels.instance }} está down há mais de 2 minutos."
+
+  - name: cij-errors
+    rules:
+      - alert: HighErrorRate
+        # Razão de erros sobre tarefas processadas (janela de 5m). O guard no
+        # denominador evita disparo/NaN quando não há tráfego.
+        expr: |
+          sum(rate(api_errors_total[5m]))
+            /
+          sum(rate(tribunal_tasks_total[5m])) > 0.1
+          and sum(rate(tribunal_tasks_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taxa de erro da API acima de 10%"
+          description: "Mais de 10% das tarefas estão resultando em erro nos últimos 5m."
+
+  - name: cij-resilience
+    rules:
+      - alert: CircuitBreakerOpen
+        # circuit_breaker_state: 0=closed, 0.5=half_open, 1=open.
+        expr: max by (name) (circuit_breaker_state) >= 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker aberto: {{ $labels.name }}"
+          description: "O circuit breaker '{{ $labels.name }}' está OPEN há mais de 1m."
+
+  - name: cij-hitl
+    rules:
+      - alert: HITLQueueBacklog
+        expr: hitl_queue_depth > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backlog de aprovações HITL"
+          description: "A fila HITL tem {{ $value }} pendências há mais de 10m."
+
+      - alert: HITLSlowResponse
+        # P90 do tempo de resposta humano acima de 5 min (janela de 15m).
+        expr: |
+          histogram_quantile(
+            0.9, sum(rate(hitl_response_time_seconds_bucket[15m])) by (le)
+          ) > 300
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Resposta HITL lenta (P90 > 5min)"
+          description: "O P90 do tempo de decisão humana excedeu 5 minutos."

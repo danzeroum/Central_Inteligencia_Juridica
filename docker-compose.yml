@@ -96,6 +96,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -104,6 +105,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    depends_on:
+      - alertmanager
     deploy:
       resources:
         limits:
@@ -112,6 +115,30 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+
+  alertmanager:
+    # OBSERVABILITY: roteia/silencia os alertas disparados pelo Prometheus.
+    image: prom/alertmanager:v0.27.0
+    container_name: tribunal-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
   grafana:
     # Imagem fixada (sem :latest).
@@ -160,5 +187,6 @@ services:
 volumes:
   redis_data:
   prometheus_data:
+  alertmanager_data:
   grafana_data:
   vector_memory_data:

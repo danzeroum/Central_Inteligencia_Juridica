@@ -264,6 +264,27 @@ class VectorMemory:
         """Check if memory system is available."""
         return self.client is not None and self.collection is not None
 
+    def delete_by_metadata(self, where: Dict[str, Any]) -> int:
+        """Remove entradas que casam com o filtro de metadata (LGPD/erasure).
+
+        Retorna o número de documentos removidos (0 se a memória estiver
+        indisponível). Best-effort: falhas são logadas e não propagam, para que
+        o fluxo de exclusão LGPD não quebre se a memória vetorial estiver fora.
+        """
+
+        if not self.is_available():
+            return 0
+        try:
+            existing = self.collection.get(where=where)  # type: ignore[union-attr]
+            ids = existing.get("ids", []) if isinstance(existing, dict) else []
+            if not ids:
+                return 0
+            self.collection.delete(where=where)  # type: ignore[union-attr]
+            return len(ids)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.error("Erro ao excluir da memória vetorial (LGPD): %s", exc)
+            return 0
+
     def remember(
         self,
         task: str,

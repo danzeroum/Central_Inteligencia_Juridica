@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Tuple
 
+from src.safety.pii import get_pii_detector
+
 Guardrail = Callable[[str, Dict[str, object]], Tuple[bool, str]]
 
 
@@ -37,10 +39,11 @@ class GuardrailSystem:
         return len(violations) == 0, violations
 
     def check_no_pii(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
-        patterns = [r"\b\d{3}-\d{3}-\d{3}\b", r"\b\d{11}\b"]
-        for pattern in patterns:
-            if re.search(pattern, output):
-                return False, "Possível PII detectada"
+        # LGPD-005: detecção abrangente (CPF, CNPJ, e-mail, OAB, telefone, CEP),
+        # não mais apenas dois padrões numéricos.
+        found = get_pii_detector().types_found(output)
+        if found:
+            return False, f"Possível PII detectada: {', '.join(sorted(found))}"
         return True, ""
 
     def check_no_harmful_code(

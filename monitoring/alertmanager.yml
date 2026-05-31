@@ -1,0 +1,32 @@
+# Configuração do Alertmanager — Central de Inteligência Jurídica
+#
+# Configuração-base: agrupa alertas e usa um receiver padrão. Canais reais
+# (Slack/e-mail/PagerDuty) plugam aqui adicionando integrações ao receiver —
+# preferencialmente com credenciais vindas de variáveis de ambiente/secret
+# manager, não hardcoded. Sem canal configurado, os alertas ficam visíveis na
+# UI do Alertmanager (porta 9093) e na do Prometheus.
+
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = "critical"
+      receiver: 'default'
+      repeat_interval: 1h
+
+receivers:
+  - name: 'default'
+    # Sem integração de notificação por padrão (no-op visível na UI). Exemplo:
+    # slack_configs:
+    #   - api_url: '${SLACK_WEBHOOK_URL}'
+    #     channel: '#alerts-cij'
+
+inhibit_rules:
+  # Um alerta crítico inibe os warnings do mesmo alertname/instância.
+  - source_matchers: [severity = "critical"]
+    target_matchers: [severity = "warning"]
+    equal: ['alertname', 'instance']

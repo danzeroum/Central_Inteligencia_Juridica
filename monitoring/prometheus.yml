@@ -4,6 +4,17 @@ global:
   external_labels:
     monitor: 'cij-agent-monitor'
 
+# Regras de alerta avaliadas a cada evaluation_interval.
+rule_files:
+  - '/etc/prometheus/alert_rules.yml'
+
+# Encaminha alertas disparados ao Alertmanager.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
 scrape_configs:
   - job_name: 'agent-api'
     metrics_path: '/metrics'

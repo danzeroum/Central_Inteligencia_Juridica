@@ -6,12 +6,20 @@ import logging
 from datetime import datetime
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from pydantic import BaseModel, Field
 
+from src.api.rbac import Principal, require_permissions
 from src.hitl.hitl_queue import get_hitl_queue
 from src.utils.ledger import get_ledger
-from src.utils.request_context import get_correlation_id
+from src.utils.request_context import get_audit_context
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/hitl", tags=["HITL"])
@@ -74,13 +82,25 @@ async def hitl_stats() -> Dict[str, Any]:
     status_code=status.HTTP_200_OK,
     summary="Registra decisão humana",
 )
-async def record_decision(decision: HITLDecision) -> Dict[str, Any]:
+async def record_decision(
+    decision: HITLDecision,
+    principal: Principal = Depends(require_permissions("hitl:write")),
+) -> Dict[str, Any]:
     """
     Processa decisão do operador humano sobre uma ação proposta por agente.
 
     Esta é a interface crítica que permite supervisão humana em tempo real.
+
+    SECURITY (IAM-003): o ``operator_id`` é derivado da identidade autenticada
+    (JWT), não do corpo da requisição — impede que um operador seja forjado.
+    Quando a autenticação está desligada (dev/testes), cai para o valor do corpo.
     """
     queue = get_hitl_queue()
+
+    # IAM-003: identidade do operador vem do token autenticado, não do body.
+    operator_id = (
+        principal.user_id if not principal.is_anonymous else decision.operator_id
+    )
 
     # Validar se o request existe
     request = queue.get_request(decision.request_id)
@@ -103,7 +123,7 @@ async def record_decision(decision: HITLDecision) -> Dict[str, Any]:
         approved=decision.approved,
         modifications=decision.modifications,
         feedback=decision.feedback,
-        operator_id=decision.operator_id,
+        operator_id=operator_id,
     )
 
     if not success:
@@ -112,8 +132,8 @@ async def record_decision(decision: HITLDecision) -> Dict[str, Any]:
             detail="Failed to record decision",
         )
 
-    # Gravar no ledger para auditoria. O correlation_id permite rastrear a
-    # decisão de volta à requisição HTTP original (mesmo entre réplicas).
+    # Gravar no ledger para auditoria. O contexto (correlation_id, IP de origem,
+    # User-Agent) permite rastrear a decisão de volta à requisição HTTP original.
     ledger.log_decision(
         agent_type="HumanOperator",
         decision_type="HITL_DECISION",
@@ -124,8 +144,8 @@ async def record_decision(decision: HITLDecision) -> Dict[str, Any]:
             "approved": decision.approved,
             "modifications": decision.modifications,
             "feedback": decision.feedback,
-            "operator_id": decision.operator_id,
-            "correlation_id": get_correlation_id(),
+            "operator_id": operator_id,
+            **get_audit_context(),
         },
     )
 
@@ -133,7 +153,7 @@ async def record_decision(decision: HITLDecision) -> Dict[str, Any]:
         "HITL decision recorded: %s - %s by %s",
         decision.request_id,
         "APPROVED" if decision.approved else "REJECTED",
-        decision.operator_id,
+        operator_id,
     )
 
     return {

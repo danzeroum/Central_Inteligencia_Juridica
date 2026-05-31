@@ -121,3 +121,36 @@ jobs:
             | tar -xz -C /usr/local/bin gitleaks
           gitleaks detect --source . --no-git --redact --verbose \
             --config .gitleaks.toml
+
+  dependency-scan:
+    name: Dependency & FS Scan (pip-audit + Trivy)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip-audit (vulnerabilidades em dependências)
+        # Advisory: reporta para triagem, não bloqueia o build (segurança
+        # incremental, alinhado ao mypy). continue-on-error garante verde mesmo
+        # com findings. Para tornar gate, remova continue-on-error.
+        continue-on-error: true
+        run: |
+          # SECURITY: varre as dependências (PyPI Advisory DB / OSV).
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r requirements.txt --desc
+
+      - name: Trivy (filesystem + dependências, HIGH/CRITICAL)
+        # Instalação via script oficial (determinística — sem depender da
+        # resolução de uma action do marketplace). Advisory/não-bloqueante.
+        continue-on-error: true
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin
+          trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 .

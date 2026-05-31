@@ -17,6 +17,7 @@ from src.memory.vector_memory import VectorMemory
 from src.protocols.a2a_mixin import A2ACapable
 from src.routing.intent_classifier import ClassifiedIntent, IntentClassifier
 from src.routing.tribunal_identifier import TribunalIdentifier
+from src.safety.pii import pii_types, redact_pii
 from src.utils.decision_metrics import DecisionMetricsCollector
 from src.utils.input_sanitizer import InputSanitizer
 from src.utils.ledger import DecisionLedger
@@ -147,12 +148,15 @@ class SupervisorAgent(A2ACapable):
         try:
             sanitized_task = self.sanitizer.sanitize_text(task_description)
 
+            # LGPD-005: não persistir PII bruta na trilha append-only — registra
+            # a versão redigida e os tipos de PII detectados no input.
             self.ledger.log_decision(
                 agent_type="SupervisorAgent",
                 decision_type="ADVANCED_TASK_RECEIVED",
                 metadata={
-                    "original_task": task_description,
+                    "original_task": redact_pii(task_description),
                     "sanitized_task": sanitized_task,
+                    "input_pii_types": pii_types(task_description),
                     "mode": "cot_enabled",
                 },
             )
@@ -299,12 +303,14 @@ class SupervisorAgent(A2ACapable):
         try:
             sanitized_task = self.sanitizer.sanitize_text(task_description)
 
+            # LGPD-005: redige PII do input antes de gravar na trilha de auditoria.
             self.ledger.log_decision(
                 agent_type="SupervisorAgent",
                 decision_type="TASK_RECEIVED",
                 metadata={
-                    "original_task": task_description,
+                    "original_task": redact_pii(task_description),
                     "sanitized_task": sanitized_task,
+                    "input_pii_types": pii_types(task_description),
                     "step": "initial_processing",
                 },
             )

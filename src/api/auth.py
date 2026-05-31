@@ -10,7 +10,7 @@ import logging
 import os
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Dict, Optional, Sequence
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -30,6 +30,11 @@ class AuthManager:
 
     ALGORITHM: str = "HS256"
     REQUIRED: bool = True  # SECURITY: Changed from False to True
+
+    # SECURITY (BACEN 4.658): timeout de sessão JWT. O padrão de 24h era alto
+    # demais; o BACEN recomenda 15-30 min para operações privilegiadas. O default
+    # cai para 30 min, configurável via ``JWT_EXPIRY_MINUTES``.
+    EXPIRY_MINUTES: int = int(os.environ.get("JWT_EXPIRY_MINUTES", "30"))
 
     # SECURITY: ``RLock`` (reentrante) serializa leituras/escritas das
     # configurações de classe, evitando race conditions ao reconfigurar o
@@ -51,6 +56,7 @@ class AuthManager:
         secret_key: Optional[str] = None,
         algorithm: Optional[str] = None,
         required: Optional[bool] = None,
+        expiry_minutes: Optional[int] = None,
     ) -> None:
         """Override class-level settings. Primarily used for testing."""
         with cls._lock:
@@ -60,23 +66,51 @@ class AuthManager:
                 cls.ALGORITHM = algorithm
             if required is not None:
                 cls.REQUIRED = required
+            if expiry_minutes is not None:
+                cls.EXPIRY_MINUTES = expiry_minutes
 
     @classmethod
-    def create_token(cls, user_id: str, expires_in_hours: int = 24) -> str:
+    def create_token(
+        cls,
+        user_id: str,
+        expires_in_hours: Optional[int] = None,
+        roles: Optional[Sequence[str]] = None,
+        expires_in_minutes: Optional[int] = None,
+    ) -> str:
+        # Precedência: minutos explícitos > horas explícitas > default (env/30min).
+        if expires_in_minutes is not None:
+            delta = timedelta(minutes=expires_in_minutes)
+        elif expires_in_hours is not None:
+            delta = timedelta(hours=expires_in_hours)
+        else:
+            delta = timedelta(minutes=cls.EXPIRY_MINUTES)
+
         now = datetime.now(timezone.utc)
-        payload = {
+        payload: Dict[str, Any] = {
             "sub": user_id,
-            "exp": now + timedelta(hours=expires_in_hours),
+            "exp": now + delta,
             "iat": now,
         }
+        # RBAC: papéis viajam no próprio token (autorização stateless). Tokens
+        # sem ``roles`` recebem papéis padrão em src/api/rbac.py.
+        if roles is not None:
+            payload["roles"] = list(roles)
         with cls._lock:
             secret, algorithm = cls.SECRET_KEY, cls.ALGORITHM
         return jwt.encode(payload, secret, algorithm=algorithm)
 
     @classmethod
-    async def verify_token(
+    def verify_token_payload(
         cls, credentials: HTTPAuthorizationCredentials = Depends(security)
-    ) -> str:
+    ) -> Dict[str, Any]:
+        """Valida o JWT e retorna o payload completo (incl. ``roles``).
+
+        Base compartilhada por :meth:`verify_token` (que devolve só o ``sub``) e
+        pela camada de RBAC (que precisa dos papéis). Mantém o mesmo contrato de
+        erro: 401 quando exigido e ausente/ inválido; ``anonymous`` quando a
+        autenticação está desligada e nenhuma credencial é enviada.
+        """
+
         with cls._lock:
             secret, algorithm, required = cls.SECRET_KEY, cls.ALGORITHM, cls.REQUIRED
 
@@ -86,12 +120,11 @@ class AuthManager:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication credentials were not provided",
                 )
-            return "anonymous"
+            return {"sub": "anonymous"}
 
         token = credentials.credentials
         try:
-            payload = jwt.decode(token, secret, algorithms=[algorithm])
-            return str(payload["sub"])
+            return jwt.decode(token, secret, algorithms=[algorithm])
         except jwt.ExpiredSignatureError as exc:  # pragma: no cover
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -102,6 +135,13 @@ class AuthManager:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
             ) from exc
+
+    @classmethod
+    async def verify_token(
+        cls, credentials: HTTPAuthorizationCredentials = Depends(security)
+    ) -> str:
+        payload = cls.verify_token_payload(credentials)
+        return str(payload.get("sub", "anonymous"))
 
 
 __all__ = ["AuthManager", "security"]
