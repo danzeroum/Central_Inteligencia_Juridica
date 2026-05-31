@@ -140,4 +140,3 @@ class TestAgentStats:
         stats = self.ledger.get_agent_stats(agent_type="AgentA")
         assert stats["total_entries"] == 1
         assert "T1" in stats["decision_counts"]
-

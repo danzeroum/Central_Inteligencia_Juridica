@@ -6,8 +6,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict
 
-from fastapi import (APIRouter, HTTPException, WebSocket, WebSocketDisconnect,
-                     status)
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
 
 from src.hitl.hitl_queue import get_hitl_queue

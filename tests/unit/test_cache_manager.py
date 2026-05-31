@@ -6,8 +6,11 @@ from typing import Any, Dict
 
 import pytest
 
-from src.tools.circuit_breaker import (CircuitBreaker, CircuitBreakerConfig,
-                                       CircuitBreakerOpenError)
+from src.tools.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+)
 from src.utils.cache_manager import CacheManager, CacheManagerConfig
 
 

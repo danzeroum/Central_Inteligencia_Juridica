@@ -28,7 +28,11 @@ class TestKeywordClassifyOperations:
     @pytest.mark.parametrize(
         "texto, operacao, confianca",
         [
-            ("Comparar jurisprudência entre STF e TJSP", "jurisprudence_comparison", 0.85),
+            (
+                "Comparar jurisprudência entre STF e TJSP",
+                "jurisprudence_comparison",
+                0.85,
+            ),
             ("Qual o status do TJSP agora?", "status_check", 0.8),
             ("Últimas movimentações do processo", "process_movements", 0.8),
             ("Preciso processar uma ação nova", "process_query", 0.75),
@@ -50,11 +54,13 @@ class TestKeywordClassifyOperations:
         "texto",
         [
             "Buscar jurisprudência sobre LGPD no STF",  # cai no ramo jurisprudence
-            "Preciso de ajuda com um processo",         # cai no ramo process
-            "Mensagem qualquer sem palavra-chave",       # cai no ramo genérico
+            "Preciso de ajuda com um processo",  # cai no ramo process
+            "Mensagem qualquer sem palavra-chave",  # cai no ramo genérico
         ],
     )
-    def test_regressao_process_keywords_nao_derruba_classificacao(self, classifier, texto) -> None:
+    def test_regressao_process_keywords_nao_derruba_classificacao(
+        self, classifier, texto
+    ) -> None:
         """Regressão: ramos após 'movimentações' não podem lançar NameError."""
         intent = classifier._keyword_classify(texto)  # não deve levantar
         assert intent.operacao in {
@@ -80,7 +86,10 @@ class TestTribunalExtraction:
     def test_extrai_multiplos_tribunais(self, classifier) -> None:
         # A ordem de retorno segue o registro interno, não o texto; comparamos
         # como conjunto para asserir presença sem acoplar à ordem do dicionário.
-        assert set(classifier._extract_tribunals("Comparar STF e Minas Gerais")) == {"STF", "TJMG"}
+        assert set(classifier._extract_tribunals("Comparar STF e Minas Gerais")) == {
+            "STF",
+            "TJMG",
+        }
 
     def test_desduplica_mantendo_ordem(self, classifier) -> None:
         # "TJSP" e "São Paulo" referem-se ao mesmo tribunal -> uma entrada só.

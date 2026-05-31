@@ -47,7 +47,11 @@ class TestLedgerEndpoints:
     def test_list_returns_newest_first_and_shape(self) -> None:
         ledger = get_ledger()
         ledger.log_decision("SupervisorAgent", "TASK_COMPLETED", {"task": "antiga"})
-        ledger.log_decision("HumanOperator", "HITL_DECISION", {"approved": True, "operator_id": "m.ribeiro"})
+        ledger.log_decision(
+            "HumanOperator",
+            "HITL_DECISION",
+            {"approved": True, "operator_id": "m.ribeiro"},
+        )
 
         data = client.get("/api/v1/ledger").json()
         assert data["count"] >= 2
@@ -55,7 +59,9 @@ class TestLedgerEndpoints:
         assert data["entries"][0]["agent_type"] == "HumanOperator"
         # Cada entrada expõe os campos que a tela de Auditoria consome.
         first = data["entries"][0]
-        assert {"id", "timestamp", "agent_type", "decision_type", "metadata"} <= set(first)
+        assert {"id", "timestamp", "agent_type", "decision_type", "metadata"} <= set(
+            first
+        )
 
     def test_filter_by_agent_type(self) -> None:
         ledger = get_ledger()
@@ -69,13 +75,19 @@ class TestLedgerEndpoints:
     def test_filter_by_decision_type(self) -> None:
         ledger = get_ledger()
         ledger.log_decision("SupervisorAgent", "TASK_COMPLETED", {})
-        entries = client.get("/api/v1/ledger", params={"decision_type": "TASK_COMPLETED"}).json()["entries"]
+        entries = client.get(
+            "/api/v1/ledger", params={"decision_type": "TASK_COMPLETED"}
+        ).json()["entries"]
         assert entries
         assert all(e["decision_type"] == "TASK_COMPLETED" for e in entries)
 
     def test_export_csv_has_header_and_data_rows(self) -> None:
         ledger = get_ledger()
-        ledger.log_decision("HumanOperator", "HITL_DECISION", {"approved": True, "operator_id": "ana", "agent": "tjsp_agent"})
+        ledger.log_decision(
+            "HumanOperator",
+            "HITL_DECISION",
+            {"approved": True, "operator_id": "ana", "agent": "tjsp_agent"},
+        )
 
         resp = client.get("/api/v1/ledger/export.csv")
         assert resp.status_code == 200
@@ -83,7 +95,15 @@ class TestLedgerEndpoints:
         assert "attachment" in resp.headers.get("content-disposition", "")
 
         rows = list(csv.reader(io.StringIO(resp.text)))
-        assert rows[0] == ["id", "timestamp", "agent_type", "decision_type", "approved", "operator", "agent_alvo"]
+        assert rows[0] == [
+            "id",
+            "timestamp",
+            "agent_type",
+            "decision_type",
+            "approved",
+            "operator",
+            "agent_alvo",
+        ]
         # Pelo menos uma linha de dados, com o operador semeado presente.
         assert len(rows) > 1
         assert any("ana" in row for row in rows[1:])
@@ -106,12 +126,22 @@ class TestAutonomyConfig:
         assert resp.status_code == 200
         assert resp.json()["config"]["consensus_threshold"] == 0.65
         # Persiste para a próxima leitura (estado em memória compartilhado).
-        assert client.get("/api/v1/autonomy/config").json()["config"]["consensus_threshold"] == 0.65
+        assert (
+            client.get("/api/v1/autonomy/config").json()["config"][
+                "consensus_threshold"
+            ]
+            == 0.65
+        )
 
     @pytest.mark.parametrize("value", [-0.1, 1.5])
     def test_out_of_range_is_422(self, value) -> None:
         # Validação de schema (Pydantic ge/le) -> 422, não 400.
-        assert client.put("/api/v1/autonomy/config", json={"consensus_threshold": value}).status_code == 422
+        assert (
+            client.put(
+                "/api/v1/autonomy/config", json={"consensus_threshold": value}
+            ).status_code
+            == 422
+        )
 
     def test_inverted_bands_is_400(self, restore_autonomy_config) -> None:
         # Regra de negócio (supervisionado > pleno) -> 400 do update_config.
@@ -129,7 +159,9 @@ class TestMonitoring:
         data = client.get("/api/v1/monitoring/health").json()
         names = {b["name"] for b in data["circuit_breakers"]}
         assert "test_monitor_breaker" in names
-        breaker = next(b for b in data["circuit_breakers"] if b["name"] == "test_monitor_breaker")
+        breaker = next(
+            b for b in data["circuit_breakers"] if b["name"] == "test_monitor_breaker"
+        )
         assert breaker["state"] == "closed"
         assert {"failure_count", "can_execute", "time_until_half_open"} <= set(breaker)
 
@@ -147,9 +179,20 @@ class TestHitlStats:
 
         # Aprova uma e rejeita outra via endpoint (que registra no ledger).
         r1 = queue.add_request(agent="stat_agent", action={"type": "a"}, context={})
-        client.post("/api/v1/hitl/decisions", json={"request_id": r1.request_id, "approved": True, "operator_id": "op"})
+        client.post(
+            "/api/v1/hitl/decisions",
+            json={"request_id": r1.request_id, "approved": True, "operator_id": "op"},
+        )
         r2 = queue.add_request(agent="stat_agent", action={"type": "b"}, context={})
-        client.post("/api/v1/hitl/decisions", json={"request_id": r2.request_id, "approved": False, "feedback": "não", "operator_id": "op"})
+        client.post(
+            "/api/v1/hitl/decisions",
+            json={
+                "request_id": r2.request_id,
+                "approved": False,
+                "feedback": "não",
+                "operator_id": "op",
+            },
+        )
 
         after = client.get("/api/v1/hitl/stats").json()
         assert after["approved_today"] >= before["approved_today"] + 1
@@ -158,16 +201,25 @@ class TestHitlStats:
 
 class TestHitlDecisionErrors:
     def test_unknown_request_is_404(self) -> None:
-        resp = client.post("/api/v1/hitl/decisions", json={"request_id": "inexistente", "approved": True})
+        resp = client.post(
+            "/api/v1/hitl/decisions",
+            json={"request_id": "inexistente", "approved": True},
+        )
         assert resp.status_code == 404
 
     def test_already_decided_is_409(self) -> None:
         queue = get_hitl_queue()
         req = queue.add_request(agent="dup_agent", action={"type": "x"}, context={})
-        first = client.post("/api/v1/hitl/decisions", json={"request_id": req.request_id, "approved": True})
+        first = client.post(
+            "/api/v1/hitl/decisions",
+            json={"request_id": req.request_id, "approved": True},
+        )
         assert first.status_code == 200
         # Segunda decisão sobre a mesma solicitação -> conflito.
-        second = client.post("/api/v1/hitl/decisions", json={"request_id": req.request_id, "approved": True})
+        second = client.post(
+            "/api/v1/hitl/decisions",
+            json={"request_id": req.request_id, "approved": True},
+        )
         assert second.status_code == 409
 
 

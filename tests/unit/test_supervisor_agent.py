@@ -69,4 +69,3 @@ async def test_process_task_integration() -> None:
     assert result["status"] == "success"
     # tribunal_used or tribunal key depending on exact resolved return structure
     assert "tribunal_used" in result or "tribunal" in result
-

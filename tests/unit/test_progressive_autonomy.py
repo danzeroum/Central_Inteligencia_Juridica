@@ -22,9 +22,7 @@ class TestAutonomyLevels:
     def test_initial_trust_score(self) -> None:
         """No explicit getter; check dict directly with default fallback."""
         manager = ProgressiveAutonomyManager()
-        score = manager.agent_trust_scores.get(
-            "TestAgent", manager.default_trust_score
-        )
+        score = manager.agent_trust_scores.get("TestAgent", manager.default_trust_score)
         assert score == 0.5
 
     def test_update_trust_score(self) -> None:
@@ -51,9 +49,7 @@ class TestAutonomyLevels:
         """
         manager = ProgressiveAutonomyManager()
         # consensus is POSITIONAL (3rd arg), not keyword "consensus_strength"
-        result = manager._requires_human_review(
-            "TestAgent", {"critical": False}, 0.3
-        )
+        result = manager._requires_human_review("TestAgent", {"critical": False}, 0.3)
         assert result is True
 
     def test_update_trust_score_clamps_upper_bound(self) -> None:
@@ -70,12 +66,15 @@ class TestRequiresHumanReview:
         """Regra #1: ação crítica força revisão mesmo com consenso 1.0."""
         manager = ProgressiveAutonomyManager()
         manager.update_trust_score("AgenteConfiavel", 0.45)  # vira "full" (0.95)
-        assert manager._requires_human_review("AgenteConfiavel", {"critical": True}, 1.0) is True
+        assert (
+            manager._requires_human_review("AgenteConfiavel", {"critical": True}, 1.0)
+            is True
+        )
 
     @pytest.mark.parametrize(
         "consensus, expected",
         [
-            (0.59, True),   # abaixo do limiar 0.60 -> revisa
+            (0.59, True),  # abaixo do limiar 0.60 -> revisa
             (0.60, False),  # no limiar (>=) com agente supervisionado -> autônomo
             (0.95, False),
         ],
@@ -83,13 +82,19 @@ class TestRequiresHumanReview:
     def test_consensus_threshold_boundary(self, consensus, expected) -> None:
         manager = ProgressiveAutonomyManager()
         manager.update_trust_score("AgenteSup", 0.15)  # 0.5 -> 0.65 = "supervised"
-        assert manager._requires_human_review("AgenteSup", {"critical": False}, consensus) is expected
+        assert (
+            manager._requires_human_review("AgenteSup", {"critical": False}, consensus)
+            is expected
+        )
 
     def test_restricted_agent_reviews_despite_high_consensus(self) -> None:
         """Regra #3: agente restrito (trust baixo) sempre revisa."""
         manager = ProgressiveAutonomyManager()
         manager.update_trust_score("AgenteRestrito", -0.2)  # 0.5 -> 0.3 = "restricted"
-        assert manager._requires_human_review("AgenteRestrito", {"critical": False}, 1.0) is True
+        assert (
+            manager._requires_human_review("AgenteRestrito", {"critical": False}, 1.0)
+            is True
+        )
 
 
 class TestAutonomyLevelTransitions:
@@ -97,7 +102,14 @@ class TestAutonomyLevelTransitions:
 
     @pytest.mark.parametrize(
         "trust, level",
-        [(0.95, "full"), (0.80, "full"), (0.79, "supervised"), (0.60, "supervised"), (0.59, "restricted"), (0.0, "restricted")],
+        [
+            (0.95, "full"),
+            (0.80, "full"),
+            (0.79, "supervised"),
+            (0.60, "supervised"),
+            (0.59, "restricted"),
+            (0.0, "restricted"),
+        ],
     )
     def test_levels(self, trust, level) -> None:
         manager = ProgressiveAutonomyManager()
@@ -123,5 +135,6 @@ class TestConfigValidation:
     def test_update_config_rejects_inverted_trust_bands(self) -> None:
         manager = ProgressiveAutonomyManager()
         with pytest.raises(ValueError):
-            manager.update_config(trust_supervised_threshold=0.9, trust_full_threshold=0.5)
-
+            manager.update_config(
+                trust_supervised_threshold=0.9, trust_full_threshold=0.5
+            )

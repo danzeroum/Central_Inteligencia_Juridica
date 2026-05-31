@@ -48,7 +48,8 @@ jobs:
 
       - name: Check formatting (black --check)
         run: |
-          black --check src/ tests/ || echo "WARNING: Some files need formatting. Run: black src/ tests/"
+          # BLOQUEANTE: formatação inconsistente quebra o build. Rode `black src/ tests/`.
+          black --check src/ tests/
 
       - name: Type check (mypy)
         run: |

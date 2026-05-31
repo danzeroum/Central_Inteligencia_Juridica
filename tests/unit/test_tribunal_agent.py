@@ -37,9 +37,7 @@ def test_tjmg_status_check_internal() -> None:
 def test_extract_process_number_valid() -> None:
     """_extract_process_number exists in both HEAD and Codex versions."""
     agent = TribunalAgent("TJSP")
-    result = agent._extract_process_number(
-        "processo 1234567-89.2024.1.01.0001"
-    )
+    result = agent._extract_process_number("processo 1234567-89.2024.1.01.0001")
     assert result is not None
     assert "1234567" in result
 
@@ -82,4 +80,3 @@ def test_execute_task_process_flow() -> None:
     assert result["tribunal"] == "TJMG"
     assert "latency" in result
     assert "operation" in result
-
