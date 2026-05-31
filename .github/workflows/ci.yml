@@ -114,6 +114,10 @@ jobs:
           # SECURITY (MED-009): detecta segredos commitados acidentalmente.
           # --no-git escaneia apenas os arquivos versionados na árvore atual
           # (não reescreve nem varre o histórico), com allowlist em .gitleaks.toml.
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
-            detect --source /repo --no-git --redact --verbose \
-            --config /repo/.gitleaks.toml
+          # Binário pinado em vez de Docker image (determinístico e sem
+          # ambiguidade de tag/namespace).
+          GL_VER=8.18.4
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VER}/gitleaks_${GL_VER}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks detect --source . --no-git --redact --verbose \
+            --config .gitleaks.toml
