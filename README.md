@@ -135,12 +135,21 @@ Central_Inteligencia_Juridica/
 +-- src/
 |   +-- agents/          # Supervisor, Tribunal, Architect agents
 |   +-- consensus/       # WeightedConsensusEngine
+|   +-- orchestration/   # UnifiedOrchestrator (orquestração em produção)
+|   +-- planning/        # AdaptivePlanner / AdaptiveReplanner
+|   +-- evaluation/      # ContinuousEvaluator, TrajectoryEvaluator
+|   +-- parallel/        # execução paralela de tarefas
+|   +-- chains/          # cadeias de raciocínio/prompts
+|   +-- core/            # SafeAgentBase e primitivas de execução
+|   +-- safety/          # detecção/redação de PII, guardrails
 |   +-- hitl/            # ProgressiveAutonomyManager, HITL Queue
 |   +-- memory/          # VectorMemory, AgentMemorySystem
-|   +-- protocols/       # A2A protocol
-|   +-- routing/         # IntentClassifier, LearningRouter
-|   +-- tools/           # TribunalAPIAdapter, CircuitBreaker, schemas
-|   +-- api/             # FastAPI (endpoints + static/spa servida em /app)
+|   +-- protocols/       # A2A protocol, SafetyProtocol
+|   +-- routing/         # IntentClassifier, LearningRouter, TribunalIdentifier
+|   +-- services/        # clientes externos (Câmara, Ollama)
+|   +-- training/        # TrainingManager (treinamento contínuo)
+|   +-- tools/           # TribunalAPIAdapter, CircuitBreaker, sandbox, schemas
+|   +-- api/             # FastAPI (endpoints + auth + static/spa servida em /app)
 |   +-- utils/           # CacheManager, InputSanitizer, Ledger, Metrics
 +-- frontend/            # SPA React + Vite (build -> src/api/static/spa)
 +-- tests/

@@ -1,7 +1,20 @@
 # ADR-010: Resolução do Paradoxo do Orquestrador
 
 ## Status
-Aceito (2025-09-30)
+Substituída na prática (ver nota de conformidade — 2026-05)
+
+> ⚠️ **Nota de conformidade (sync com o código — D01).** A decisão original abaixo
+> (mover `UnifiedOrchestrator` e componentes avançados para um diretório
+> `experimental/`) **não foi implementada** e o rumo do projeto foi o oposto:
+> - **Não existe** diretório `experimental/` no repositório.
+> - O **`UnifiedOrchestrator` está EM PRODUÇÃO** em
+>   `src/orchestration/unified_orchestrator.py` — é instanciado pela API
+>   (`src/api/main.py`) e atende o endpoint `/api/v1/tasks/advanced`.
+> - `AdaptivePlanner`, `WeightedConsensusEngine` e `LearningRouter` permanecem
+>   sob `src/` (não isolados).
+>
+> Ou seja: em vez de isolar o orquestrador avançado, ele foi promovido e
+> integrado. O texto abaixo é mantido como registro histórico.
 
 ## Contexto
 

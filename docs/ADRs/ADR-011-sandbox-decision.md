@@ -1,7 +1,19 @@
 # ADR-011: Decisão sobre Sandbox de Segurança para MVP
 
 ## Status
-Aceito (2025-09-30)
+Aceito (2025-09-30) — com ressalva de conformidade (2026-05)
+
+> ⚠️ **Nota de conformidade (sync com o código — D02).** Os caminhos
+> `experimental/security/...` citados nesta decisão e nas Referências **não
+> existem**. O código de sandbox vive em `src/tools/sandbox/`
+> (`docker_sandbox.py` → `DockerSandbox`; `secure_executor.py` →
+> `SecureToolSandbox`), **não** foi movido para `experimental/`.
+> `SecureToolSandbox` é referenciado por `src/orchestration/unified_orchestrator.py`,
+> mas o `DockerSandbox` real só executa com o SDK `docker` disponível e não há
+> fluxo de produção submetendo código a ele. Trate as referências a
+> `experimental/security/...` abaixo como **desatualizadas**; o conteúdo conceitual
+> da decisão (sandbox é over-engineering para o caminho atual, sem execução de
+> código arbitrário) continua válido.
 
 ## Contexto
 O projeto inclui componentes de sandbox (`src/tools/sandbox/secure_executor.py` e `docker_sandbox.py`) destinados a isolar a execução de código potencialmente perigoso. No entanto, o fluxo atual do sistema:
