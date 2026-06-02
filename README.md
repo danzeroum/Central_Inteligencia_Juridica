@@ -115,6 +115,7 @@ pytest tests/unit --cov=src --cov-report=term-missing --cov-report=html
 
 | Documento | Conteudo |
 |---|---|
+| [Guia de Uso](docs/GUIA_DE_USO.md) | Instalacao + autenticacao + 15 casos de teste (curl) |
 | [Manual do Estudante](docs/MANUAL_ESTUDANTE.md) | Todas as funcionalidades da interface |
 | [Primeiros passos](docs/tutorials/getting_started.md) | Setup local + primeira consulta |
 | [Arquitetura C4](docs/ARCHITECTURE_C4.md) | Contexto -> Codigo + sequencias |
