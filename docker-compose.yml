@@ -41,6 +41,13 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - CACHE_ENCRYPTION_ENABLED=${CACHE_ENCRYPTION_ENABLED:-false}
       - CACHE_ENCRYPTION_KEY=${CACHE_ENCRYPTION_KEY:-}
+      # LLM (DeepSeek / OpenAI / compatível). Sem OPENAI_API_KEY o IntentClassifier
+      # usa fallback heurístico determinístico (llm_enabled=False).
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      # DataJud (CNJ) — jurisprudência real. Sem chave usa mock automaticamente.
+      - DATAJUD_API_KEY=${DATAJUD_API_KEY:-}
     restart: unless-stopped
     read_only: true
     tmpfs:

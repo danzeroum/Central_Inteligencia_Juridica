@@ -1,11 +1,9 @@
-# Dependências OPCIONAIS para classificação de intenção via LLM (LangChain).
+# Dependências LangChain para classificação de intenção via LLM.
 #
-# O sistema funciona sem elas: src/routing/intent_classifier.py importa LangChain
-# sob try/except e, na ausência, usa um fallback heurístico determinístico. Por
-# isso NÃO entram no requirements.txt principal — evitam destabilizar a árvore de
-# dependências fixada (langchain-openai -> openai -> httpx colide com httpx<0.28).
+# NOTA: estas dependências foram promovidas ao requirements.txt principal
+# (o conflito httpx<0.28 foi resolvido na Frente A). Este arquivo é mantido
+# para referência e instalação isolada em ambientes que não usam o compose.
 #
-# Instale apenas se for usar um LLM real:
-#   pip install -r requirements-llm.txt
+# Em produção (docker compose) as deps já estão incluídas automaticamente.
 langchain>=0.2,<0.3
 langchain-openai>=0.1,<0.2
