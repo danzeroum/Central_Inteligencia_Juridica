@@ -44,6 +44,8 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         "lgpd:write",
         "ledger:read",
         "monitoring:read",
+        # API-06: comparação de modos (2× custo LLM) é operação privilegiada.
+        "tasks:compare",
     },
     Role.OPERATOR: {"hitl:write", "agents:read", "monitoring:read"},
     Role.AUDITOR: {"ledger:read", "lgpd:read", "monitoring:read"},
