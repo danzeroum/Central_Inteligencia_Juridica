@@ -1,0 +1,84 @@
+# Catálogo de cláusulas de risco contratual (Frente F.3).
+#
+# Fonte ÚNICA de verdade da "ontologia contratual": cada regra mapeia um padrão
+# textual a uma categoria de risco, sua base legal, severidade e recomendação.
+# A engine (src/contracts/analyzer.py) varre cada cláusula com estes padrões.
+#
+# Adicionar/ajustar uma regra = editar este arquivo (nenhuma mudança de código).
+#
+# ⚠️ A análise é um APOIO: aponta cláusulas e a base legal aplicável, mas a
+# decisão final é do(a) advogado(a) (HITL + disclaimer OAB). Não "julga" sozinha.
+#
+# severidade: alta | media | baixa
+# padroes: lista de regex (casadas case-insensitive)
+
+regras:
+  exoneracao_responsabilidade:
+    categoria: "Exoneração/limitação de responsabilidade"
+    base_legal: "CDC art. 51, I; CC art. 424"
+    severidade: alta
+    recomendacao: "Cláusula que afasta responsabilidade pode ser nula em relação de consumo/adesão."
+    padroes:
+      - "n[ãa]o se responsabiliza"
+      - "isenta?(-se)? de (toda|qualquer)? ?responsabilidade"
+      - "exime-se de (qualquer )?responsabilidade"
+      - "exclui(ndo)? (toda|qualquer) responsabilidade"
+
+  renuncia_direitos:
+    categoria: "Renúncia antecipada de direitos"
+    base_legal: "CDC art. 51, I"
+    severidade: alta
+    recomendacao: "Renúncia prévia de direito do consumidor/aderente tende à nulidade."
+    padroes:
+      - "renuncia(r|ndo)? a (todos os |seus )?direitos?"
+      - "abre m[ãa]o de (seus )?direitos?"
+      - "ren[úu]ncia a direito"
+
+  alteracao_unilateral:
+    categoria: "Alteração unilateral do contrato"
+    base_legal: "CDC art. 51, XIII"
+    severidade: alta
+    recomendacao: "Alteração unilateral sem anuência é vedada; verificar abusividade."
+    padroes:
+      - "a (seu )?(exclusivo|[úu]nico) crit[ée]rio"
+      - "poder[áa] alterar.{0,40}unilateral"
+      - "modificar.{0,40}a qualquer (tempo|momento).{0,40}sem (aviso|notifica)"
+
+  foro_eleicao:
+    categoria: "Foro de eleição"
+    base_legal: "CPC art. 63; CDC art. 51, IV"
+    severidade: media
+    recomendacao: "Em contrato de adesão/consumo, foro de eleição pode ser afastado se dificultar a defesa."
+    padroes:
+      - "foro de elei[çc][ãa]o"
+      - "elegem o foro"
+      - "fica eleito o foro"
+
+  clausula_penal:
+    categoria: "Cláusula penal / multa"
+    base_legal: "CC art. 412 e 413"
+    severidade: media
+    recomendacao: "Multa não pode exceder a obrigação principal; juiz pode reduzir se excessiva."
+    padroes:
+      - "cl[áa]usula penal"
+      - "multa (de |morat[óo]ria|compensat[óo]ria)"
+      - "multa de \\d+ ?%"
+
+  rescisao_imotivada:
+    categoria: "Rescisão/resilição unilateral imotivada"
+    base_legal: "CC art. 473"
+    severidade: media
+    recomendacao: "Resilição unilateral exige previsão e, às vezes, denúncia com prazo."
+    padroes:
+      - "rescindir.{0,40}a qualquer (tempo|momento)"
+      - "resili[çc][ãa]o unilateral.{0,40}sem (motivo|justificativa)"
+
+  dados_pessoais_lgpd:
+    categoria: "Tratamento de dados pessoais (LGPD)"
+    base_legal: "LGPD art. 7 e 18"
+    severidade: baixa
+    recomendacao: "Verificar base legal, finalidade e direitos do titular no tratamento de dados."
+    padroes:
+      - "dados pessoais"
+      - "compartilhamento de dados"
+      - "tratamento de dados"
