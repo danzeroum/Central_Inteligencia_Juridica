@@ -125,7 +125,9 @@ Agora analise a seguinte solicitação:
         self.llm_enabled = bool(_openai_module) and inferred_enabled
         self._openai_base_url: Optional[str] = os.getenv("OPENAI_BASE_URL")
         self._temperature = temperature
-        self._openai_client: Optional[Any] = None  # singleton — connection pool reutilizado
+        self._openai_client: Optional[Any] = (
+            None  # singleton — connection pool reutilizado
+        )
 
         if self.llm_enabled:
             try:
@@ -219,9 +221,7 @@ Agora analise a seguinte solicitação:
             messages=[
                 {
                     "role": "user",
-                    "content": self.CLASSIFICATION_PROMPT.format(
-                        user_input=user_input
-                    ),
+                    "content": self.CLASSIFICATION_PROMPT.format(user_input=user_input),
                 }
             ],
         )
