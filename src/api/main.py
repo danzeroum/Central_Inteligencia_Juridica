@@ -214,6 +214,34 @@ def _validate_payload_size(payload: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+# API-07 (Frente B): paginação cursor-based sobre o histórico persistido no
+# DecisionLedger. O cursor é um offset opaco (base64) na lista reverso-cronológica
+# de entradas ``TASK_COMPLETED`` — durável entre restarts (e compartilhado entre
+# réplicas quando ``LEDGER_BACKEND=redis``).
+def _encode_cursor(offset: int) -> str:
+    import base64
+
+    return base64.urlsafe_b64encode(str(offset).encode("ascii")).decode("ascii")
+
+
+def _decode_cursor(cursor: Optional[str]) -> int:
+    if not cursor:
+        return 0
+    import base64
+
+    try:
+        offset = int(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("ascii"))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="cursor inválido"
+        )
+    if offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="cursor inválido"
+        )
+    return offset
+
+
 class TaskRequest(BaseModel):
     # SECURITY (H07/M07): limite de tamanho impede payloads gigantes (DoS).
     task_description: str = Field(
@@ -1008,6 +1036,9 @@ async def health_check(
 )
 async def list_history(
     limit: int = Query(20, ge=1, le=100),
+    cursor: Optional[str] = Query(
+        None, description="Cursor opaco para a próxima página (vindo de uma resposta)"
+    ),
     _principal: Principal = Depends(current_principal),
 ) -> HistoryResponse:
     """Lista as consultas processadas pelo Supervisor.
@@ -1015,9 +1046,11 @@ async def list_history(
     Consultas cuja ação derivada entrou em revisão humana e ainda está pendente
     são marcadas com status ``em_revisao_humana``; as demais, ``concluida``.
 
-    ``total`` reflete o histórico completo disponível; ``count`` é a página
-    retornada. (API-07: a persistência durável + paginação cursor-based é a
-    Frente B — hoje ``cursor`` é sempre ``None`` e a fonte é em memória.)
+    Frente B (API-07): a fonte é o ``DecisionLedger`` (entradas
+    ``TASK_COMPLETED``), que é durável — sobrevive a restarts e, com
+    ``LEDGER_BACKEND=redis``, é compartilhado entre réplicas. ``total`` reflete
+    todo o histórico; ``count`` é a página; ``cursor`` aponta para a próxima
+    página (``None`` quando não há mais).
     """
 
     pending_actions = {
@@ -1025,26 +1058,36 @@ async def list_history(
         for req in get_hitl_queue().get_pending_requests()
     }
 
-    full_history = supervisor_agent.task_history
+    # Entradas em ordem cronológica → invertidas para mais-recente-primeiro.
+    entries = supervisor_agent.ledger.get_entries(decision_type="TASK_COMPLETED")
+    entries.reverse()
+    total = len(entries)
+
+    offset = _decode_cursor(cursor)
+    page = entries[offset : offset + limit]
+
     history = []
-    for record in reversed(full_history[-limit:]):
-        intent = record.get("intent", {})
-        task = record.get("task", "")
+    for entry in page:
+        metadata = entry.get("metadata", {}) or {}
+        task = metadata.get("task", "")
         in_review = task in pending_actions
         history.append(
             {
                 "task": task,
-                "operation": intent.get("operacao", "generic"),
-                "tribunals": record.get("tribunals", []),
-                "timestamp": record.get("timestamp"),
+                "operation": metadata.get("operation", "generic"),
+                "tribunals": metadata.get("tribunals", []),
+                "timestamp": entry.get("timestamp"),
                 "status": "em_revisao_humana" if in_review else "concluida",
             }
         )
 
+    next_offset = offset + len(page)
+    next_cursor = _encode_cursor(next_offset) if next_offset < total else None
+
     return HistoryResponse(
         count=len(history),
-        total=len(full_history),
-        cursor=None,
+        total=total,
+        cursor=next_cursor,
         history=history,
     )
 

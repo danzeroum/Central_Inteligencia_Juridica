@@ -1890,7 +1890,7 @@
           "Consultas"
         ],
         "summary": "Histórico de consultas do consulente",
-        "description": "Lista as consultas processadas pelo Supervisor.\n\nConsultas cuja ação derivada entrou em revisão humana e ainda está pendente\nsão marcadas com status ``em_revisao_humana``; as demais, ``concluida``.\n\n``total`` reflete o histórico completo disponível; ``count`` é a página\nretornada. (API-07: a persistência durável + paginação cursor-based é a\nFrente B — hoje ``cursor`` é sempre ``None`` e a fonte é em memória.)",
+        "description": "Lista as consultas processadas pelo Supervisor.\n\nConsultas cuja ação derivada entrou em revisão humana e ainda está pendente\nsão marcadas com status ``em_revisao_humana``; as demais, ``concluida``.\n\nFrente B (API-07): a fonte é o ``DecisionLedger`` (entradas\n``TASK_COMPLETED``), que é durável — sobrevive a restarts e, com\n``LEDGER_BACKEND=redis``, é compartilhado entre réplicas. ``total`` reflete\ntodo o histórico; ``count`` é a página; ``cursor`` aponta para a próxima\npágina (``None`` quando não há mais).",
         "operationId": "list_history_api_v1_history_get",
         "security": [
           {
@@ -1909,6 +1909,24 @@
               "default": 20,
               "title": "Limit"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor opaco para a próxima página (vindo de uma resposta)",
+              "title": "Cursor"
+            },
+            "description": "Cursor opaco para a próxima página (vindo de uma resposta)"
           }
         ],
         "responses": {
@@ -2651,7 +2669,7 @@
           "history"
         ],
         "title": "HistoryResponse",
-        "description": "Histórico de consultas (``GET /api/v1/history``).\n\n``count`` é o tamanho da página retornada; ``total`` é o total disponível na\nfonte. O campo ``cursor`` está reservado para a paginação cursor-based que a\nFrente B (persistência no DecisionLedger) habilitará — hoje é sempre ``None``.",
+        "description": "Histórico de consultas (``GET /api/v1/history``).\n\n``count`` é o tamanho da página retornada; ``total`` é o total disponível na\nfonte (DecisionLedger, durável). O campo ``cursor`` traz o token opaco da\npróxima página — ``None`` quando não há mais entradas. Repassar ``cursor`` em\n``?cursor=`` avança a paginação.",
         "example": {
           "count": 1,
           "history": [

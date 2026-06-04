@@ -153,8 +153,9 @@ class HistoryResponse(BaseModel):
     """Histórico de consultas (``GET /api/v1/history``).
 
     ``count`` é o tamanho da página retornada; ``total`` é o total disponível na
-    fonte. O campo ``cursor`` está reservado para a paginação cursor-based que a
-    Frente B (persistência no DecisionLedger) habilitará — hoje é sempre ``None``.
+    fonte (DecisionLedger, durável). O campo ``cursor`` traz o token opaco da
+    próxima página — ``None`` quando não há mais entradas. Repassar ``cursor`` em
+    ``?cursor=`` avança a paginação.
     """
 
     count: int
