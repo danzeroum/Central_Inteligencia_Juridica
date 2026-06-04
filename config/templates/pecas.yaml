@@ -1,0 +1,88 @@
+# Registro de templates de peças processuais (Frente F.2).
+#
+# Fonte ÚNICA de verdade dos modelos de peças. Cada tipo declara:
+#   - nome           : rótulo legível
+#   - base_legal     : fundamento usado pelo postcheck (rastreabilidade)
+#   - campos_obrigatorios : campos que o postcheck exige preenchidos
+#   - template       : texto com placeholders ``{campo}``
+#
+# Adicionar uma peça = editar este arquivo (nenhuma mudança de código).
+#
+# ⚠️ Todo output gerado a partir destes templates é RASCUNHO: passa
+# obrigatoriamente por revisão humana (HITL) e carrega o disclaimer da OAB.
+
+pecas:
+  peticao_inicial:
+    nome: "Petição Inicial"
+    base_legal: "CPC art. 319"
+    campos_obrigatorios:
+      - juizo
+      - qualificacao_autor
+      - qualificacao_reu
+      - fatos
+      - fundamentos
+      - pedido
+      - valor_causa
+    template: |
+      EXCELENTÍSSIMO(A) SENHOR(A) DOUTOR(A) JUIZ(A) DE DIREITO DA {juizo}
+
+      {qualificacao_autor}, vem, respeitosamente, à presença de Vossa Excelência
+      propor a presente AÇÃO em face de {qualificacao_reu}, pelos fatos e
+      fundamentos a seguir.
+
+      DOS FATOS
+      {fatos}
+
+      DO DIREITO
+      {fundamentos}
+
+      DOS PEDIDOS
+      {pedido}
+
+      Dá-se à causa o valor de {valor_causa}.
+
+      Termos em que pede deferimento.
+
+  contestacao:
+    nome: "Contestação"
+    base_legal: "CPC art. 335-342"
+    campos_obrigatorios:
+      - juizo
+      - processo
+      - qualificacao_reu
+      - merito
+      - pedido
+    template: |
+      EXCELENTÍSSIMO(A) SENHOR(A) DOUTOR(A) JUIZ(A) DE DIREITO DA {juizo}
+
+      Processo nº {processo}
+
+      {qualificacao_reu}, vem apresentar CONTESTAÇÃO, pelas razões a seguir.
+
+      DAS PRELIMINARES
+      {preliminares}
+
+      DO MÉRITO
+      {merito}
+
+      DOS PEDIDOS
+      {pedido}
+
+      Termos em que pede deferimento.
+
+  procuracao:
+    nome: "Procuração Ad Judicia"
+    base_legal: "CPC art. 105"
+    campos_obrigatorios:
+      - outorgante
+      - outorgado
+      - poderes
+    template: |
+      PROCURAÇÃO AD JUDICIA ET EXTRA
+
+      OUTORGANTE: {outorgante}
+      OUTORGADO(A): {outorgado}
+
+      PODERES: pelo presente instrumento, o(a) outorgante nomeia e constitui
+      seu(sua) bastante procurador(a) o(a) outorgado(a), com os poderes da
+      cláusula ad judicia et extra, e ainda: {poderes}.
