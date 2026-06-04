@@ -1,0 +1,57 @@
+# DMN-02 — Roteamento de Fonte de Dados (governança)
+#
+# Codifica a REGRA ARQUITETURAL CJ-001:
+#   🚨 "O LLM ANALISA. A API REAL FORNECE OS DADOS. Nunca o contrário."
+#
+# Esta é a fonte ÚNICA de verdade sobre, para cada tipo de dado:
+#   - fonte  : a origem AUTORIZADA do dado (API real / base determinística)
+#   - llm    : o papel permitido do LLM sobre aquele dado
+#              (analise | sumarizacao | nao | nunca | exclusivo)
+#   - critico: se true, o LLM NUNCA pode ser a FONTE do dado (hard block)
+#   - cache_ttl: TTL recomendado de cache para aquele tipo
+#
+# Alterar política = editar este arquivo (nenhuma mudança de código).
+# A engine que lê e aplica este arquivo é src/governance/data_source_policy.py.
+
+data_types:
+  legislacao:
+    fonte: "Planalto / LexML"
+    llm: analise            # LLM só interpreta o texto retornado pela API
+    critico: true
+    cache_ttl: "7d"
+
+  jurisprudencia:
+    fonte: "CNJ DataJud"     # ver ADR-013 / src/services/datajud_client.py
+    llm: sumarizacao         # LLM só sumariza/extrai ratio decidendi
+    critico: true
+    cache_ttl: "24h"
+
+  indice_economico:
+    fonte: "BCB / IBGE"
+    llm: nao
+    critico: true
+    cache_ttl: "1h"
+
+  honorarios:
+    fonte: "Tabela OAB"
+    llm: nao
+    critico: true
+    cache_ttl: "30d"
+
+  prazo_processual:
+    fonte: "CPC/CLT (base local determinística)"
+    llm: nao                 # cálculo é determinístico, nunca do LLM
+    critico: true
+    cache_ttl: "infinito"
+
+  dado_mercado_financeiro:
+    fonte: "Alpha Vantage / Finnhub"
+    llm: nunca
+    critico: true
+    cache_ttl: "5min"
+
+  interpretacao:
+    fonte: "LLM"             # análise/estratégia é exatamente o papel do LLM
+    llm: exclusivo
+    critico: false
+    cache_ttl: "n/a"
