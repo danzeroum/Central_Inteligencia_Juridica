@@ -15,9 +15,6 @@ services:
       - vector_memory_data:/app/.vector_memory
     working_dir: /app
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       # read_only root FS: direciona caches graváveis (modelos, HF) para o tmpfs.
