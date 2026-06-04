@@ -6,7 +6,7 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import json as _json
 
@@ -31,6 +31,16 @@ from src.api.auth import AuthManager
 from src.api.auth_endpoints import router as auth_router
 from src.api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from src.api.rbac import Principal, current_principal, require_permissions
+from src.api.schemas.responses import (
+    A2ABroadcastResponse,
+    A2AHistoryResponse,
+    A2AMessageResponse,
+    A2AMessagesResponse,
+    AgentListResponse,
+    AgentSummary,
+    AgentsByCapabilityResponse,
+    HistoryResponse,
+)
 from src.api.autonomy_endpoints import router as autonomy_router
 from src.api.hitl_endpoints import router as hitl_router
 from src.api.ledger_endpoints import router as ledger_router
@@ -204,6 +214,34 @@ def _validate_payload_size(payload: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+# API-07 (Frente B): paginação cursor-based sobre o histórico persistido no
+# DecisionLedger. O cursor é um offset opaco (base64) na lista reverso-cronológica
+# de entradas ``TASK_COMPLETED`` — durável entre restarts (e compartilhado entre
+# réplicas quando ``LEDGER_BACKEND=redis``).
+def _encode_cursor(offset: int) -> str:
+    import base64
+
+    return base64.urlsafe_b64encode(str(offset).encode("ascii")).decode("ascii")
+
+
+def _decode_cursor(cursor: Optional[str]) -> int:
+    if not cursor:
+        return 0
+    import base64
+
+    try:
+        offset = int(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("ascii"))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="cursor inválido"
+        )
+    if offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="cursor inválido"
+        )
+    return offset
+
+
 class TaskRequest(BaseModel):
     # SECURITY (H07/M07): limite de tamanho impede payloads gigantes (DoS).
     task_description: str = Field(
@@ -234,10 +272,27 @@ class ProblemDetail(BaseModel):
     title: str = Field(..., description="Resumo do problema")
     detail: str = Field(..., description="Detalhes adicionais")
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": 400,
+                "title": "Bad Request",
+                "detail": "Parâmetro inválido.",
+            }
+        }
+    }
+
 
 class A2AMessageRequest(BaseModel):
     """Payload para envio de mensagens A2A."""
 
+    # API-03: ``sender_id`` é o campo CANÔNICO de identidade do emissor e vive no
+    # corpo da requisição (não mais como query param, que vazava identidade em
+    # logs de proxy/servidor). Permanece opcional para retrocompatibilidade com o
+    # query param ``sender_id``, hoje *deprecated* — ver ``send_a2a_message``.
+    sender_id: Optional[str] = Field(
+        None, description="Identificador do agente emissor (preferir no corpo)"
+    )
     receiver_id: str = Field(..., description="Identificador do agente de destino")
     message_type: str = Field(
         ..., min_length=1, max_length=128, description="Tipo da mensagem a ser enviada"
@@ -339,60 +394,95 @@ async def get_agent_capabilities(
     "/api/v1/agents",
     tags=["MCP"],
     summary="Lista todos os agentes registrados",
-    description="Retorna lista simplificada de agentes ativos.",
+    description=(
+        "Retorna lista simplificada de agentes ativos. Aceita o filtro opcional "
+        "``?capability=`` — forma canônica (query param) da busca por capacidade, "
+        "preferível ao path ``/agents/by-capability/{capability}``."
+    ),
+    response_model=AgentListResponse,
 )
 async def list_agents(
+    capability: Optional[str] = Query(
+        None, description="Filtra os agentes por capacidade (forma canônica de busca)"
+    ),
     _principal: Principal = Depends(current_principal),
-) -> Dict[str, Any]:
-    """Lista todos os agentes registrados no sistema."""
+) -> AgentListResponse:
+    """Lista todos os agentes registrados no sistema, opcionalmente filtrados."""
 
     initialize_agent_registry()
     autonomy = get_autonomy_manager()
 
-    return {
-        "total": len(agent_registry.agents),
-        "agents": [
-            {
-                "agent_id": card.agent_id,
-                "name": card.name,
-                "type": card.agent_type,
-                "status": card.status,
-                "endpoint": card.endpoint,
-                "specialization": card.specialization,
-                "capabilities": card.capabilities,
-                "trust_score": round(
-                    autonomy.agent_trust_scores.get(
-                        card.agent_id, autonomy.default_trust_score
-                    ),
-                    2,
+    cards = agent_registry.get_all()
+    if capability is not None:
+        wanted = capability.lower()
+        cards = [
+            card for card in cards if wanted in [c.lower() for c in card.capabilities]
+        ]
+
+    agents = [
+        AgentSummary(
+            agent_id=card.agent_id,
+            name=card.name,
+            type=card.agent_type,
+            status=card.status,
+            endpoint=card.endpoint,
+            specialization=card.specialization,
+            capabilities=card.capabilities,
+            trust_score=round(
+                autonomy.agent_trust_scores.get(
+                    card.agent_id, autonomy.default_trust_score
                 ),
-                "autonomy_level": autonomy.get_autonomy_level(card.agent_id),
-            }
-            for card in agent_registry.get_all()
-        ],
-    }
+                2,
+            ),
+            autonomy_level=autonomy.get_autonomy_level(card.agent_id),
+        )
+        for card in cards
+    ]
+    return AgentListResponse(total=len(agents), agents=agents)
 
 
 @app.post(
     "/api/v1/a2a/send",
     tags=["A2A"],
     summary="Envia mensagem entre agentes",
-    description="Permite enviar mensagem direta de um agente para outro.",
+    description=(
+        "Permite enviar mensagem direta de um agente para outro. O ``sender_id`` "
+        "deve vir no corpo (``A2AMessageRequest.sender_id``). O query param "
+        "``sender_id`` é aceito apenas por retrocompatibilidade e está *deprecated*."
+    ),
+    response_model=A2AMessageResponse,
+    responses={
+        400: {"model": ProblemDetail},
+        403: {"model": ProblemDetail},
+    },
 )
 async def send_a2a_message(
-    sender_id: str,
     message: A2AMessageRequest,
+    sender_id: Optional[str] = Query(
+        None,
+        deprecated=True,
+        description="DEPRECATED — informe ``sender_id`` no corpo da requisição.",
+    ),
     principal: Principal = Depends(current_principal),
     _: None = Depends(enforce_rate_limit),
-) -> Dict[str, Any]:
+) -> A2AMessageResponse:
     """Envia mensagem entre agentes utilizando o canal A2A."""
 
-    _validate_agent_id(sender_id, "sender_id")
+    # API-03: corpo é a fonte canônica; query param permanece como fallback
+    # *deprecated*. Sem nenhum dos dois, é erro de requisição.
+    effective_sender = message.sender_id or sender_id
+    if not effective_sender:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="sender_id é obrigatório (informe no corpo da requisição)",
+        )
+
+    _validate_agent_id(effective_sender, "sender_id")
     _validate_agent_id(message.receiver_id, "receiver_id")
-    _enforce_agent_identity(sender_id, principal)
+    _enforce_agent_identity(effective_sender, principal)
 
     message_id = await a2a_channel.send_message(
-        sender_id=sender_id,
+        sender_id=effective_sender,
         receiver_id=message.receiver_id,
         message_type=message.message_type,
         payload=message.payload,
@@ -400,13 +490,13 @@ async def send_a2a_message(
         requires_response=message.requires_response,
     )
 
-    return {
-        "status": "sent",
-        "message_id": message_id,
-        "sender": sender_id,
-        "receiver": message.receiver_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+    return A2AMessageResponse(
+        status="sent",
+        message_id=message_id,
+        sender=effective_sender,
+        receiver=message.receiver_id,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+    )
 
 
 @app.get(
@@ -414,22 +504,23 @@ async def send_a2a_message(
     tags=["A2A"],
     summary="Recebe mensagens pendentes de um agente",
     description="Retorna lista de mensagens A2A pendentes para um agente.",
+    response_model=A2AMessagesResponse,
 )
 async def get_agent_messages(
     agent_id: str,
     limit: int = Query(10, ge=1, le=100),
     _principal: Principal = Depends(current_principal),
-) -> Dict[str, Any]:
+) -> A2AMessagesResponse:
     """Recupera mensagens pendentes para um agente específico."""
 
     _validate_agent_id(agent_id, "agent_id")
     messages = await a2a_channel.receive_messages(agent_id, limit)
 
-    return {
-        "agent_id": agent_id,
-        "message_count": len(messages),
-        "messages": [msg.to_dict() for msg in messages],
-    }
+    return A2AMessagesResponse(
+        agent_id=agent_id,
+        message_count=len(messages),
+        messages=[msg.to_dict() for msg in messages],
+    )
 
 
 @app.get(
@@ -437,22 +528,23 @@ async def get_agent_messages(
     tags=["A2A"],
     summary="Histórico de mensagens A2A",
     description="Retorna histórico de mensagens enviadas/recebidas por um agente.",
+    response_model=A2AHistoryResponse,
 )
 async def get_a2a_history(
     agent_id: str,
     limit: int = Query(50, ge=1, le=200),
     _principal: Principal = Depends(current_principal),
-) -> Dict[str, Any]:
+) -> A2AHistoryResponse:
     """Retorna histórico de mensagens para o agente informado."""
 
     _validate_agent_id(agent_id, "agent_id")
     history = a2a_channel.get_message_history(agent_id, limit)
 
-    return {
-        "agent_id": agent_id,
-        "total_messages": len(history),
-        "messages": [msg.to_dict() for msg in history],
-    }
+    return A2AHistoryResponse(
+        agent_id=agent_id,
+        total_messages=len(history),
+        messages=[msg.to_dict() for msg in history],
+    )
 
 
 @app.post(
@@ -460,12 +552,13 @@ async def get_a2a_history(
     tags=["A2A"],
     summary="Broadcast para múltiplos agentes",
     description="Envia mensagem para múltiplos agentes simultaneamente.",
+    response_model=A2ABroadcastResponse,
 )
 async def broadcast_a2a_message(
     request: A2ABroadcastRequest,
     principal: Principal = Depends(current_principal),
     _: None = Depends(enforce_rate_limit),
-) -> Dict[str, Any]:
+) -> A2ABroadcastResponse:
     """Realiza broadcast de mensagens para múltiplos agentes."""
 
     _validate_agent_id(request.sender_id, "sender_id")
@@ -485,13 +578,13 @@ async def broadcast_a2a_message(
         )
         message_ids.append(msg_id)
 
-    return {
-        "status": "broadcasted",
-        "sender": request.sender_id,
-        "receivers": request.receiver_ids,
-        "message_ids": message_ids,
-        "total_sent": len(message_ids),
-    }
+    return A2ABroadcastResponse(
+        status="broadcasted",
+        sender=request.sender_id,
+        receivers=request.receiver_ids,
+        message_ids=message_ids,
+        total_sent=len(message_ids),
+    )
 
 
 @app.get(
@@ -595,12 +688,17 @@ async def invoke_agent_directly(
     "/api/v1/agents/by-capability/{capability}",
     tags=["MCP"],
     summary="Busca agentes por capacidade",
-    description="Retorna agentes que possuem uma capacidade específica.",
+    description=(
+        "Retorna agentes que possuem uma capacidade específica. Forma canônica "
+        "equivalente: ``GET /api/v1/agents?capability=...`` (filtragem via query). "
+        "Este path é mantido por compatibilidade/bookmarks."
+    ),
+    response_model=AgentsByCapabilityResponse,
 )
 async def get_agents_by_capability(
     capability: str,
     _principal: Principal = Depends(current_principal),
-) -> Dict[str, Any]:
+) -> AgentsByCapabilityResponse:
     """Busca agentes que possuem determinada capacidade."""
 
     initialize_agent_registry()
@@ -611,10 +709,10 @@ async def get_agents_by_capability(
         if capability.lower() in [c.lower() for c in card.capabilities]
     ]
 
-    return {
-        "capability": capability,
-        "total_matches": len(matching_agents),
-        "agents": [
+    return AgentsByCapabilityResponse(
+        capability=capability,
+        total_matches=len(matching_agents),
+        agents=[
             {
                 "agent_id": card.agent_id,
                 "name": card.name,
@@ -622,7 +720,7 @@ async def get_agents_by_capability(
             }
             for card in matching_agents
         ],
-    }
+    )
 
 
 async def _process_task_internal(
@@ -641,7 +739,14 @@ async def _process_task_internal(
     return response
 
 
-@app.post("/tasks", response_model=SuccessfulTaskResponse)
+# API-01: rota legada não-versionada. Mantida (exceção consciente do ADR-003/D12)
+# porém marcada como *deprecated* — a forma canônica é ``POST /api/v1/tasks``.
+@app.post(
+    "/tasks",
+    response_model=SuccessfulTaskResponse,
+    deprecated=True,
+    summary="(Deprecated) Processa tarefa — use POST /api/v1/tasks",
+)
 async def process_task(
     task_request: TaskRequest,
     user_id: str = Depends(AuthManager.verify_token),
@@ -737,15 +842,20 @@ async def process_advanced_task(
         )
 
 
+# API-06: ``compare`` executa DOIS pipelines (2× custo de LLM) — é ferramenta de
+# avaliação/diagnóstico, não fluxo de produção. Exige a permissão ``tasks:compare``
+# (concedida apenas ao papel admin), evitando abuso de custo por usuários comuns.
 @app.post(
     "/api/v1/tasks/compare",
     tags=["Advanced AI Agent"],
-    summary="Compara processamento simples vs avançado",
+    summary="Compara processamento simples vs avançado (restrito a admin)",
     description="Executa a mesma tarefa nos dois modos e retorna comparação",
+    responses={403: {"model": ProblemDetail}},
 )
 async def compare_modes(
     task_request: TaskRequest,
     user_id: str = Depends(AuthManager.verify_token),
+    _principal: Principal = Depends(require_permissions("tasks:compare")),
     _: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Compara resultado do modo simples vs avançado para análise."""
@@ -780,15 +890,10 @@ async def compare_modes(
     }
 
 
-@app.get("/consultar-projetos-lei/", tags=["Consultas"])
-async def consultar_projetos_endpoint(
-    q: str = Query(..., description="Termo de busca para proposições legislativas"),
-    _principal: Principal = Depends(current_principal),
-    _: None = Depends(enforce_rate_limit),
-):
-    """Consulta projetos de lei diretamente na API da Câmara dos Deputados."""
+async def _consultar_projetos(termo_busca: str) -> Dict[str, Any]:
+    """Lógica compartilhada de consulta de proposições (legado + canônico)."""
 
-    termo_busca = q.strip()
+    termo_busca = termo_busca.strip()
     if not termo_busca:
         raise HTTPException(status_code=400, detail="Parametro 'q' e obrigatorio.")
 
@@ -798,7 +903,52 @@ async def consultar_projetos_endpoint(
     return resultado
 
 
-@app.post("/analise-legislativa/", tags=["Análises de IA"])
+async def _analisar_legislacao(tema: str) -> Dict[str, Any]:
+    """Lógica compartilhada de análise legislativa (legado + canônico)."""
+
+    tema_legislativo = tema.strip()
+    if not tema_legislativo:
+        raise HTTPException(status_code=400, detail="Parametro 'tema' e obrigatorio.")
+
+    resultado_analise = analisar_cenario_legislativo(tema_legislativo)
+    return {"tema_analisado": tema_legislativo, "analise_ia": resultado_analise}
+
+
+# API-02: rotas legadas (verbo na URL + barra final) — exceção consciente do
+# ADR-003/D12, mantidas para não quebrar a SPA. Os aliases canônicos abaixo usam
+# substantivos no plural, sem barra final, e são a forma recomendada.
+@app.get("/consultar-projetos-lei/", tags=["Consultas"], deprecated=True)
+async def consultar_projetos_endpoint(
+    q: str = Query(..., description="Termo de busca para proposições legislativas"),
+    _principal: Principal = Depends(current_principal),
+    _: None = Depends(enforce_rate_limit),
+):
+    """(Deprecated) Use ``GET /api/v1/proposicoes-legislativas``."""
+
+    return await _consultar_projetos(q)
+
+
+@app.get(
+    "/api/v1/proposicoes-legislativas",
+    tags=["Consultas"],
+    summary="Pesquisa proposições legislativas",
+)
+async def pesquisar_proposicoes(
+    q: str = Query(
+        ...,
+        min_length=2,
+        max_length=200,
+        description="Termo de busca para proposições legislativas",
+    ),
+    _principal: Principal = Depends(current_principal),
+    _: None = Depends(enforce_rate_limit),
+) -> Dict[str, Any]:
+    """Consulta proposições legislativas na API da Câmara dos Deputados."""
+
+    return await _consultar_projetos(q)
+
+
+@app.post("/analise-legislativa/", tags=["Análises de IA"], deprecated=True)
 async def analisar_legislacao_endpoint(
     tema: str = Body(
         ..., embed=True, description="Tema legislativo para análise de IA"
@@ -806,15 +956,31 @@ async def analisar_legislacao_endpoint(
     _principal: Principal = Depends(current_principal),
     _: None = Depends(enforce_rate_limit),
 ):
-    """Inicia uma análise de IA sobre um tema legislativo."""
+    """(Deprecated) Use ``POST /api/v1/analises-legislativas``."""
 
-    tema_legislativo = tema.strip()
-    if not tema_legislativo:
-        raise HTTPException(status_code=400, detail="Parametro 'tema' e obrigatorio.")
+    return await _analisar_legislacao(tema)
 
-    resultado_analise = analisar_cenario_legislativo(tema_legislativo)
 
-    return {"tema_analisado": tema_legislativo, "analise_ia": resultado_analise}
+@app.post(
+    "/api/v1/analises-legislativas",
+    tags=["Análises de IA"],
+    status_code=status.HTTP_201_CREATED,
+    summary="Cria análise de IA sobre tema legislativo",
+)
+async def criar_analise_legislativa(
+    tema: str = Body(
+        ...,
+        embed=True,
+        min_length=3,
+        max_length=500,
+        description="Tema legislativo para análise de IA",
+    ),
+    _principal: Principal = Depends(current_principal),
+    _: None = Depends(enforce_rate_limit),
+) -> Dict[str, Any]:
+    """Cria uma análise de IA sobre um tema legislativo."""
+
+    return await _analisar_legislacao(tema)
 
 
 @app.get("/metrics", include_in_schema=False)
@@ -866,15 +1032,25 @@ async def health_check(
     "/api/v1/history",
     tags=["Consultas"],
     summary="Histórico de consultas do consulente",
+    response_model=HistoryResponse,
 )
 async def list_history(
     limit: int = Query(20, ge=1, le=100),
+    cursor: Optional[str] = Query(
+        None, description="Cursor opaco para a próxima página (vindo de uma resposta)"
+    ),
     _principal: Principal = Depends(current_principal),
-) -> Dict[str, Any]:
+) -> HistoryResponse:
     """Lista as consultas processadas pelo Supervisor.
 
     Consultas cuja ação derivada entrou em revisão humana e ainda está pendente
     são marcadas com status ``em_revisao_humana``; as demais, ``concluida``.
+
+    Frente B (API-07): a fonte é o ``DecisionLedger`` (entradas
+    ``TASK_COMPLETED``), que é durável — sobrevive a restarts e, com
+    ``LEDGER_BACKEND=redis``, é compartilhado entre réplicas. ``total`` reflete
+    todo o histórico; ``count`` é a página; ``cursor`` aponta para a próxima
+    página (``None`` quando não há mais).
     """
 
     pending_actions = {
@@ -882,22 +1058,38 @@ async def list_history(
         for req in get_hitl_queue().get_pending_requests()
     }
 
+    # Entradas em ordem cronológica → invertidas para mais-recente-primeiro.
+    entries = supervisor_agent.ledger.get_entries(decision_type="TASK_COMPLETED")
+    entries.reverse()
+    total = len(entries)
+
+    offset = _decode_cursor(cursor)
+    page = entries[offset : offset + limit]
+
     history = []
-    for record in reversed(supervisor_agent.task_history[-limit:]):
-        intent = record.get("intent", {})
-        task = record.get("task", "")
+    for entry in page:
+        metadata = entry.get("metadata", {}) or {}
+        task = metadata.get("task", "")
         in_review = task in pending_actions
         history.append(
             {
                 "task": task,
-                "operation": intent.get("operacao", "generic"),
-                "tribunals": record.get("tribunals", []),
-                "timestamp": record.get("timestamp"),
+                "operation": metadata.get("operation", "generic"),
+                "tribunals": metadata.get("tribunals", []),
+                "timestamp": entry.get("timestamp"),
                 "status": "em_revisao_humana" if in_review else "concluida",
             }
         )
 
-    return {"count": len(history), "history": history}
+    next_offset = offset + len(page)
+    next_cursor = _encode_cursor(next_offset) if next_offset < total else None
+
+    return HistoryResponse(
+        count=len(history),
+        total=total,
+        cursor=next_cursor,
+        history=history,
+    )
 
 
 # ----------------------------------------------------------------------

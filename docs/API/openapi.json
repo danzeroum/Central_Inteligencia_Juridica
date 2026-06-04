@@ -5,6 +5,48 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login",
+        "description": "Valida credenciais e emite um JWT (com papéis e timeout do RBAC).",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hitl/pending": {
       "get": {
         "tags": [
@@ -19,14 +61,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response List Pending Approvals Api V1 Hitl Pending Get"
                 }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/hitl/stats": {
@@ -43,14 +89,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Hitl Stats Api V1 Hitl Stats Get"
                 }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/hitl/decisions": {
@@ -59,7 +109,7 @@
           "HITL"
         ],
         "summary": "Registra decisão humana",
-        "description": "Processa decisão do operador humano sobre uma ação proposta por agente.\n\nEsta é a interface crítica que permite supervisão humana em tempo real.",
+        "description": "Processa decisão do operador humano sobre uma ação proposta por agente.\n\nEsta é a interface crítica que permite supervisão humana em tempo real.\n\nSECURITY (IAM-003): o ``operator_id`` é derivado da identidade autenticada\n(JWT), não do corpo da requisição — impede que um operador seja forjado.\nQuando a autenticação está desligada (dev/testes), cai para o valor do corpo.",
         "operationId": "record_decision_api_v1_hitl_decisions_post",
         "requestBody": {
           "content": {
@@ -77,7 +127,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Record Decision Api V1 Hitl Decisions Post"
                 }
@@ -94,7 +143,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/training/feedback": {
@@ -140,7 +194,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/training/train": {
@@ -167,7 +226,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Trigger Training Api V1 Training Train Post"
                 }
@@ -184,7 +242,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/training/stats": {
@@ -195,6 +258,11 @@
         "summary": "Get Training Stats",
         "description": "Get training statistics for agents.",
         "operationId": "get_training_stats_api_v1_training_stats_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_type",
@@ -251,14 +319,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Get Active Sessions Api V1 Training Active Sessions Get"
                 }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/training/history": {
@@ -269,6 +341,11 @@
         "summary": "Get Training History",
         "description": "Get training history.",
         "operationId": "get_training_history_api_v1_training_history_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_type",
@@ -304,7 +381,6 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
                   "title": "Response Get Training History Api V1 Training History Get"
                 }
               }
@@ -347,7 +423,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Run Ab Test Api V1 Training Ab Test Post"
                 }
@@ -364,7 +439,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/training/reset/{agent_type}": {
@@ -375,6 +455,11 @@
         "summary": "Reset Training State",
         "description": "Reset training state for an agent.",
         "operationId": "reset_training_state_api_v1_training_reset__agent_type__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_type",
@@ -422,6 +507,11 @@
         "summary": "Lista entradas da trilha de auditoria",
         "description": "Retorna as entradas mais recentes do Decision Ledger (ordem cronológica).",
         "operationId": "list_ledger_api_v1_ledger_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_type",
@@ -481,7 +571,6 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
                   "title": "Response List Ledger Api V1 Ledger Get"
                 }
               }
@@ -508,6 +597,11 @@
         "summary": "Exporta a trilha de auditoria em CSV",
         "description": "Exporta as entradas como CSV para conformidade/arquivamento.",
         "operationId": "export_ledger_csv_api_v1_ledger_export_csv_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_type",
@@ -564,6 +658,163 @@
         }
       }
     },
+    "/api/v1/lgpd/data/{subject_id}": {
+      "get": {
+        "tags": [
+          "LGPD"
+        ],
+        "summary": "Acesso aos dados do titular (LGPD Art. 18, II)",
+        "description": "Retorna os registros de auditoria associados ao titular.",
+        "operationId": "get_subject_data_api_v1_lgpd_data__subject_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subject_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Subject Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Subject Data Api V1 Lgpd Data  Subject Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "LGPD"
+        ],
+        "summary": "Exclusão/anonimização dos dados do titular (LGPD Art. 18, VI)",
+        "description": "Anonimiza os dados do titular e registra a operação para auditoria.",
+        "operationId": "delete_subject_data_api_v1_lgpd_data__subject_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subject_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Subject Id"
+            }
+          },
+          {
+            "name": "justification",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "description": "Base legal/justificativa da exclusão",
+              "title": "Justification"
+            },
+            "description": "Base legal/justificativa da exclusão"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Delete Subject Data Api V1 Lgpd Data  Subject Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lgpd/data/{subject_id}/export": {
+      "get": {
+        "tags": [
+          "LGPD"
+        ],
+        "summary": "Portabilidade dos dados do titular (LGPD Art. 18, V)",
+        "description": "Exporta os dados do titular em formato estruturado (JSON) e portável.",
+        "operationId": "export_subject_data_api_v1_lgpd_data__subject_id__export_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subject_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Subject Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Export Subject Data Api V1 Lgpd Data  Subject Id  Export Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/autonomy/config": {
       "get": {
         "tags": [
@@ -578,7 +829,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Get Config Api V1 Autonomy Config Get"
                 }
@@ -610,7 +860,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Update Config Api V1 Autonomy Config Put"
                 }
@@ -627,7 +876,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/monitoring/health": {
@@ -644,7 +898,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Monitoring Health Api V1 Monitoring Health Get"
                 }
@@ -668,14 +921,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Get Agent Capabilities Api V1 Agents Capabilities Get"
                 }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/agents": {
@@ -684,17 +941,50 @@
           "MCP"
         ],
         "summary": "Lista todos os agentes registrados",
-        "description": "Retorna lista simplificada de agentes ativos.",
+        "description": "Retorna lista simplificada de agentes ativos. Aceita o filtro opcional ``?capability=`` — forma canônica (query param) da busca por capacidade, preferível ao path ``/agents/by-capability/{capability}``.",
         "operationId": "list_agents_api_v1_agents_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "capability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra os agentes por capacidade (forma canônica de busca)",
+              "title": "Capability"
+            },
+            "description": "Filtra os agentes por capacidade (forma canônica de busca)"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response List Agents Api V1 Agents Get"
+                  "$ref": "#/components/schemas/AgentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -708,17 +998,32 @@
           "A2A"
         ],
         "summary": "Envia mensagem entre agentes",
-        "description": "Permite enviar mensagem direta de um agente para outro.",
+        "description": "Permite enviar mensagem direta de um agente para outro. O ``sender_id`` deve vir no corpo (``A2AMessageRequest.sender_id``). O query param ``sender_id`` é aceito apenas por retrocompatibilidade e está *deprecated*.",
         "operationId": "send_a2a_message_api_v1_a2a_send_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "sender_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "DEPRECATED — informe ``sender_id`` no corpo da requisição.",
               "title": "Sender Id"
-            }
+            },
+            "description": "DEPRECATED — informe ``sender_id`` no corpo da requisição.",
+            "deprecated": true
           }
         ],
         "requestBody": {
@@ -737,12 +1042,30 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Send A2A Message Api V1 A2A Send Post"
+                  "$ref": "#/components/schemas/A2AMessageResponse"
                 }
               }
             }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "422": {
             "description": "Validation Error",
@@ -765,6 +1088,11 @@
         "summary": "Recebe mensagens pendentes de um agente",
         "description": "Retorna lista de mensagens A2A pendentes para um agente.",
         "operationId": "get_agent_messages_api_v1_a2a_messages__agent_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_id",
@@ -794,9 +1122,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Agent Messages Api V1 A2A Messages  Agent Id  Get"
+                  "$ref": "#/components/schemas/A2AMessagesResponse"
                 }
               }
             }
@@ -822,6 +1148,11 @@
         "summary": "Histórico de mensagens A2A",
         "description": "Retorna histórico de mensagens enviadas/recebidas por um agente.",
         "operationId": "get_a2a_history_api_v1_a2a_history__agent_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_id",
@@ -851,9 +1182,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get A2A History Api V1 A2A History  Agent Id  Get"
+                  "$ref": "#/components/schemas/A2AHistoryResponse"
                 }
               }
             }
@@ -895,9 +1224,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object",
-                  "title": "Response Broadcast A2A Message Api V1 A2A Broadcast Post"
+                  "$ref": "#/components/schemas/A2ABroadcastResponse"
                 }
               }
             }
@@ -912,7 +1239,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/a2a/health": {
@@ -929,7 +1261,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response A2A Health Check Api V1 A2A Health Get"
                 }
@@ -947,6 +1278,11 @@
         "summary": "Detalhes de um agente específico",
         "description": "Retorna agent card completo com todas as capacidades.",
         "operationId": "get_agent_details_api_v1_agents__agent_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_id",
@@ -965,7 +1301,6 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
                   "title": "Response Get Agent Details Api V1 Agents  Agent Id  Get"
                 }
               }
@@ -992,6 +1327,11 @@
         "summary": "Invoca um agente diretamente",
         "description": "Permite invocar um agente específico sem passar pelo supervisor.",
         "operationId": "invoke_agent_directly_api_v1_agents__agent_id__invoke_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_id",
@@ -1020,7 +1360,6 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
                   "title": "Response Invoke Agent Directly Api V1 Agents  Agent Id  Invoke Post"
                 }
               }
@@ -1045,8 +1384,13 @@
           "MCP"
         ],
         "summary": "Busca agentes por capacidade",
-        "description": "Retorna agentes que possuem uma capacidade específica.",
+        "description": "Retorna agentes que possuem uma capacidade específica. Forma canônica equivalente: ``GET /api/v1/agents?capability=...`` (filtragem via query). Este path é mantido por compatibilidade/bookmarks.",
         "operationId": "get_agents_by_capability_api_v1_agents_by_capability__capability__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "capability",
@@ -1064,9 +1408,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Agents By Capability Api V1 Agents By Capability  Capability  Get"
+                  "$ref": "#/components/schemas/AgentsByCapabilityResponse"
                 }
               }
             }
@@ -1086,7 +1428,7 @@
     },
     "/tasks": {
       "post": {
-        "summary": "Process Task",
+        "summary": "(Deprecated) Processa tarefa — use POST /api/v1/tasks",
         "description": "Processa uma tarefa jurídica utilizando o SupervisorAgent.",
         "operationId": "process_task_tasks_post",
         "requestBody": {
@@ -1120,7 +1462,13 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true,
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/tasks": {
@@ -1162,7 +1510,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/tasks/advanced": {
@@ -1189,7 +1542,6 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Process Advanced Task Api V1 Tasks Advanced Post"
                 }
@@ -1226,7 +1578,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/tasks/compare": {
@@ -1234,7 +1591,7 @@
         "tags": [
           "Advanced AI Agent"
         ],
-        "summary": "Compara processamento simples vs avançado",
+        "summary": "Compara processamento simples vs avançado (restrito a admin)",
         "description": "Executa a mesma tarefa nos dois modos e retorna comparação",
         "operationId": "compare_modes_api_v1_tasks_compare_post",
         "requestBody": {
@@ -1253,9 +1610,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
                   "title": "Response Compare Modes Api V1 Tasks Compare Post"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1270,7 +1636,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/consultar-projetos-lei/": {
@@ -1279,8 +1650,14 @@
           "Consultas"
         ],
         "summary": "Consultar Projetos Endpoint",
-        "description": "Consulta projetos de lei diretamente na API da Câmara dos Deputados.",
+        "description": "(Deprecated) Use ``GET /api/v1/proposicoes-legislativas``.",
         "operationId": "consultar_projetos_endpoint_consultar_projetos_lei__get",
+        "deprecated": true,
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "q",
@@ -1316,13 +1693,66 @@
         }
       }
     },
+    "/api/v1/proposicoes-legislativas": {
+      "get": {
+        "tags": [
+          "Consultas"
+        ],
+        "summary": "Pesquisa proposições legislativas",
+        "description": "Consulta proposições legislativas na API da Câmara dos Deputados.",
+        "operationId": "pesquisar_proposicoes_api_v1_proposicoes_legislativas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 200,
+              "description": "Termo de busca para proposições legislativas",
+              "title": "Q"
+            },
+            "description": "Termo de busca para proposições legislativas"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Pesquisar Proposicoes Api V1 Proposicoes Legislativas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/analise-legislativa/": {
       "post": {
         "tags": [
           "Análises de IA"
         ],
         "summary": "Analisar Legislacao Endpoint",
-        "description": "Inicia uma análise de IA sobre um tema legislativo.",
+        "description": "(Deprecated) Use ``POST /api/v1/analises-legislativas``.",
         "operationId": "analisar_legislacao_endpoint_analise_legislativa__post",
         "requestBody": {
           "content": {
@@ -1353,7 +1783,61 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true,
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/analises-legislativas": {
+      "post": {
+        "tags": [
+          "Análises de IA"
+        ],
+        "summary": "Cria análise de IA sobre tema legislativo",
+        "description": "Cria uma análise de IA sobre um tema legislativo.",
+        "operationId": "criar_analise_legislativa_api_v1_analises_legislativas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_criar_analise_legislativa_api_v1_analises_legislativas_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Criar Analise Legislativa Api V1 Analises Legislativas Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/health": {
@@ -1382,7 +1866,6 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": true,
                   "title": "Response Health Check Health Get"
                 }
               }
@@ -1407,8 +1890,13 @@
           "Consultas"
         ],
         "summary": "Histórico de consultas do consulente",
-        "description": "Lista as consultas processadas pelo Supervisor.\n\nConsultas cuja ação derivada entrou em revisão humana e ainda está pendente\nsão marcadas com status ``em_revisao_humana``; as demais, ``concluida``.",
+        "description": "Lista as consultas processadas pelo Supervisor.\n\nConsultas cuja ação derivada entrou em revisão humana e ainda está pendente\nsão marcadas com status ``em_revisao_humana``; as demais, ``concluida``.\n\nFrente B (API-07): a fonte é o ``DecisionLedger`` (entradas\n``TASK_COMPLETED``), que é durável — sobrevive a restarts e, com\n``LEDGER_BACKEND=redis``, é compartilhado entre réplicas. ``total`` reflete\ntodo o histórico; ``count`` é a página; ``cursor`` aponta para a próxima\npágina (``None`` quando não há mais).",
         "operationId": "list_history_api_v1_history_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -1421,6 +1909,24 @@
               "default": 20,
               "title": "Limit"
             }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor opaco para a próxima página (vindo de uma resposta)",
+              "title": "Cursor"
+            },
+            "description": "Cursor opaco para a próxima página (vindo de uma resposta)"
           }
         ],
         "responses": {
@@ -1429,9 +1935,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response List History Api V1 History Get"
+                  "$ref": "#/components/schemas/HistoryResponse"
                 }
               }
             }
@@ -1464,16 +1968,19 @@
               "type": "string"
             },
             "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
             "title": "Receiver Ids",
             "description": "Lista de agentes destinatários"
           },
           "message_type": {
             "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Message Type",
             "description": "Tipo da mensagem a ser enviada"
           },
           "payload": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Payload",
             "description": "Conteúdo da mensagem"
@@ -1497,8 +2004,87 @@
         "title": "A2ABroadcastRequest",
         "description": "Payload para broadcast de mensagens A2A."
       },
+      "A2ABroadcastResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "sender": {
+            "type": "string",
+            "title": "Sender"
+          },
+          "receivers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Receivers"
+          },
+          "message_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Message Ids"
+          },
+          "total_sent": {
+            "type": "integer",
+            "title": "Total Sent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "sender",
+          "receivers",
+          "message_ids",
+          "total_sent"
+        ],
+        "title": "A2ABroadcastResponse",
+        "description": "Confirmação de broadcast A2A (``POST /api/v1/a2a/broadcast``)."
+      },
+      "A2AHistoryResponse": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "total_messages": {
+            "type": "integer",
+            "title": "Total Messages"
+          },
+          "messages": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "total_messages",
+          "messages"
+        ],
+        "title": "A2AHistoryResponse",
+        "description": "Histórico de mensagens de um agente (``GET /api/v1/a2a/history/{agent_id}``)."
+      },
       "A2AMessageRequest": {
         "properties": {
+          "sender_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Id",
+            "description": "Identificador do agente emissor (preferir no corpo)"
+          },
           "receiver_id": {
             "type": "string",
             "title": "Receiver Id",
@@ -1506,11 +2092,12 @@
           },
           "message_type": {
             "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Message Type",
             "description": "Tipo da mensagem a ser enviada"
           },
           "payload": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Payload",
             "description": "Dados da mensagem"
@@ -1539,6 +2126,74 @@
         "title": "A2AMessageRequest",
         "description": "Payload para envio de mensagens A2A."
       },
+      "A2AMessageResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message_id": {
+            "type": "string",
+            "title": "Message Id"
+          },
+          "sender": {
+            "type": "string",
+            "title": "Sender"
+          },
+          "receiver": {
+            "type": "string",
+            "title": "Receiver"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message_id",
+          "sender",
+          "receiver",
+          "timestamp"
+        ],
+        "title": "A2AMessageResponse",
+        "description": "Confirmação de envio de mensagem A2A (``POST /api/v1/a2a/send``).",
+        "example": {
+          "message_id": "msg_abc123",
+          "receiver": "tjsp_agent",
+          "sender": "supervisor_agent",
+          "status": "sent",
+          "timestamp": "2026-06-04T12:00:00+00:00"
+        }
+      },
+      "A2AMessagesResponse": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "message_count": {
+            "type": "integer",
+            "title": "Message Count"
+          },
+          "messages": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "message_count",
+          "messages"
+        ],
+        "title": "A2AMessagesResponse",
+        "description": "Mensagens pendentes de um agente (``GET /api/v1/a2a/messages/{agent_id}``)."
+      },
       "ABTestRequest": {
         "properties": {
           "agent_a_type": {
@@ -1553,7 +2208,6 @@
           },
           "test_cases": {
             "items": {
-              "additionalProperties": true,
               "type": "object"
             },
             "type": "array",
@@ -1569,6 +2223,185 @@
         ],
         "title": "ABTestRequest",
         "description": "Request model for A/B testing."
+      },
+      "AgentCapabilityMatch": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "name",
+          "endpoint"
+        ],
+        "title": "AgentCapabilityMatch",
+        "description": "Agente que satisfaz uma busca por capacidade."
+      },
+      "AgentListResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSummary"
+            },
+            "type": "array",
+            "title": "Agents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "agents"
+        ],
+        "title": "AgentListResponse",
+        "description": "Lista de agentes registrados (``GET /api/v1/agents``).",
+        "example": {
+          "agents": [
+            {
+              "agent_id": "supervisor_agent",
+              "autonomy_level": "supervised",
+              "capabilities": [
+                "task_routing",
+                "consensus"
+              ],
+              "endpoint": "/api/v1/agents/supervisor_agent/invoke",
+              "name": "Supervisor Agent",
+              "status": "active",
+              "trust_score": 0.9,
+              "type": "SupervisorAgent"
+            }
+          ],
+          "total": 1
+        }
+      },
+      "AgentSummary": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          },
+          "specialization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specialization"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "trust_score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Trust Score"
+          },
+          "autonomy_level": {
+            "type": "string",
+            "title": "Autonomy Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "name",
+          "type",
+          "status",
+          "endpoint",
+          "trust_score",
+          "autonomy_level"
+        ],
+        "title": "AgentSummary",
+        "description": "Resumo de um agente no registry (MCP).",
+        "example": {
+          "agent_id": "supervisor_agent",
+          "autonomy_level": "supervised",
+          "capabilities": [
+            "task_routing",
+            "consensus"
+          ],
+          "endpoint": "/api/v1/agents/supervisor_agent/invoke",
+          "name": "Supervisor Agent",
+          "status": "active",
+          "trust_score": 0.9,
+          "type": "SupervisorAgent"
+        }
+      },
+      "AgentsByCapabilityResponse": {
+        "properties": {
+          "capability": {
+            "type": "string",
+            "title": "Capability"
+          },
+          "total_matches": {
+            "type": "integer",
+            "title": "Total Matches"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentCapabilityMatch"
+            },
+            "type": "array",
+            "title": "Agents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capability",
+          "total_matches",
+          "agents"
+        ],
+        "title": "AgentsByCapabilityResponse",
+        "description": "Resultado de busca por capacidade (``GET /api/v1/agents/by-capability/{cap}``).",
+        "example": {
+          "agents": [
+            {
+              "agent_id": "supervisor_agent",
+              "endpoint": "/api/v1/agents/supervisor_agent/invoke",
+              "name": "Supervisor Agent"
+            }
+          ],
+          "capability": "task_routing",
+          "total_matches": 1
+        }
       },
       "AutonomyConfigUpdate": {
         "properties": {
@@ -1630,6 +2463,22 @@
         ],
         "title": "Body_analisar_legislacao_endpoint_analise_legislativa__post"
       },
+      "Body_criar_analise_legislativa_api_v1_analises_legislativas_post": {
+        "properties": {
+          "tema": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Tema",
+            "description": "Tema legislativo para análise de IA"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tema"
+        ],
+        "title": "Body_criar_analise_legislativa_api_v1_analises_legislativas_post"
+      },
       "FeedbackRequest": {
         "properties": {
           "agent_type": {
@@ -1638,7 +2487,6 @@
             "description": "Type of agent (e.g., 'TJSP', 'TJMG')"
           },
           "task_result": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Task Result",
             "description": "Result of the task execution"
@@ -1660,7 +2508,6 @@
           "corrections": {
             "anyOf": [
               {
-                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1694,7 +2541,6 @@
           "modifications": {
             "anyOf": [
               {
-                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1744,6 +2590,155 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HistoryRecord": {
+        "properties": {
+          "task": {
+            "type": "string",
+            "title": "Task"
+          },
+          "operation": {
+            "type": "string",
+            "title": "Operation"
+          },
+          "tribunals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tribunals"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "'concluida' | 'em_revisao_humana'"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task",
+          "operation",
+          "status"
+        ],
+        "title": "HistoryRecord",
+        "description": "Uma consulta processada no histórico do consulente."
+      },
+      "HistoryResponse": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryRecord"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "total",
+          "history"
+        ],
+        "title": "HistoryResponse",
+        "description": "Histórico de consultas (``GET /api/v1/history``).\n\n``count`` é o tamanho da página retornada; ``total`` é o total disponível na\nfonte (DecisionLedger, durável). O campo ``cursor`` traz o token opaco da\npróxima página — ``None`` quando não há mais entradas. Repassar ``cursor`` em\n``?cursor=`` avança a paginação.",
+        "example": {
+          "count": 1,
+          "history": [
+            {
+              "operation": "consulta_processual",
+              "status": "concluida",
+              "task": "status do processo no TJSP",
+              "timestamp": "2026-06-04T12:00:00+00:00",
+              "tribunals": [
+                "TJSP"
+              ]
+            }
+          ],
+          "total": 1
+        }
+      },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "LoginResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "user_id",
+          "roles"
+        ],
+        "title": "LoginResponse"
+      },
       "ProblemDetail": {
         "properties": {
           "status": {
@@ -1768,7 +2763,12 @@
           "title",
           "detail"
         ],
-        "title": "ProblemDetail"
+        "title": "ProblemDetail",
+        "example": {
+          "detail": "Parâmetro inválido.",
+          "status": 400,
+          "title": "Bad Request"
+        }
       },
       "SuccessfulTaskResponse": {
         "properties": {
@@ -1777,7 +2777,6 @@
             "title": "Status"
           },
           "supervisor_result": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Supervisor Result"
           },
@@ -1821,6 +2820,8 @@
         "properties": {
           "task_description": {
             "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
             "title": "Task Description",
             "description": "Descrição da tarefa jurídica"
           }
@@ -1866,7 +2867,6 @@
             "title": "Agent Type"
           },
           "stats": {
-            "additionalProperties": true,
             "type": "object",
             "title": "Stats"
           }
@@ -1902,13 +2902,6 @@
           "type": {
             "type": "string",
             "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
           }
         },
         "type": "object",
@@ -1918,6 +2911,12 @@
           "type"
         ],
         "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

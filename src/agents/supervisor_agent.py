@@ -520,6 +520,8 @@ class SupervisorAgent(A2ACapable):
                     agent_type="SupervisorAgent",
                     decision_type="TASK_COMPLETED",
                     metadata={
+                        "task": sanitized_task,
+                        "operation": intent.operacao,
                         "tribunals": tribunal_codes,
                         "intent_confidence": intent.confidence,
                         "recalled_count": len(recalled_memories),
@@ -770,6 +772,8 @@ class SupervisorAgent(A2ACapable):
                 agent_type="SupervisorAgent",
                 decision_type="TASK_COMPLETED",
                 metadata={
+                    "task": sanitized_task,
+                    "operation": intent.operacao,
                     "tribunals": tribunal_codes,
                     "intent_confidence": intent.confidence,
                     "recalled_count": len(recalled_memories),
