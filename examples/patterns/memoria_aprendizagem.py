@@ -2,10 +2,15 @@
 Memória & Aprendizagem: Assistente Pessoal com Preferências
 Caso de uso: Assistente que armazena preferências do usuário
 """
-from langchain.chains import LLMChain
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+try:
+    from langchain.chains import LLMChain
+    from langchain.memory import ConversationBufferMemory
+    from langchain.prompts import PromptTemplate
+    from langchain_openai import ChatOpenAI
+except ImportError as exc:
+    raise ImportError(
+        "Este exemplo requer LangChain: pip install langchain langchain-openai"
+    ) from exc
 
 
 # Configuração do LLM e Memória

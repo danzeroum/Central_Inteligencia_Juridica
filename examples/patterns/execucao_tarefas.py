@@ -2,10 +2,15 @@
 Execução de Tarefas: Orquestração de tarefas complexas
 Caso de uso: Processamento de Notas Fiscais (NFe)
 """
-from langchain.chains import LLMChain
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+try:
+    from langchain.chains import LLMChain
+    from langchain.memory import ConversationBufferMemory
+    from langchain.prompts import PromptTemplate
+    from langchain_openai import ChatOpenAI
+except ImportError as exc:
+    raise ImportError(
+        "Este exemplo requer LangChain: pip install langchain langchain-openai"
+    ) from exc
 
 
 # Configuração do LLM

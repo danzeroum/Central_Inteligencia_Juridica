@@ -2,9 +2,14 @@
 Raciocínio & Qualidade: Geração e autoavaliação de código
 Caso de uso: Geração de Função para Cálculo de Fatorial
 """
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+try:
+    from langchain.chains import LLMChain
+    from langchain.prompts import PromptTemplate
+    from langchain_openai import ChatOpenAI
+except ImportError as exc:
+    raise ImportError(
+        "Este exemplo requer LangChain: pip install langchain langchain-openai"
+    ) from exc
 
 
 # Configuração do LLM
