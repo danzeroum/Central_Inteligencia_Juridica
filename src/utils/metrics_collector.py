@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from contextlib import contextmanager
-from typing import Iterator
+from typing import Any, Dict, Iterator
 
 from prometheus_client import Counter, Gauge, Histogram
 
@@ -64,6 +64,32 @@ class MetricsCollector:
     def set_total_agents(counts: dict[str, int]) -> None:
         for tribunal, count in counts.items():
             _active_agents.labels(tribunal=tribunal).set(count)
+
+    @staticmethod
+    def snapshot() -> Dict[str, Any]:
+        """Snapshot agregado das métricas atuais.
+
+        Usado pelo ``/health?verbose=true`` para expor um resumo legível sem
+        depender do parser do endpoint Prometheus. Soma as amostras de cada
+        métrica (counters por ``_total``; gauges pelo nome da família).
+        """
+
+        def _sum(metric: Any) -> float:
+            total = 0.0
+            for family in metric.collect():
+                for sample in family.samples:
+                    if sample.name.endswith("_created"):
+                        continue
+                    if sample.name.endswith("_total") or sample.name == family.name:
+                        total += sample.value
+            return total
+
+        return {
+            "tasks_total": _sum(_task_counter),
+            "cache_hits_total": _sum(_cache_hits),
+            "api_errors_total": _sum(_api_errors),
+            "active_agents": _sum(_active_agents),
+        }
 
     @staticmethod
     @contextmanager
