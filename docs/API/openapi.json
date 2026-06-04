@@ -907,6 +907,127 @@
         }
       }
     },
+    "/api/v1/jurisprudencia": {
+      "get": {
+        "tags": [
+          "Jurisprudência"
+        ],
+        "summary": "Busca processos/jurisprudência no CNJ DataJud",
+        "description": "Consulta o CNJ DataJud por número de processo (``q``) ou por código(s) de assunto TPU (``assunto``). Requer ``tribunal`` (alias do DataJud). Sem chave configurada, retorna dados simulados (``source='simulated'``).",
+        "operationId": "buscar_jurisprudencia_api_v1_jurisprudencia_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tribunal",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Alias do tribunal no DataJud (ex.: tjsp, trf1, stj)",
+              "title": "Tribunal"
+            },
+            "description": "Alias do tribunal no DataJud (ex.: tjsp, trf1, stj)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Número do processo a consultar",
+              "title": "Q"
+            },
+            "description": "Número do processo a consultar"
+          },
+          {
+            "name": "assunto",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código(s) de assunto TPU (repetível)",
+              "title": "Assunto"
+            },
+            "description": "Código(s) de assunto TPU (repetível)"
+          },
+          {
+            "name": "grau",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Grau (G1, G2, JE, TR, ST)",
+              "title": "Grau"
+            },
+            "description": "Grau (G1, G2, JE, TR, ST)"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Máximo de resultados",
+              "default": 10,
+              "title": "Size"
+            },
+            "description": "Máximo de resultados"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataJudSearchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/agents/capabilities": {
       "get": {
         "tags": [
@@ -2478,6 +2599,187 @@
           "tema"
         ],
         "title": "Body_criar_analise_legislativa_api_v1_analises_legislativas_post"
+      },
+      "DataJudProcesso": {
+        "properties": {
+          "numeroProcesso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numeroprocesso"
+          },
+          "tribunal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tribunal"
+          },
+          "grau": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grau"
+          },
+          "dataAjuizamento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataajuizamento"
+          },
+          "dataHoraUltimaAtualizacao": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datahoraultimaatualizacao"
+          },
+          "classe": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classe"
+          },
+          "orgaoJulgador": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orgaojulgador"
+          },
+          "assuntos": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Assuntos"
+          },
+          "movimentos": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Movimentos"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "DataJudProcesso",
+        "description": "Metadados de capa de um processo (um ``_source`` do ElasticSearch)."
+      },
+      "DataJudSearchResult": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "processos": {
+            "items": {
+              "$ref": "#/components/schemas/DataJudProcesso"
+            },
+            "type": "array",
+            "title": "Processos"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "real_api"
+          },
+          "fallback": {
+            "type": "boolean",
+            "title": "Fallback",
+            "default": false
+          },
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alias"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "circuit_breaker": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Circuit Breaker"
+          }
+        },
+        "type": "object",
+        "title": "DataJudSearchResult",
+        "description": "Resultado normalizado de uma busca ``_search`` no DataJud.\n\n``source`` segue o padrão do ADR-008: ``real_api`` quando os dados vêm da API\noficial, ``simulated`` quando houve fallback gracioso (sem chave, erro de rede\nou circuit breaker aberto).",
+        "example": {
+          "alias": "trf1",
+          "fallback": false,
+          "processos": [
+            {
+              "assuntos": [
+                {
+                  "codigo": 2086,
+                  "nome": "Rescisão do Contrato"
+                }
+              ],
+              "dataAjuizamento": "2018-05-14T00:00:00.000Z",
+              "grau": "G1",
+              "numeroProcesso": "00008323520184013202",
+              "tribunal": "TRF1"
+            }
+          ],
+          "source": "real_api",
+          "total": 1
+        }
       },
       "FeedbackRequest": {
         "properties": {

@@ -59,6 +59,12 @@ e textos de decisões são **mascarados** por força da LGPD. Portanto:
   delegar ao backend DataJud (e unificar em async) é um **follow-up**.
 - A camada de texto integral (RAG diários/PJe) é trabalho posterior.
 
+### Atualização (2026-06-04) — endpoint HTTP entregue
+- ✅ Dívida resolvida: `GET /api/v1/jurisprudencia` (router
+  `src/api/jurisprudencia_endpoints.py`) expõe a busca à SPA (por número de
+  processo `q` ou `assunto` TPU), com `response_model`, auth, rate-limit e
+  validação de alias. Cliente JS: `api.jurisprudencia(...)`.
+
 ## Configuração
 
 ```bash
@@ -71,6 +77,8 @@ DATAJUD_CB_TIMEOUT_SECONDS=30                # opcional
 - `tests/integration/test_datajud.py` — builder, sucesso real (mock respx),
   fallback sem chave, fallback em erro HTTP, abertura do circuit breaker,
   serviço e registro de tools MCP (8 testes).
+- `tests/integration/test_jurisprudencia_endpoint.py` — endpoint HTTP: fallback
+  sem chave, validações (400), roteamento por `q`, `response_model` no OpenAPI.
 - Suíte completa verde; `black`/`bandit` ok.
 
 ## Referências

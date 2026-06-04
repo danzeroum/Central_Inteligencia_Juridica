@@ -43,6 +43,7 @@ from src.api.schemas.responses import (
 )
 from src.api.autonomy_endpoints import router as autonomy_router
 from src.api.hitl_endpoints import router as hitl_router
+from src.api.jurisprudencia_endpoints import router as jurisprudencia_router
 from src.api.ledger_endpoints import router as ledger_router
 from src.api.lgpd_endpoints import router as lgpd_router
 from src.api.monitoring_endpoints import router as monitoring_router
@@ -168,6 +169,7 @@ app.include_router(ledger_router)
 app.include_router(lgpd_router)
 app.include_router(autonomy_router)
 app.include_router(monitoring_router)
+app.include_router(jurisprudencia_router)
 
 
 # SECURITY (SEC-004 / CWE-209): handler global de exceções não tratadas. Em vez
