@@ -2,9 +2,14 @@
 Multi-Agent Collaboration: Múltiplos agentes especializados colaborando
 Caso de uso: Sistema de pesquisa e análise de mercado
 """
-from langchain.agents import AgentType, initialize_agent
-from langchain.tools import Tool
-from langchain_community.llms import OpenAI
+try:
+    from langchain.agents import AgentType, initialize_agent
+    from langchain.tools import Tool
+    from langchain_community.llms import OpenAI
+except ImportError as exc:
+    raise ImportError(
+        "Este exemplo requer LangChain: pip install langchain langchain-community"
+    ) from exc
 
 llm = OpenAI(temperature=0.1)
 

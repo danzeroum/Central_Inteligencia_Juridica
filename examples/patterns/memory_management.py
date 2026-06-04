@@ -2,10 +2,15 @@
 Memory Management: Ciclo completo de armazenamento e recuperação
 Caso de uso: Assistente personalizado que lembra preferências
 """
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain_community.llms import OpenAI
+try:
+    from langchain.memory import ConversationBufferMemory
+    from langchain.chains import LLMChain
+    from langchain.prompts import PromptTemplate
+    from langchain_community.llms import OpenAI
+except ImportError as exc:
+    raise ImportError(
+        "Este exemplo requer LangChain: pip install langchain langchain-community"
+    ) from exc
 
 # Configuração com Memória Persistente
 memory = ConversationBufferMemory(return_messages=True)

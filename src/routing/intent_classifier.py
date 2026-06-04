@@ -1,10 +1,11 @@
 """LLM-based Intent Classifier for intelligent routing.
 
 Esta implementação segue a especificação da Onda 2.1. Sempre que um
-modelo de linguagem estiver disponível o classificador utiliza LangChain para
-obter uma saída estruturada. Caso contrário – ou se ocorrer algum erro – a
-solução realiza um fallback determinístico baseado em heurísticas, garantindo
-que os testes possam ser executados offline.
+modelo de linguagem estiver disponível o classificador utiliza o SDK openai
+(compatível com DeepSeek e outros providers via OPENAI_BASE_URL) para obter
+uma saída estruturada. Caso contrário – ou se ocorrer algum erro – a solução
+realiza um fallback determinístico baseado em heurísticas, garantindo que os
+testes possam ser executados offline.
 """
 
 from __future__ import annotations
@@ -17,13 +18,9 @@ import time
 from typing import Any, Dict, List, Optional
 
 try:  # pragma: no cover - dependência opcional
-    from langchain.chains import LLMChain
-    from langchain.prompts import PromptTemplate
-    from langchain_openai import ChatOpenAI
-except Exception:  # pragma: no cover - ambiente sem LangChain
-    LLMChain = None  # type: ignore[assignment]
-    PromptTemplate = None  # type: ignore[assignment]
-    ChatOpenAI = None  # type: ignore[assignment]
+    import openai as _openai_module
+except ImportError:  # pragma: no cover
+    _openai_module = None  # type: ignore[assignment]
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -125,31 +122,22 @@ Agora analise a seguinte solicitação:
         if llm_enabled is not None:
             inferred_enabled = llm_enabled
 
-        self.llm_enabled = (
-            bool(LLMChain and PromptTemplate and ChatOpenAI) and inferred_enabled
-        )
-        self.chain: Optional[LLMChain] = None
+        self.llm_enabled = bool(_openai_module) and inferred_enabled
+        self._openai_base_url: Optional[str] = os.getenv("OPENAI_BASE_URL")
+        self._temperature = temperature
+        self._openai_client: Optional[Any] = None  # singleton — connection pool reutilizado
 
         if self.llm_enabled:
             try:
-                llm = ChatOpenAI(  # type: ignore[operator]
-                    model=model_name,
-                    temperature=temperature,
-                    request_timeout=30,
-                )
-                prompt = PromptTemplate(  # type: ignore[operator]
-                    input_variables=["user_input"],
-                    template=self.CLASSIFICATION_PROMPT,
-                )
-                self.chain = LLMChain(  # type: ignore[operator]
-                    llm=llm,
-                    prompt=prompt,
-                    verbose=False,
+                self._openai_client = _openai_module.AsyncOpenAI(  # type: ignore[union-attr]
+                    api_key=os.getenv("OPENAI_API_KEY"),
+                    base_url=self._openai_base_url or None,
+                    timeout=30,
                 )
             except Exception as exc:  # pragma: no cover - inicialização defensiva
-                logger.warning("Failed to initialize LLM chain: %s", exc)
+                logger.warning("Failed to initialize OpenAI client: %s", exc)
                 self.llm_enabled = False
-                self.chain = None
+                self._openai_client = None
 
         logger.info(
             "IntentClassifier initialized (model=%s, threshold=%.2f, llm_enabled=%s)",
@@ -163,13 +151,13 @@ Agora analise a seguinte solicitação:
 
         start_time = time.perf_counter()
 
-        if not self.llm_enabled or self.chain is None:
+        if not self.llm_enabled or self._openai_client is None:
             return self._keyword_classify(
                 user_input, fallback_reason="LLM indisponível"
             )
 
         try:
-            raw_output = await self.chain.arun(user_input=user_input)
+            raw_output = await self._call_llm(user_input)
             parsed = self._parse_llm_output(raw_output)
             intent = ClassifiedIntent.model_validate(parsed)
         except Exception as exc:
@@ -223,6 +211,21 @@ Agora analise a seguinte solicitação:
             return True
 
         return False
+
+    async def _call_llm(self, user_input: str) -> str:
+        response = await self._openai_client.chat.completions.create(  # type: ignore[union-attr]
+            model=self.model_name,
+            temperature=self._temperature,
+            messages=[
+                {
+                    "role": "user",
+                    "content": self.CLASSIFICATION_PROMPT.format(
+                        user_input=user_input
+                    ),
+                }
+            ],
+        )
+        return response.choices[0].message.content or ""
 
     # ------------------------------------------------------------------
     # Métodos auxiliares
