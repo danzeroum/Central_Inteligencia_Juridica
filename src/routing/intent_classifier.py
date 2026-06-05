@@ -215,17 +215,34 @@ Agora analise a seguinte solicitação:
         return False
 
     async def _call_llm(self, user_input: str) -> str:
-        response = await self._openai_client.chat.completions.create(  # type: ignore[union-attr]
-            model=self.model_name,
-            temperature=self._temperature,
-            messages=[
-                {
-                    "role": "user",
-                    "content": self.CLASSIFICATION_PROMPT.format(user_input=user_input),
-                }
-            ],
+        logger.info(
+            "_call_llm START model=%s input_len=%d",
+            self.model_name,
+            len(user_input),
         )
-        return response.choices[0].message.content or ""
+        try:
+            response = await self._openai_client.chat.completions.create(  # type: ignore[union-attr]
+                model=self.model_name,
+                temperature=self._temperature,
+                max_tokens=512,
+                timeout=25,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": self.CLASSIFICATION_PROMPT.format(
+                            user_input=user_input
+                        ),
+                    }
+                ],
+            )
+            logger.info(
+                "_call_llm OK tokens=%s",
+                response.usage.total_tokens if response.usage else "unknown",
+            )
+            return response.choices[0].message.content or ""
+        except Exception as exc:
+            logger.error("_call_llm FAILED: %s", exc, exc_info=True)
+            raise
 
     # ------------------------------------------------------------------
     # Métodos auxiliares
