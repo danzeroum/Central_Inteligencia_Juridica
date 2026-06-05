@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: central-inteligencia-juridica
     ports:
-      - "8001:8000"
+      - "8002:8000"
     volumes:
       - ./src:/app/src:ro
       - ./tests:/app/tests:ro
