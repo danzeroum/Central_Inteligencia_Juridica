@@ -100,7 +100,7 @@ services:
     image: prom/prometheus:v2.54.1
     container_name: tribunal-prometheus
     ports:
-      - "9090:9090"
+      - "9091:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
