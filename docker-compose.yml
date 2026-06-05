@@ -67,6 +67,9 @@ services:
     depends_on:
       - redis
       - prometheus
+    networks:
+      - default
+      - btv-prod-net
 
   redis:
     image: redis:7-alpine
@@ -197,3 +200,8 @@ volumes:
   alertmanager_data:
   grafana_data:
   vector_memory_data:
+
+networks:
+  default:
+  btv-prod-net:
+    external: true
