@@ -24,6 +24,9 @@ services:
       - TRANSFORMERS_CACHE=/tmp/hf
       - SENTENCE_TRANSFORMERS_HOME=/tmp/hf
       - VECTOR_MEMORY_PERSIST_PATH=/app/.vector_memory
+      # "local" usa PersistentClient (sem servidor externo). "none" desativa a memória.
+      # Sem esta linha o padrão "auto" tenta HTTP remoto 3× (backoff 2+4 s) causando 504.
+      - VECTOR_MEMORY_MODE=${VECTOR_MEMORY_MODE:-local}
       - ENVIRONMENT=${ENVIRONMENT:-production}
       # SECURITY: JWT_SECRET é OBRIGATÓRIO (mín. 32 chars). Sem ele a app não sobe.
       - JWT_SECRET=${JWT_SECRET:?defina JWT_SECRET no .env (veja .env.example)}
