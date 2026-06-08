@@ -86,7 +86,7 @@ export const api = {
       `/api/v1/proposicoes-legislativas?q=${encodeURIComponent(q)}&pagina=${pagina}&itens=${itens}`
     ),
   legislativeAnalysis: (tema) =>
-    request(`/analise-legislativa/?tema=${encodeURIComponent(tema)}`, { method: 'POST' }),
+    request('/api/v1/analises-legislativas', { method: 'POST', body: { tema } }),
 
   // HITL
   hitlPending: () => request('/api/v1/hitl/pending'),
