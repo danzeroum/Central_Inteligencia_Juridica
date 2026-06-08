@@ -46,17 +46,29 @@ class DataJudQueryBuilder:
             {
                 "bool": {
                     "should": [
+                        # Frase exata (maior precisão)
                         {
                             "match_phrase": {
-                                "assuntos.nome": {"query": texto, "boost": 3.0}
+                                "assuntos.nome": {"query": texto, "boost": 4.0}
                             }
                         },
+                        # Match normal com termos mínimos
                         {
                             "match": {
                                 "assuntos.nome": {
                                     "query": texto,
                                     "minimum_should_match": min_match,
                                     "boost": 2.0,
+                                }
+                            }
+                        },
+                        # Fuzziness cobre acentos e pequenos erros (ex: feminicidio → feminicídio)
+                        {
+                            "match": {
+                                "assuntos.nome": {
+                                    "query": texto,
+                                    "fuzziness": "AUTO",
+                                    "boost": 1.5,
                                 }
                             }
                         },
