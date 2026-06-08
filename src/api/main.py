@@ -694,6 +694,7 @@ async def get_agent_details(
         agent_id=card.agent_id,
         name=card.name,
         type=card.agent_type,
+        agent_type=card.agent_type,
         status=card.status,
         endpoint=card.endpoint,
         specialization=card.specialization,

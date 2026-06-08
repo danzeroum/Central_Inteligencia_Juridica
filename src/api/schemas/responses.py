@@ -56,10 +56,14 @@ class AgentSummary(BaseModel):
 class AgentDetailResponse(AgentSummary):
     """Card completo de um agente — ``GET /api/v1/agents/{agent_id}``."""
 
+    # Preserves the legacy key name used by the capabilities endpoint and tests.
+    agent_type: str = ""
+
     model_config = {
         "json_schema_extra": {
             "example": {
                 **AgentSummary.model_config["json_schema_extra"]["example"],
+                "agent_type": "SupervisorAgent",
                 "metadata": {
                     "active_delegates": ["tjsp_agent"],
                     "total_tasks_processed": 42,
