@@ -14,7 +14,12 @@ class OpsAgent(BaseAgent):
         super().__init__("ops")
         self.name = "Ops Agent"
         self.description = "Fornece runbooks operacionais para deploy, monitoramento e escalonamento da plataforma."
-        self.capabilities = ["deployment_planning", "monitoring_setup", "rollback_management", "scaling"]
+        self.capabilities = [
+            "deployment_planning",
+            "monitoring_setup",
+            "rollback_management",
+            "scaling",
+        ]
         self.specialization = "operations"
         self.deployment_strategies = ["blue-green", "canary", "rolling"]
         self.tools = ["deploy_service", "configure_monitoring"]

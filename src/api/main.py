@@ -101,7 +101,6 @@ AuthManager.configure(required=AUTH_REQUIRED)
 # compartilhado para que os routers também o apliquem (sem import circular).
 from src.api.rate_limit import enforce_rate_limit  # noqa: E402
 
-
 # SECURITY (P0-5): identificadores de agente (A2A) seguem um allowlist estrito —
 # alfanuméricos e ``_ . -`` com comprimento limitado — fechando o vetor de injeção
 # de ``sender_id``/``receiver_id`` recebidos como entrada controlada pelo usuário.
@@ -703,7 +702,10 @@ async def get_agent_details(
         tools=card.tools,
         version=card.version,
         trust_score=round(
-            autonomy.agent_trust_scores.get(card.agent_id, autonomy.default_trust_score), 2
+            autonomy.agent_trust_scores.get(
+                card.agent_id, autonomy.default_trust_score
+            ),
+            2,
         ),
         autonomy_level=autonomy.get_autonomy_level(card.agent_id),
         metadata=card.metadata,
@@ -740,7 +742,11 @@ async def update_agent_trust(
 
     logger.info(
         "Trust score atualizado",
-        extra={"agent_id": agent_id, "trust_score": body.trust_score, "level": new_level},
+        extra={
+            "agent_id": agent_id,
+            "trust_score": body.trust_score,
+            "level": new_level,
+        },
     )
 
     return AgentTrustResponse(

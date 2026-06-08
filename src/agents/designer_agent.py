@@ -13,8 +13,15 @@ class DesignerAgent(BaseAgent):
     def __init__(self) -> None:
         super().__init__("designer")
         self.name = "Designer Agent"
-        self.description = "Produz artefatos de design UX/UI pragmáticos para a plataforma."
-        self.capabilities = ["ui_design", "ux_review", "accessibility_review", "design_mock"]
+        self.description = (
+            "Produz artefatos de design UX/UI pragmáticos para a plataforma."
+        )
+        self.capabilities = [
+            "ui_design",
+            "ux_review",
+            "accessibility_review",
+            "design_mock",
+        ]
         self.specialization = "design"
         self.design_patterns: List[str] = ["material", "fluent", "carbon"]
         self.tools = ["design_mock", "accessibility_review"]

@@ -60,7 +60,10 @@ class AgentDetailResponse(AgentSummary):
         "json_schema_extra": {
             "example": {
                 **AgentSummary.model_config["json_schema_extra"]["example"],
-                "metadata": {"active_delegates": ["tjsp_agent"], "total_tasks_processed": 42},
+                "metadata": {
+                    "active_delegates": ["tjsp_agent"],
+                    "total_tasks_processed": 42,
+                },
             }
         }
     }
@@ -69,7 +72,9 @@ class AgentDetailResponse(AgentSummary):
 class AgentTrustUpdate(BaseModel):
     """Payload para atualizar o trust score de um agente."""
 
-    trust_score: float = Field(..., ge=0.0, le=1.0, description="Novo trust score (0–1)")
+    trust_score: float = Field(
+        ..., ge=0.0, le=1.0, description="Novo trust score (0–1)"
+    )
 
 
 class AgentTrustResponse(BaseModel):

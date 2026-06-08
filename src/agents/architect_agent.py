@@ -26,7 +26,12 @@ class ArchitectAgent:
         self.agent_type = "architect"
         self.name = "Architect Agent"
         self.description = "Realiza raciocínio chain-of-thought determinístico para planejamento jurídico e geração de ADRs."
-        self.capabilities = ["chain_of_thought", "planning", "adr_generation", "tribunal_routing"]
+        self.capabilities = [
+            "chain_of_thought",
+            "planning",
+            "adr_generation",
+            "tribunal_routing",
+        ]
         self.specialization = "architecture"
         self.tools = ["input_sanitizer", "reasoning_history"]
         self.version = "1.0.0"

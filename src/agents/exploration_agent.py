@@ -20,7 +20,11 @@ class ExplorationAgent(BaseAgent):
         super().__init__("exploration")
         self.name = "Exploration Agent"
         self.description = "Responsável por varrer ambientes em busca de vulnerabilidades e pontos de falha."
-        self.capabilities = ["vulnerability_scan", "network_exploration", "security_assessment"]
+        self.capabilities = [
+            "vulnerability_scan",
+            "network_exploration",
+            "security_assessment",
+        ]
         self.specialization = "exploration"
         self.scanner_tool = scanner_tool
         self.tools = ["scanner"]
