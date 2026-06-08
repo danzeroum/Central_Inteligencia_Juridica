@@ -21,7 +21,9 @@ def configure_vector_memory_env(monkeypatch, tmp_path_factory):
     """Configure environment for offline-friendly VectorMemory tests."""
 
     persist_dir = tmp_path_factory.mktemp("vector_memory")
-    monkeypatch.setenv("VECTOR_MEMORY_MODE", "local")
+    # "none" prevents SIGILL from native HNSWLIB on Python 3.12 CI runners.
+    # The memory_system fixture below skips tests when is_available() is False.
+    monkeypatch.setenv("VECTOR_MEMORY_MODE", "none")
     monkeypatch.setenv("VECTOR_MEMORY_PERSIST_PATH", str(persist_dir))
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
