@@ -13,6 +13,16 @@ class DeveloperAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__("developer")
+        self.name = "Developer Agent"
+        self.description = "Desenvolvedor full-stack com loop Thought → Action → Observation (ReAct) para implementação de código."
+        self.capabilities = [
+            "code_generation",
+            "test_generation",
+            "refactoring",
+            "debugging",
+            "requirements_analysis",
+        ]
+        self.specialization = "development"
         self.history: List[Dict[str, Any]] = []
         self.max_iterations = 5
         self.tools = [
@@ -22,6 +32,24 @@ class DeveloperAgent(BaseAgent):
             "debug",
             "analyze_requirements",
         ]
+        self.metadata = {
+            "pattern": "ReAct",
+            "loop_description": "Thought → Action → Observation",
+            "max_iterations": 5,
+            "tool_routing": {
+                "understanding": "analyze_requirements",
+                "test": "generate_tests",
+                "refactor": "refactor",
+                "debug": "debug",
+                "default": "write_code",
+            },
+            "completion_keywords": ["complete", "finished", "generated"],
+            "confidence": {
+                "task_complete": 0.9,
+                "task_incomplete": 0.4,
+            },
+            "history_cleared_per_task": True,
+        }
 
     async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         if not self.validate_input(task):

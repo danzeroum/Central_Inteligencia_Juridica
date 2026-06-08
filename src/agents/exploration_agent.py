@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 from src.agents.base_agent import BaseAgent
 
@@ -14,14 +14,35 @@ class ExplorationAgent(BaseAgent):
     mantendo o método ``arun`` original por compatibilidade retroativa.
     """
 
-    def __init__(self, scanner_tool: Callable[[str], Awaitable[Any]]) -> None:
+    def __init__(
+        self, scanner_tool: Optional[Callable[[str], Awaitable[Any]]] = None
+    ) -> None:
         super().__init__("exploration")
+        self.name = "Exploration Agent"
+        self.description = "Responsável por varrer ambientes em busca de vulnerabilidades e pontos de falha."
+        self.capabilities = [
+            "vulnerability_scan",
+            "network_exploration",
+            "security_assessment",
+        ]
+        self.specialization = "exploration"
         self.scanner_tool = scanner_tool
         self.tools = ["scanner"]
+        self.metadata = {
+            "scanner_tool_configured": scanner_tool is not None,
+            "scan_mode": "active" if scanner_tool is not None else "passive",
+            "scan_modes": ["passive", "active"],
+            "scan_types": ["vulnerability", "network", "security_assessment"],
+            "output_format": "text_report",
+            "arun_compatible": True,
+            "integration_points": ["security_pipeline", "auditor_agent"],
+        }
 
     async def arun(self, instruction: str) -> str:
         """Executa um scan e retorna um relatório textual."""
 
+        if self.scanner_tool is None:
+            return f"Exploration acknowledged (no scanner configured): {instruction}"
         result = await self.scanner_tool(instruction)
         return f"Exploration report: {result}"
 

@@ -13,3 +13,8 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("ENVIRONMENT", "test")
+# Disable ChromaDB initialization during tests — the native HNSWLIB extension can
+# crash with SIGILL on CI runners whose CPUs lack the required instruction sets.
+# Setting this before any test module is imported ensures VectorMemory.__init__
+# returns immediately (client=None) without touching the native library.
+os.environ.setdefault("VECTOR_MEMORY_MODE", "none")

@@ -37,7 +37,11 @@ def isolate_vector_memory(monkeypatch, tmp_path_factory):
     """Aponta o VectorMemory para um diretório temporário exclusivo por teste."""
 
     persist_dir = tmp_path_factory.mktemp("vector_memory")
-    monkeypatch.setenv("VECTOR_MEMORY_MODE", "local")
+    # Use "none" mode so the native HNSWLIB extension is never loaded — it crashes
+    # with SIGILL on Python 3.12 CI runners whose CPUs lack the required instruction
+    # set. Tests that specifically need VectorMemory (test_vector_memory.py) guard
+    # themselves with pytest.skip when is_available() returns False.
+    monkeypatch.setenv("VECTOR_MEMORY_MODE", "none")
     monkeypatch.setenv("VECTOR_MEMORY_PERSIST_PATH", str(persist_dir))
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     yield

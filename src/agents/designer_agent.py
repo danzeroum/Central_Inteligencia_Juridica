@@ -12,8 +12,39 @@ class DesignerAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__("designer")
+        self.name = "Designer Agent"
+        self.description = (
+            "Produz artefatos de design UX/UI pragmáticos para a plataforma."
+        )
+        self.capabilities = [
+            "ui_design",
+            "ux_review",
+            "accessibility_review",
+            "design_mock",
+        ]
+        self.specialization = "design"
         self.design_patterns: List[str] = ["material", "fluent", "carbon"]
         self.tools = ["design_mock", "accessibility_review"]
+        self.metadata = {
+            "supported_patterns": ["material", "fluent", "carbon"],
+            "default_pattern": "material",
+            "supported_themes": ["light", "dark"],
+            "default_components": ["header", "navigation", "content", "footer"],
+            "optional_components": {"landing_page": "hero"},
+            "default_palette": {
+                "primary": "#1976d2",
+                "secondary": "#dc004e",
+                "background_light": "#ffffff",
+                "background_dark": "#121212",
+            },
+            "typography": {
+                "font": "Roboto",
+                "scale": {"h1": "2rem", "body": "1rem"},
+            },
+            "accessibility_standard": "WCAG 2.1 AA",
+            "responsive_default": True,
+            "confidence_design": 0.85,
+        }
 
     async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         if not self.validate_input(task):

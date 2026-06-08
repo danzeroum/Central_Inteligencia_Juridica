@@ -99,6 +99,16 @@ class VectorMemory:
     def _initialize_connection(self) -> None:
         """Initialize connection to ChromaDB with retry logic."""
 
+        mode = self.mode
+
+        # Explicit opt-out: skip all ChromaDB initialization (useful in CI/tests
+        # where the native HNSWLIB extension may crash with SIGILL on certain CPUs).
+        if mode in {"none", "disabled", "off"}:
+            logger.info("VECTOR_MEMORY_MODE=%s: ChromaDB initialization skipped.", mode)
+            self.client = None
+            self.collection = None
+            return
+
         if chromadb is None or Settings is None or embedding_functions is None:
             logger.error(
                 "chromadb package not installed. Install dependencies from requirements.txt."
@@ -106,8 +116,6 @@ class VectorMemory:
             self.client = None
             self.collection = None
             return
-
-        mode = self.mode
 
         if mode not in {"auto", "remote", "local"}:
             logger.warning(

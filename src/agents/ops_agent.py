@@ -12,8 +12,45 @@ class OpsAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__("ops")
+        self.name = "Ops Agent"
+        self.description = "Fornece runbooks operacionais para deploy, monitoramento e escalonamento da plataforma."
+        self.capabilities = [
+            "deployment_planning",
+            "monitoring_setup",
+            "rollback_management",
+            "scaling",
+        ]
+        self.specialization = "operations"
         self.deployment_strategies = ["blue-green", "canary", "rolling"]
         self.tools = ["deploy_service", "configure_monitoring"]
+        self.metadata = {
+            "deployment_strategies": ["blue-green", "canary", "rolling"],
+            "default_strategy": "blue-green",
+            "pipeline_stages": ["build", "test", "staging", "production"],
+            "health_check_types": ["http", "tcp", "custom"],
+            "scaling_policy": {
+                "min_instances": 2,
+                "max_instances": 10,
+                "target_cpu_pct": 70,
+            },
+            "monitoring": {
+                "metrics": ["cpu", "memory", "requests", "errors", "latency"],
+                "alert_rules": [
+                    {"metric": "error_rate", "threshold": 0.01, "action": "notify"},
+                    {
+                        "metric": "latency_p95_ms",
+                        "threshold": 800,
+                        "action": "scale",
+                    },
+                ],
+                "dashboards": ["overview", "performance", "errors"],
+                "log_level": "info",
+                "log_structured": True,
+                "log_retention_days": 30,
+            },
+            "rollback_enabled": True,
+            "confidence": 0.9,
+        }
 
     async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         if not self.validate_input(task):
