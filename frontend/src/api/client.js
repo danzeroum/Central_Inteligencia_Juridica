@@ -81,8 +81,10 @@ export const api = {
   },
 
   // Legislativo
-  legislativeBills: (q) =>
-    request(`/consultar-projetos-lei/?q=${encodeURIComponent(q)}`),
+  legislativeBills: (q, { pagina = 1, itens = 15 } = {}) =>
+    request(
+      `/api/v1/proposicoes-legislativas?q=${encodeURIComponent(q)}&pagina=${pagina}&itens=${itens}`
+    ),
   legislativeAnalysis: (tema) =>
     request(`/analise-legislativa/?tema=${encodeURIComponent(tema)}`, { method: 'POST' }),
 

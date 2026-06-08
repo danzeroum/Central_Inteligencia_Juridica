@@ -7,13 +7,25 @@ logger = logging.getLogger(__name__)
 CAMARA_API_URL = "https://dadosabertos.camara.leg.br/api/v2/proposicoes"
 
 
-def buscar_projetos_de_lei(termo_busca: str) -> dict:
-    """
-    Busca por proposições na API da Câmara e retorna o dicionário JSON.
-    """
-    logger.info("Buscando projetos com o termo: '%s'", termo_busca)
+def buscar_projetos_de_lei(
+    termo_busca: str, *, pagina: int = 1, itens: int = 15
+) -> dict:
+    """Busca proposições na API da Câmara com suporte a paginação."""
+
+    logger.info(
+        "Buscando projetos com o termo: '%s' (página %d, %d itens)",
+        termo_busca,
+        pagina,
+        itens,
+    )
     try:
-        params = {"keywords": termo_busca, "ordem": "DESC", "ordenarPor": "ano"}
+        params = {
+            "keywords": termo_busca,
+            "ordem": "DESC",
+            "ordenarPor": "ano",
+            "pagina": pagina,
+            "itens": min(max(itens, 1), 100),
+        }
         headers = {"Accept": "application/json"}
         with httpx.Client(timeout=20.0) as client:
             response = client.get(CAMARA_API_URL, params=params, headers=headers)
