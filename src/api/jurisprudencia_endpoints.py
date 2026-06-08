@@ -44,6 +44,9 @@ async def buscar_jurisprudencia(
         ..., description="Alias do tribunal no DataJud (ex.: tjsp, trf1, stj)"
     ),
     q: Optional[str] = Query(None, description="Número do processo a consultar"),
+    tema: Optional[str] = Query(
+        None, max_length=200, description="Tema ou palavras-chave (busca por texto)"
+    ),
     assunto: Optional[List[int]] = Query(
         None, description="Código(s) de assunto TPU (repetível)"
     ),
@@ -52,7 +55,7 @@ async def buscar_jurisprudencia(
     _principal: Principal = Depends(current_principal),
     _rl: None = Depends(enforce_rate_limit),
 ) -> DataJudSearchResult:
-    """Roteia a consulta para a camada DataJud (busca por processo ou assunto)."""
+    """Roteia a consulta para a camada DataJud (processo, tema ou assunto TPU)."""
 
     alias = (tribunal or "").strip().lower()
     if not _ALIAS_RE.match(alias):
@@ -63,6 +66,10 @@ async def buscar_jurisprudencia(
 
     if q and q.strip():
         return await datajud_service.buscar_processo(alias, q.strip())
+    if tema and tema.strip():
+        return await datajud_service.buscar_por_tema(
+            alias, tema.strip(), grau=grau, size=size
+        )
     if assunto:
         return await datajud_service.buscar_por_assunto(
             alias, assunto, grau=grau, size=size
@@ -70,7 +77,7 @@ async def buscar_jurisprudencia(
 
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Informe 'q' (número do processo) ou 'assunto' (código TPU).",
+        detail="Informe 'q' (processo), 'tema' (palavras-chave) ou 'assunto' (código TPU).",
     )
 
 

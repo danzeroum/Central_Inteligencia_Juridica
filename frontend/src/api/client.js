@@ -69,10 +69,11 @@ export const api = {
   history: (limit = 20) => request(`/api/v1/history?limit=${limit}`),
 
   // Jurisprudência (CNJ DataJud — Frente F.1)
-  jurisprudencia: ({ tribunal, q, assunto, grau, size } = {}) => {
+  jurisprudencia: ({ tribunal, q, tema, assunto, grau, size } = {}) => {
     const params = new URLSearchParams()
     if (tribunal) params.set('tribunal', tribunal)
     if (q) params.set('q', q)
+    if (tema) params.set('tema', tema)
     if (grau) params.set('grau', grau)
     if (size) params.set('size', String(size))
     for (const a of assunto || []) params.append('assunto', String(a))

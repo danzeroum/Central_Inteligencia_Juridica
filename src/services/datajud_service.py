@@ -52,6 +52,19 @@ class DataJudService:
             builder.with_grau(grau)
         return await self._client(alias).search(builder.build())
 
+    async def buscar_por_tema(
+        self,
+        alias: str,
+        tema: str,
+        *,
+        grau: Optional[str] = None,
+        size: int = 5,
+    ) -> DataJudSearchResult:
+        builder = DataJudQueryBuilder().with_texto(tema).pagina(size)
+        if grau:
+            builder.with_grau(grau)
+        return await self._client(alias).search(builder.build())
+
     async def monitorar_atualizacoes(
         self, alias: str, *, horas: int = 24, size: int = 20
     ) -> DataJudSearchResult:

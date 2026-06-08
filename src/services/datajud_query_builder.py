@@ -34,6 +34,20 @@ class DataJudQueryBuilder:
         self._must.append({"match": {"numeroProcesso": numero}})
         return self
 
+    def with_texto(self, texto: str) -> "DataJudQueryBuilder":
+        """Busca por tema/palavras-chave nos metadados de capa (assunto, classe)."""
+        self._must.append(
+            {
+                "multi_match": {
+                    "query": texto,
+                    "fields": ["assuntos.nome", "classe.nome"],
+                    "type": "best_fields",
+                    "operator": "or",
+                }
+            }
+        )
+        return self
+
     def with_assuntos(self, codigos: List[int]) -> "DataJudQueryBuilder":
         self._filter.append({"terms": {"assuntos.codigo": codigos}})
         return self
