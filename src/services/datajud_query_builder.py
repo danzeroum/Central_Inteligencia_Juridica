@@ -35,14 +35,45 @@ class DataJudQueryBuilder:
         return self
 
     def with_texto(self, texto: str) -> "DataJudQueryBuilder":
-        """Busca por tema/palavras-chave nos metadados de capa (assunto, classe)."""
+        """Busca por tema nos metadados de capa do DataJud.
+
+        Usa minimum_should_match=2 para exigir pelo menos 2 termos significativos
+        no assunto ou classe, evitando falsos positivos via palavras comuns.
+        Prioriza match_phrase para relevância máxima.
+        """
         self._must.append(
             {
-                "multi_match": {
-                    "query": texto,
-                    "fields": ["assuntos.nome", "classe.nome"],
-                    "type": "best_fields",
-                    "operator": "or",
+                "bool": {
+                    "should": [
+                        {
+                            "match_phrase": {
+                                "assuntos.nome": {"query": texto, "boost": 3.0}
+                            }
+                        },
+                        {
+                            "match": {
+                                "assuntos.nome": {
+                                    "query": texto,
+                                    "minimum_should_match": "2",
+                                    "boost": 2.0,
+                                }
+                            }
+                        },
+                        {
+                            "match_phrase": {
+                                "classe.nome": {"query": texto, "boost": 1.5}
+                            }
+                        },
+                        {
+                            "match": {
+                                "classe.nome": {
+                                    "query": texto,
+                                    "minimum_should_match": "2",
+                                }
+                            }
+                        },
+                    ],
+                    "minimum_should_match": 1,
                 }
             }
         )
