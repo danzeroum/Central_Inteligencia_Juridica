@@ -56,11 +56,12 @@ export default function ProcessScreen() {
   const isReal = meta.source === 'datajud' || meta.source === 'real_api';
   const isSimulated = meta.source === 'simulated' || meta.fallback;
 
-  // Movimentos: podem estar em diferentes caminhos
+  // Movimentos: podem estar em diferentes caminhos da resposta do supervisor
   const rawMovimentos =
     data.movimentos ||
     sr.movimentos ||
     sr.movements ||
+    sr.result?.movimentos ||
     sr.result?.movements ||
     [];
   const movimentos = Array.isArray(rawMovimentos) ? rawMovimentos : [];

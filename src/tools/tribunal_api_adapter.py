@@ -271,6 +271,14 @@ class TribunalAPIAdapter:
                 or "Não informado"
             )
 
+            # Movimentos: ordena por dataHora decrescente para exibir os mais recentes primeiro
+            movimentos_raw = src.get("movimentos") or []
+            movimentos = sorted(
+                [m for m in movimentos_raw if isinstance(m, dict)],
+                key=lambda m: m.get("dataHora", ""),
+                reverse=True,
+            )
+
             data: Dict[str, Any] = {
                 "numero_processo": src.get("numeroProcesso", numero_processo),
                 "situacao": src.get("situacao", "Não informado"),
@@ -286,6 +294,7 @@ class TribunalAPIAdapter:
                 "grau": src.get("grau"),
                 "data_ajuizamento": src.get("dataAjuizamento"),
                 "tribunal": src.get("tribunal", self.tribunal_code),
+                "movimentos": movimentos,
                 "_metadata": {
                     "source": "datajud",
                     "tribunal": self.tribunal_code,
