@@ -60,7 +60,12 @@ class DataJudService:
         grau: Optional[str] = None,
         size: int = 5,
     ) -> DataJudSearchResult:
-        builder = DataJudQueryBuilder().with_texto(tema).pagina(size)
+        builder = (
+            DataJudQueryBuilder()
+            .with_texto(tema)
+            .ordenar_por("_score", "desc")
+            .pagina(size)
+        )
         if grau:
             builder.with_grau(grau)
         return await self._client(alias).search(builder.build())
