@@ -24,6 +24,14 @@ class RecoveryAgent(BaseAgent):
         self.specialization = "recovery"
         self.remediation_tool = remediation_tool
         self.tools = ["remediation"]
+        self.metadata = {
+            "remediation_tool_configured": remediation_tool is not None,
+            "recovery_mode": "active" if remediation_tool is not None else "passive",
+            "recovery_modes": ["passive", "active"],
+            "incident_response": "best_effort",
+            "arun_compatible": True,
+            "integration_points": ["hitl_queue", "supervisor_escalation"],
+        }
 
     async def arun(self, incident_report: str) -> str:
         """Aciona rotinas de recuperação baseadas no relatório recebido."""

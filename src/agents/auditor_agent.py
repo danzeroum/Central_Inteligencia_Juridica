@@ -22,6 +22,40 @@ class AuditorAgent(BaseAgent):
         self.specialization = "audit"
         self.validation_history: List[Dict[str, Any]] = []
         self.tools = ["security_scan", "quality_check"]
+        self.metadata = {
+            "reflection_enabled": True,
+            "audit_phases": ["initial_scan", "reflection", "refinement"],
+            "security_patterns_checked": [
+                "eval(",
+                "exec(",
+                "__import__",
+                "os.system",
+                "subprocess",
+            ],
+            "quality_thresholds": {
+                "complexity_max": 10,
+                "coverage_min_pct": 80,
+            },
+            "confidence": {
+                "audit_pass": 0.9,
+                "audit_fail": 0.7,
+                "reflection_cap": 0.75,
+            },
+            "score_weights": {
+                "base": 0.5,
+                "success_bonus": 0.2,
+                "confidence_above_0_7_bonus": 0.1,
+                "no_error_bonus": 0.1,
+                "tested_bonus": 0.1,
+            },
+            "approval_threshold": 0.6,
+            "severity_levels": ["critical", "warning", "info"],
+            "additional_checks_on_low_confidence": [
+                "edge_cases",
+                "performance",
+                "scalability",
+            ],
+        }
 
     async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         if not self.validate_input(task):

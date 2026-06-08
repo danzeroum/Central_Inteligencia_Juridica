@@ -28,6 +28,15 @@ class ExplorationAgent(BaseAgent):
         self.specialization = "exploration"
         self.scanner_tool = scanner_tool
         self.tools = ["scanner"]
+        self.metadata = {
+            "scanner_tool_configured": scanner_tool is not None,
+            "scan_mode": "active" if scanner_tool is not None else "passive",
+            "scan_modes": ["passive", "active"],
+            "scan_types": ["vulnerability", "network", "security_assessment"],
+            "output_format": "text_report",
+            "arun_compatible": True,
+            "integration_points": ["security_pipeline", "auditor_agent"],
+        }
 
     async def arun(self, instruction: str) -> str:
         """Executa um scan e retorna um relatório textual."""

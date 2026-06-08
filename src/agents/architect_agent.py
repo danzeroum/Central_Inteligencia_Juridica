@@ -36,6 +36,35 @@ class ArchitectAgent:
         self.tools = ["input_sanitizer", "reasoning_history"]
         self.version = "1.0.0"
         self.status = "active"
+        self.metadata = {
+            "reasoning_engine": "deterministic_keyword_heuristic",
+            "llm_note": "CoT é heurístico determinístico; modo LLM plugável via IntentClassifier",
+            "tribunal_keywords": {
+                "TJSP": ["tjsp", "sao", "paulo"],
+                "TJMG": ["tjmg", "minas", "gerais"],
+                "TJRS": ["tjrs", "gaucho", "sul"],
+                "TJRJ": ["tjrj", "fluminense", "rj"],
+                "STF": ["stf", "supremo", "federal"],
+            },
+            "default_tribunal": "TJSP",
+            "confidence": {
+                "empty_task": 0.2,
+                "base": 0.6,
+                "increment_per_tribunal": 0.1,
+                "max": 1.0,
+            },
+            "cot_steps_count": 5,
+            "adr_status_default": "Accepted",
+            "plan_components_default": [
+                "API Gateway",
+                "Auth Service",
+                "Business Logic",
+                "Database",
+            ],
+            "estimated_effort_default": "2 sprints",
+            "risks_default": ["Complexidade", "Custo operacional"],
+            "max_reasoning_history": None,
+        }
 
     def attach_memory(self, memory: Any) -> None:
         """Permite que orquestradores injetem um backend de memória.
