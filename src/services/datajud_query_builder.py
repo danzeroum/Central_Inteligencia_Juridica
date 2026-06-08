@@ -37,10 +37,11 @@ class DataJudQueryBuilder:
     def with_texto(self, texto: str) -> "DataJudQueryBuilder":
         """Busca por tema nos metadados de capa do DataJud.
 
-        Usa minimum_should_match=2 para exigir pelo menos 2 termos significativos
-        no assunto ou classe, evitando falsos positivos via palavras comuns.
-        Prioriza match_phrase para relevância máxima.
+        Para consultas multi-palavra exige ≥2 termos significativos (evita falsos
+        positivos por stop-words). Para consultas de 1 palavra usa min=1.
         """
+        significant = [w for w in texto.split() if len(w) > 2]
+        min_match = "2" if len(significant) >= 2 else "1"
         self._must.append(
             {
                 "bool": {
@@ -54,7 +55,7 @@ class DataJudQueryBuilder:
                             "match": {
                                 "assuntos.nome": {
                                     "query": texto,
-                                    "minimum_should_match": "2",
+                                    "minimum_should_match": min_match,
                                     "boost": 2.0,
                                 }
                             }
@@ -68,7 +69,7 @@ class DataJudQueryBuilder:
                             "match": {
                                 "classe.nome": {
                                     "query": texto,
-                                    "minimum_should_match": "2",
+                                    "minimum_should_match": min_match,
                                 }
                             }
                         },
