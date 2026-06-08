@@ -13,6 +13,10 @@ class DeveloperAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__("developer")
+        self.name = "Developer Agent"
+        self.description = "Desenvolvedor full-stack com loop Thought → Action → Observation (ReAct) para implementação de código."
+        self.capabilities = ["code_generation", "test_generation", "refactoring", "debugging", "requirements_analysis"]
+        self.specialization = "development"
         self.history: List[Dict[str, Any]] = []
         self.max_iterations = 5
         self.tools = [

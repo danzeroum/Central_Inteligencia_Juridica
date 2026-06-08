@@ -72,6 +72,25 @@ class AgentCard:
         )
 
     @classmethod
+    def from_base_agent(cls, agent: Any) -> "AgentCard":
+        """Create card from any BaseAgent subclass using its attributes."""
+        agent_class = type(agent).__name__
+        agent_id = getattr(agent, "agent_type", agent_class).lower().replace(" ", "_")
+        return cls(
+            agent_id=agent_id,
+            agent_type=agent_class,
+            name=getattr(agent, "name", agent_class),
+            description=getattr(agent, "description", ""),
+            capabilities=list(getattr(agent, "capabilities", [])),
+            tools=list(getattr(agent, "tools", [])),
+            specialization=getattr(agent, "specialization", agent_id),
+            status=getattr(agent, "status", "active"),
+            endpoint=getattr(agent, "endpoint", f"/api/v1/agents/{agent_id}/invoke"),
+            version=getattr(agent, "version", "1.0.0"),
+            metadata=dict(getattr(agent, "metadata", {})),
+        )
+
+    @classmethod
     def from_supervisor_agent(cls, agent: Any) -> "AgentCard":
         """Create card from SupervisorAgent instance."""
         return cls(

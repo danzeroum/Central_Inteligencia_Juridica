@@ -20,11 +20,16 @@ class AgentSummary(BaseModel):
     name: str
     type: str
     status: str
-    endpoint: str
+    endpoint: Optional[str] = None
     specialization: Optional[str] = None
+    description: Optional[str] = None
     capabilities: List[str] = Field(default_factory=list)
+    tools: List[str] = Field(default_factory=list)
+    version: str = "1.0.0"
     trust_score: float = Field(..., ge=0.0, le=1.0)
     autonomy_level: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Optional[str] = None
 
     model_config = {
         "json_schema_extra": {
@@ -35,12 +40,44 @@ class AgentSummary(BaseModel):
                 "status": "active",
                 "endpoint": "/api/v1/agents/supervisor_agent/invoke",
                 "specialization": None,
+                "description": "Orquestrador central que delega tarefas para agentes especializados",
                 "capabilities": ["task_routing", "consensus"],
+                "tools": ["ledger", "sanitizer", "tribunal_agents"],
+                "version": "1.0.0",
                 "trust_score": 0.9,
                 "autonomy_level": "supervised",
+                "metadata": {},
+                "created_at": "2026-06-01T00:00:00+00:00",
             }
         }
     }
+
+
+class AgentDetailResponse(AgentSummary):
+    """Card completo de um agente — ``GET /api/v1/agents/{agent_id}``."""
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                **AgentSummary.model_config["json_schema_extra"]["example"],
+                "metadata": {"active_delegates": ["tjsp_agent"], "total_tasks_processed": 42},
+            }
+        }
+    }
+
+
+class AgentTrustUpdate(BaseModel):
+    """Payload para atualizar o trust score de um agente."""
+
+    trust_score: float = Field(..., ge=0.0, le=1.0, description="Novo trust score (0–1)")
+
+
+class AgentTrustResponse(BaseModel):
+    """Resposta da atualização de trust score."""
+
+    agent_id: str
+    trust_score: float
+    autonomy_level: str
 
 
 class AgentListResponse(BaseModel):

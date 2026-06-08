@@ -16,6 +16,10 @@ class AuditorAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__("auditor")
+        self.name = "Auditor Agent"
+        self.description = "Especialista em segurança e qualidade com capacidade de reflexão sobre os próprios resultados."
+        self.capabilities = ["security_audit", "quality_check", "reflection"]
+        self.specialization = "audit"
         self.validation_history: List[Dict[str, Any]] = []
         self.tools = ["security_scan", "quality_check"]
 

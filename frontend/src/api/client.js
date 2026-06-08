@@ -100,11 +100,20 @@ export const api = {
     request('/api/v1/training/train', { method: 'POST', body: { agent_type, force } }),
 
   // Agentes (MCP)
-  agents: () => request('/api/v1/agents'),
+  agents: (capability) => {
+    const qs = capability ? `?capability=${encodeURIComponent(capability)}` : '';
+    return request(`/api/v1/agents${qs}`);
+  },
+  agentDetail: (agentId) => request(`/api/v1/agents/${agentId}`),
   agentInvoke: (agentId, task_description) =>
     request(`/api/v1/agents/${agentId}/invoke`, {
       method: 'POST',
       body: { task_description },
+    }),
+  updateAgentTrust: (agentId, trust_score) =>
+    request(`/api/v1/agents/${agentId}/trust`, {
+      method: 'PATCH',
+      body: { trust_score },
     }),
 
   // Auditoria (Decision Ledger)

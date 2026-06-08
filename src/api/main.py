@@ -26,6 +26,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from src.agents.agente_legislativo import analisar_cenario_legislativo
+from src.agents.architect_agent import ArchitectAgent
+from src.agents.auditor_agent import AuditorAgent
+from src.agents.designer_agent import DesignerAgent
+from src.agents.developer_agent import DeveloperAgent
+from src.agents.exploration_agent import ExplorationAgent
+from src.agents.ops_agent import OpsAgent
+from src.agents.recovery_agent import RecoveryAgent
 from src.agents.supervisor_agent import SupervisorAgent
 from src.api.auth import AuthManager
 from src.api.auth_endpoints import router as auth_router
@@ -36,8 +43,11 @@ from src.api.schemas.responses import (
     A2AHistoryResponse,
     A2AMessageResponse,
     A2AMessagesResponse,
+    AgentDetailResponse,
     AgentListResponse,
     AgentSummary,
+    AgentTrustResponse,
+    AgentTrustUpdate,
     AgentsByCapabilityResponse,
     HistoryResponse,
 )
@@ -338,21 +348,73 @@ unified_orchestrator = UnifiedOrchestrator(supervisor_agent=supervisor_agent)
 logger.info("UnifiedOrchestrator inicializado para endpoint avançado")
 a2a_channel = get_a2a_channel()
 
+# Specialized agents (instantiated once at startup for registry)
+_specialized_agents = [
+    ArchitectAgent(),
+    AuditorAgent(),
+    DesignerAgent(),
+    DeveloperAgent(),
+    ExplorationAgent(),
+    OpsAgent(),
+    RecoveryAgent(),
+]
+
+# Functional services represented as static agent cards (not directly invocable)
+_functional_agent_cards = [
+    AgentCard(
+        agent_id="agente_jurisprudencia",
+        agent_type="QueueWorker",
+        name="Agente Jurisprudência",
+        description="Worker Redis que processa análises de jurisprudência de forma assíncrona.",
+        capabilities=["jurisprudencia_search", "cnj_datajud"],
+        tools=["redis_queue", "datajud_api"],
+        specialization="jurisprudencia",
+        endpoint="/api/v1/jurisprudencia",
+        status="active",
+    ),
+    AgentCard(
+        agent_id="agente_legislativo",
+        agent_type="FunctionalService",
+        name="Agente Legislativo",
+        description="Serviço stateless de análise legislativa via Câmara dos Deputados + LLM.",
+        capabilities=["legislative_analysis", "bills_search"],
+        tools=["camara_api", "llm"],
+        specialization="legislativo",
+        endpoint="/api/v1/legislativo/analisar",
+        status="active",
+    ),
+]
+
 # Initialize MCP Agent Registry
 agent_registry = AgentRegistry()
 
 
 def initialize_agent_registry() -> None:
-    """Populate agent registry with supervisor and active delegates."""
+    """Populate agent registry with all known agents."""
 
     agent_registry.agents.clear()
 
+    # Supervisor
     supervisor_card = AgentCard.from_supervisor_agent(supervisor_agent)
     agent_registry.register(supervisor_card)
 
-    for tribunal_code, tribunal_agent in supervisor_agent.active_delegates.items():
+    # Ensure all tribunals are instantiated upfront (not just active delegates)
+    all_tribunal_codes = list(supervisor_agent.tribunal_identifier._tribunals.keys())
+    for code in all_tribunal_codes:
+        supervisor_agent._get_or_create_tribunal_agent(code)
+
+    for tribunal_agent in supervisor_agent.active_delegates.values():
         tribunal_card = AgentCard.from_tribunal_agent(tribunal_agent)
         agent_registry.register(tribunal_card)
+
+    # Specialized BaseAgent subclasses
+    for agent in _specialized_agents:
+        card = AgentCard.from_base_agent(agent)
+        agent_registry.register(card)
+
+    # Functional services (static cards)
+    for card in _functional_agent_cards:
+        agent_registry.register(card)
 
 
 @app.get("/hitl", response_class=HTMLResponse, include_in_schema=False)
@@ -429,7 +491,10 @@ async def list_agents(
             status=card.status,
             endpoint=card.endpoint,
             specialization=card.specialization,
+            description=card.description,
             capabilities=card.capabilities,
+            tools=card.tools,
+            version=card.version,
             trust_score=round(
                 autonomy.agent_trust_scores.get(
                     card.agent_id, autonomy.default_trust_score
@@ -437,6 +502,8 @@ async def list_agents(
                 2,
             ),
             autonomy_level=autonomy.get_autonomy_level(card.agent_id),
+            metadata=card.metadata,
+            created_at=card.created_at,
         )
         for card in cards
     ]
@@ -606,14 +673,16 @@ async def a2a_health_check() -> Dict[str, Any]:
     tags=["MCP"],
     summary="Detalhes de um agente específico",
     description="Retorna agent card completo com todas as capacidades.",
+    response_model=AgentDetailResponse,
 )
 async def get_agent_details(
     agent_id: str,
     _principal: Principal = Depends(current_principal),
-) -> Dict[str, Any]:
+) -> AgentDetailResponse:
     """Retorna detalhes completos de um agente específico."""
 
     initialize_agent_registry()
+    autonomy = get_autonomy_manager()
 
     card = agent_registry.get_agent(agent_id)
     if not card:
@@ -622,7 +691,63 @@ async def get_agent_details(
             detail=f"Agent '{agent_id}' not found",
         )
 
-    return card.to_dict()
+    return AgentDetailResponse(
+        agent_id=card.agent_id,
+        name=card.name,
+        type=card.agent_type,
+        status=card.status,
+        endpoint=card.endpoint,
+        specialization=card.specialization,
+        description=card.description,
+        capabilities=card.capabilities,
+        tools=card.tools,
+        version=card.version,
+        trust_score=round(
+            autonomy.agent_trust_scores.get(card.agent_id, autonomy.default_trust_score), 2
+        ),
+        autonomy_level=autonomy.get_autonomy_level(card.agent_id),
+        metadata=card.metadata,
+        created_at=card.created_at,
+    )
+
+
+@app.patch(
+    "/api/v1/agents/{agent_id}/trust",
+    tags=["MCP"],
+    summary="Atualiza o trust score de um agente",
+    description="Permite ajustar o trust score individual de um agente, alterando seu nível de autonomia.",
+    response_model=AgentTrustResponse,
+    responses={404: {"model": ProblemDetail}, 403: {"model": ProblemDetail}},
+)
+async def update_agent_trust(
+    agent_id: str,
+    body: AgentTrustUpdate,
+    _principal: Principal = Depends(require_permissions("config:write")),
+) -> AgentTrustResponse:
+    """Atualiza o trust score de um agente específico."""
+
+    initialize_agent_registry()
+    card = agent_registry.get_agent(agent_id)
+    if not card:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent '{agent_id}' not found",
+        )
+
+    autonomy = get_autonomy_manager()
+    autonomy.agent_trust_scores[agent_id] = body.trust_score
+    new_level = autonomy.get_autonomy_level(agent_id)
+
+    logger.info(
+        "Trust score atualizado",
+        extra={"agent_id": agent_id, "trust_score": body.trust_score, "level": new_level},
+    )
+
+    return AgentTrustResponse(
+        agent_id=agent_id,
+        trust_score=body.trust_score,
+        autonomy_level=new_level,
+    )
 
 
 @app.post(
