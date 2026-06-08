@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from collections import deque
 from threading import Lock
@@ -166,9 +167,12 @@ class TribunalAPIAdapter:
         return self._augment_with_circuit(self._get_mock_status())
 
     def get_processo(self, numero_processo: str) -> Dict[str, Any]:
-        """Consulta dados de um processo com fallback."""
+        """Consulta dados de um processo: API do tribunal → DataJud → mock."""
 
         if not self.config or not self.client:
+            datajud = self._try_datajud_sync(numero_processo)
+            if datajud is not None:
+                return self._augment_with_circuit(datajud)
             return self._augment_with_circuit(self._get_mock_processo(numero_processo))
 
         try:
@@ -186,20 +190,118 @@ class TribunalAPIAdapter:
             return data
         except CircuitBreakerOpenError as exc:
             logger.warning(
-                "Circuit breaker OPEN for %s, returning mock processo",
+                "Circuit breaker OPEN for %s, trying DataJud fallback",
                 self.tribunal_code,
             )
+            datajud = self._try_datajud_sync(numero_processo)
+            if datajud is not None:
+                return self._augment_with_circuit(datajud)
             return self._augment_with_circuit(
                 self._get_mock_processo(numero_processo),
                 circuit_error=exc,
             )
         except Exception as exc:
             logger.warning(
-                "Failed to fetch processo for %s: %s, using mock",
+                "Failed to fetch processo for %s: %s, trying DataJud",
                 self.tribunal_code,
                 exc,
             )
+            datajud = self._try_datajud_sync(numero_processo)
+            if datajud is not None:
+                return self._augment_with_circuit(datajud)
         return self._augment_with_circuit(self._get_mock_processo(numero_processo))
+
+    def _try_datajud_sync(self, numero_processo: str) -> Optional[Dict[str, Any]]:
+        """Busca o processo no DataJud via httpx síncrono.
+
+        Retorna dict com ``_metadata.source='datajud'`` em sucesso, ``None`` em
+        falha (sem chave, erro de rede ou processo não encontrado).
+        """
+        api_key = os.getenv("DATAJUD_API_KEY")
+        if not api_key:
+            return None
+
+        alias = self.tribunal_code.lower()
+        endpoint = f"https://api-publica.datajud.cnj.jus.br/api_publica_{alias}/_search"
+        # DataJud armazena o número no formato normalizado: apenas dígitos, 20 chars
+        normalized = re.sub(r"[^0-9]", "", numero_processo).zfill(20)
+        query: Dict[str, Any] = {
+            "query": {"match": {"numeroProcesso": normalized}},
+            "size": 1,
+        }
+        headers = {
+            "Authorization": f"APIKey {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(endpoint, json=query, headers=headers)
+                response.raise_for_status()
+                raw = response.json()
+
+            hits_block = raw.get("hits", {}) or {}
+            total_block = hits_block.get("total", 0)
+            total = (
+                total_block.get("value", 0)
+                if isinstance(total_block, dict)
+                else int(total_block or 0)
+            )
+            hit_list = hits_block.get("hits") or []
+
+            if not hit_list:
+                logger.info(
+                    "DataJud: processo %s não encontrado para %s",
+                    numero_processo,
+                    alias,
+                )
+                return None
+
+            src: Dict[str, Any] = (
+                (hit_list[0].get("_source") or {})
+                if isinstance(hit_list[0], dict)
+                else {}
+            )
+            assuntos_nomes = (
+                ", ".join(
+                    a.get("nome", "")
+                    for a in (src.get("assuntos") or [])
+                    if isinstance(a, dict) and a.get("nome")
+                )
+                or "Não informado"
+            )
+
+            data: Dict[str, Any] = {
+                "numero_processo": src.get("numeroProcesso", numero_processo),
+                "situacao": src.get("situacao", "Não informado"),
+                "classe_processual": (src.get("classe") or {}).get(
+                    "nome", "Não informado"
+                ),
+                "assunto": assuntos_nomes,
+                "ultima_movimentacao": src.get("dataHoraUltimaAtualizacao", ""),
+                "orgao_julgador": (src.get("orgaoJulgador") or {}).get(
+                    "nome", "Não informado"
+                ),
+                "valor_causa": src.get("valorCausa", "Não informado"),
+                "grau": src.get("grau"),
+                "data_ajuizamento": src.get("dataAjuizamento"),
+                "tribunal": src.get("tribunal", self.tribunal_code),
+                "_metadata": {
+                    "source": "datajud",
+                    "tribunal": self.tribunal_code,
+                    "fallback": False,
+                    "timestamp": time.time(),
+                    "total_found": total,
+                },
+            }
+            logger.info("✅ DataJud hit para processo %s (%s)", numero_processo, alias)
+            return data
+
+        except Exception as exc:
+            logger.warning(
+                "DataJud sync falhou para %s / %s: %s", alias, numero_processo, exc
+            )
+            return None
 
     def get_circuit_breaker_state(self) -> Dict[str, Any]:
         """Retorna o estado atual do circuit breaker."""

@@ -158,14 +158,15 @@ class TribunalAgent(A2ACapable):
 
     def _determine_operation(self, task: str) -> str:
         lower = task.lower()
-        if "status" in lower or "disponibilidade" in lower:
-            return "status"
+        # Process number takes priority: "status do processo X" is a process query
         if (
             "processo" in lower
             or "processar" in lower
             or self._PROCESS_NUMBER_RE.search(lower)
         ):
             return "process_query"
+        if "status" in lower or "disponibilidade" in lower:
+            return "status"
         return "generic"
 
     def _check_tribunal_status(self) -> Dict[str, Any]:
