@@ -28,6 +28,8 @@ services:
       # SECURITY: JWT_SECRET é OBRIGATÓRIO (mín. 32 chars). Sem ele a app não sobe.
       - JWT_SECRET=${JWT_SECRET:?defina JWT_SECRET no .env (veja .env.example)}
       - AUTH_REQUIRED=${AUTH_REQUIRED:-true}
+      # Store de usuários (JSON). Veja .env.example para o formato correto.
+      - AUTH_USERS=${AUTH_USERS:-}
       # Aponta o cache/A2A para o serviço redis (não localhost) e usa a senha.
       - REDIS_HOST=redis
       - REDIS_PORT=6379
