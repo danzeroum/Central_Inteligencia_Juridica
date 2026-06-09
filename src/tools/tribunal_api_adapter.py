@@ -312,6 +312,89 @@ class TribunalAPIAdapter:
             )
             return None
 
+    def search_tema_sync(self, tema: str, size: int = 5) -> Optional[Dict[str, Any]]:
+        """Busca por tema/texto no DataJud via httpx síncrono.
+
+        Retorna dict com lista de processos e metadados, ou None em falha.
+        """
+        api_key = os.getenv("DATAJUD_API_KEY")
+        if not api_key:
+            return None
+
+        alias = self.tribunal_code.lower()
+        endpoint = f"https://api-publica.datajud.cnj.jus.br/api_publica_{alias}/_search"
+
+        # Mesmo builder de with_texto: min_match dinâmico + fuzziness para acentos
+        significant = [w for w in tema.split() if len(w) > 2]
+        min_match = "2" if len(significant) >= 2 else "1"
+        query: Dict[str, Any] = {
+            "size": size,
+            "sort": [{"_score": {"order": "desc"}}],
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "bool": {
+                                "should": [
+                                    {"match_phrase": {"assuntos.nome": {"query": tema, "boost": 4.0}}},
+                                    {"match": {"assuntos.nome": {"query": tema, "minimum_should_match": min_match, "boost": 2.0}}},
+                                    {"match": {"assuntos.nome": {"query": tema, "fuzziness": "AUTO", "boost": 1.5}}},
+                                    {"match_phrase": {"classe.nome": {"query": tema, "boost": 1.5}}},
+                                    {"match": {"classe.nome": {"query": tema, "minimum_should_match": min_match}}},
+                                ],
+                                "minimum_should_match": 1,
+                            }
+                        }
+                    ]
+                }
+            },
+        }
+        headers = {"Authorization": f"APIKey {api_key}", "Content-Type": "application/json"}
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(endpoint, json=query, headers=headers)
+                response.raise_for_status()
+                raw = response.json()
+
+            hits_block = raw.get("hits", {}) or {}
+            total_block = hits_block.get("total", 0)
+            total = (
+                total_block.get("value", 0)
+                if isinstance(total_block, dict)
+                else int(total_block or 0)
+            )
+            hit_list = hits_block.get("hits") or []
+
+            processos = []
+            for hit in hit_list:
+                src = (hit.get("_source") or {}) if isinstance(hit, dict) else {}
+                assuntos = [
+                    a.get("nome", "") for a in (src.get("assuntos") or [])
+                    if isinstance(a, dict) and a.get("nome")
+                ]
+                processos.append({
+                    "numero_processo": src.get("numeroProcesso", ""),
+                    "classe": (src.get("classe") or {}).get("nome", ""),
+                    "assuntos": assuntos,
+                    "orgao_julgador": (src.get("orgaoJulgador") or {}).get("nome", ""),
+                    "grau": src.get("grau", ""),
+                    "data_ajuizamento": src.get("dataAjuizamento", ""),
+                    "ultima_atualizacao": src.get("dataHoraUltimaAtualizacao", ""),
+                    "tribunal": src.get("tribunal", self.tribunal_code),
+                })
+
+            logger.info("✅ DataJud tema '%s' para %s: %d resultados", tema, alias, total)
+            return {
+                "total": total,
+                "processos": processos,
+                "_metadata": {"source": "datajud", "tribunal": self.tribunal_code, "fallback": False},
+            }
+
+        except Exception as exc:
+            logger.warning("DataJud tema search falhou para %s / '%s': %s", alias, tema, exc)
+            return None
+
     def get_circuit_breaker_state(self) -> Dict[str, Any]:
         """Retorna o estado atual do circuit breaker."""
 

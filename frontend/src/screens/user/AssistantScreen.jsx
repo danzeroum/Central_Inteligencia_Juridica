@@ -19,18 +19,36 @@ function MsgUser({ text }) {
   );
 }
 
+function fmtDate(raw) {
+  if (!raw) return null;
+  try {
+    const d = new Date(raw);
+    if (isNaN(d)) return raw;
+    return d.toLocaleDateString('pt-BR', { year: 'numeric', month: 'short', day: '2-digit' });
+  } catch { return raw; }
+}
+
 function extract(result) {
-  // O backend devolve supervisor_result aninhado; busca campos de intenção/resultado
-  // de forma defensiva, pois o shape exato varia por operação.
   const sr = result?.supervisor_result || result || {};
   const intent = sr.intent || sr.intencao || result?.intent || {};
   const tribunals = result?.tribunals_used || sr.tribunals || intent.tribunais || [];
   const confidence = intent.confidence ?? sr.consensus_strength ?? null;
+
+  // Detectar resultados de jurisprudência (por tribunal)
+  const jurisResults = [];
+  const tribunalData = sr.tribunals || {};
+  for (const [trib, data] of Object.entries(tribunalData)) {
+    if (data?.operation === 'jurisprudencia' && data?.processos) {
+      jurisResults.push({ tribunal: trib, ...data });
+    }
+  }
+
   const text =
     sr.response || sr.resposta || sr.summary || sr.result?.summary ||
     (typeof sr.result === 'string' ? sr.result : null) ||
-    'Consulta processada. Veja os detalhes técnicos abaixo.';
-  return { intent, tribunals, confidence, text, raw: result };
+    (jurisResults.length > 0 ? null : 'Consulta processada. Veja os detalhes técnicos abaixo.');
+
+  return { intent, tribunals, confidence, text, jurisResults, raw: result };
 }
 
 function MsgAI({ data, error, queue }) {
@@ -55,7 +73,7 @@ function MsgAI({ data, error, queue }) {
       </div>
     );
   }
-  const { intent, tribunals, confidence, text, raw } = data;
+  const { intent, tribunals, confidence, text, jurisResults, raw } = data;
   return (
     <div className="msg msg-ai">
       <div className="msg-av"><Icon name="spark" style={{ width: 16, height: 16 }} /></div>
@@ -69,7 +87,52 @@ function MsgAI({ data, error, queue }) {
             {confidence != null && <span style={{ marginLeft: 'auto' }} className="mono faint">confiança {Math.round(confidence * 100)}%</span>}
           </div>
           <div className="ai-main">
-            <p style={{ marginTop: 0 }}>{text}</p>
+            {text && <p style={{ marginTop: 0 }}>{text}</p>}
+
+            {/* Resultados de jurisprudência por tribunal */}
+            {jurisResults.map((jr) => (
+              <div key={jr.tribunal} style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <strong style={{ fontSize: 13 }}>{jr.tribunal}</strong>
+                  <Badge kind={jr.status === 'success' ? 'ok' : 'warn'}>
+                    {jr.status === 'success' ? `${jr.total?.toLocaleString('pt-BR') || 0} resultados` : 'indisponível'}
+                  </Badge>
+                </div>
+                {jr.processos?.length > 0 ? (
+                  jr.processos.map((p, i) => (
+                    <div key={i} style={{
+                      padding: '10px 12px',
+                      marginBottom: 6,
+                      background: 'var(--navy-tint-2)',
+                      borderRadius: 6,
+                      fontSize: 12.5,
+                    }}>
+                      <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, marginBottom: 3 }}>
+                        {p.numero_processo}
+                        {p.grau && <span className="muted" style={{ marginLeft: 8, fontWeight: 400 }}>{p.grau}</span>}
+                      </div>
+                      <div style={{ fontWeight: 500, marginBottom: 2 }}>{p.classe || '—'}</div>
+                      {p.assuntos?.length > 0 && (
+                        <div className="muted">{p.assuntos.slice(0, 2).join(' · ')}</div>
+                      )}
+                      {p.orgao_julgador && (
+                        <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>{p.orgao_julgador}</div>
+                      )}
+                      {p.ultima_atualizacao && (
+                        <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                          Atualizado: {fmtDate(p.ultima_atualizacao)}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="muted" style={{ fontSize: 12.5 }}>
+                    {jr.status === 'success' ? 'Nenhum processo encontrado para este tema.' : jr.message}
+                  </div>
+                )}
+              </div>
+            ))}
+
             {showRaw && (
               <pre style={{ fontFamily: 'var(--mono)', fontSize: 11, background: 'var(--navy-tint-2)', padding: 12, borderRadius: 6, marginTop: 12, overflowX: 'auto', maxHeight: 280 }}>
                 {JSON.stringify(raw, null, 2)}
