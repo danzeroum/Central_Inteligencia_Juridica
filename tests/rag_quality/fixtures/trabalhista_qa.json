@@ -1,0 +1,27 @@
+[
+  {
+    "question": "Qual é o prazo prescricional para reclamatória trabalhista?",
+    "expected_keywords": ["prescrição", "2 anos", "5 anos", "CLT"],
+    "reference_doc": "CLT_art1_a_50"
+  },
+  {
+    "question": "O que é CIPA e qual a garantia de emprego do cipeiro?",
+    "expected_keywords": ["CIPA", "garantia", "estabilidade", "TST"],
+    "reference_doc": "sumula_TST_339"
+  },
+  {
+    "question": "Quem é considerado empregado pela CLT?",
+    "expected_keywords": ["empregado", "pessoa física", "subordinação", "salário"],
+    "reference_doc": "CLT_art1_a_50"
+  },
+  {
+    "question": "O que caracteriza o empregador segundo a CLT?",
+    "expected_keywords": ["empregador", "empresa", "riscos", "atividade econômica"],
+    "reference_doc": "CLT_art1_a_50"
+  },
+  {
+    "question": "Qual tribunal julga causas trabalhistas no Brasil?",
+    "expected_keywords": ["TST", "Justiça do Trabalho", "TRT"],
+    "reference_doc": null
+  }
+]

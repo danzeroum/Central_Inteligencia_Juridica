@@ -317,6 +317,13 @@ class VectorMemory:
         try:
             interaction_id = str(uuid.uuid4())
 
+            # LGPD / PII (Item 18): redigir PII antes de indexar no ChromaDB
+            try:
+                from src.safety.pii import redact_pii as _redact_pii
+                task = _redact_pii(task)
+            except Exception:  # pragma: no cover - defensive
+                pass
+
             # Evitar mutar metadata original
             metadata = dict(metadata)
 
@@ -553,6 +560,35 @@ class VectorMemory:
         """Generate deterministic embedding used for offline/local mode."""
 
         return self._hash_embedding([text])[0]
+
+    def get_or_create_collection(self, area_key: str) -> Optional[Any]:
+        """Retorna (ou cria) coleção ChromaDB para namespace de área jurídica.
+
+        Usa cosine distance para comparação de embeddings legais.
+        A coleção da base de conhecimento é separada do cache de interações
+        (``tribunal_interactions``), preservando isolamento semântico.
+        """
+        if self.client is None:
+            logger.warning("ChromaDB indisponível: namespace '%s' não criado.", area_key)
+            return None
+
+        collection_name = f"{area_key}_kb"
+        try:
+            embedding_fn = (
+                self._hash_embedding
+                if self._use_manual_embeddings
+                else self._resolve_embedding_function(os.getenv("OPENAI_API_KEY"))
+            )
+            kwargs: Dict[str, Any] = {
+                "name": collection_name,
+                "metadata": {"hnsw:space": "cosine", "area": area_key},
+            }
+            if embedding_fn is not None:
+                kwargs["embedding_function"] = embedding_fn
+            return self.client.get_or_create_collection(**kwargs)
+        except Exception as exc:
+            logger.error("Erro ao criar coleção para área '%s': %s", area_key, exc)
+            return None
 
     @property
     def using_manual_embeddings(self) -> bool:

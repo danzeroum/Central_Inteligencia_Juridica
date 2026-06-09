@@ -1,0 +1,27 @@
+[
+  {
+    "question": "Quais são os tipos de aposentadoria do INSS?",
+    "expected_keywords": ["aposentadoria", "invalidez", "idade", "especial"],
+    "reference_doc": "lei_8213_art1_a_30"
+  },
+  {
+    "question": "O que é período de carência na previdência social?",
+    "expected_keywords": ["carência", "contribuições", "mínimo", "benefício"],
+    "reference_doc": "lei_8213_art1_a_30"
+  },
+  {
+    "question": "Quem é segurado obrigatório da previdência social?",
+    "expected_keywords": ["segurado", "obrigatório", "empregado", "contribuição"],
+    "reference_doc": "lei_8213_art1_a_30"
+  },
+  {
+    "question": "Qual a finalidade da previdência social?",
+    "expected_keywords": ["previdência", "contribuição", "incapacidade", "beneficiários"],
+    "reference_doc": "lei_8213_art1_a_30"
+  },
+  {
+    "question": "Qual a lei que regulamenta os benefícios do INSS?",
+    "expected_keywords": ["8.213", "1991", "benefícios"],
+    "reference_doc": "lei_8213_art1_a_30"
+  }
+]

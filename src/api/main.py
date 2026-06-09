@@ -58,6 +58,7 @@ from src.api.ledger_endpoints import router as ledger_router
 from src.api.lgpd_endpoints import router as lgpd_router
 from src.api.monitoring_endpoints import router as monitoring_router
 from src.api.training_endpoints import router as training_router
+from src.api.profile_endpoints import router as profile_router
 from src.hitl.hitl_queue import get_hitl_queue
 from src.hitl.progressive_autonomy import get_autonomy_manager
 from src.orchestration.unified_orchestrator import UnifiedOrchestrator
@@ -179,6 +180,7 @@ app.include_router(lgpd_router)
 app.include_router(autonomy_router)
 app.include_router(monitoring_router)
 app.include_router(jurisprudencia_router)
+app.include_router(profile_router)
 
 
 # SECURITY (SEC-004 / CWE-209): handler global de exceções não tratadas. Em vez
@@ -261,6 +263,10 @@ class TaskRequest(BaseModel):
         max_length=5000,
         description="Descrição da tarefa jurídica",
     )
+    # Campos opcionais para personalização — retrocompatíveis com clientes existentes
+    profile_id: Optional[str] = Field(None, description="ID do perfil do usuário")
+    cliente_id: Optional[str] = Field(None, description="ID do cliente para ajuste de linguagem")
+    output_language: Optional[str] = Field(None, description="Idioma de saída (ex: pt-BR)")
 
     @field_validator("task_description")
     @classmethod
