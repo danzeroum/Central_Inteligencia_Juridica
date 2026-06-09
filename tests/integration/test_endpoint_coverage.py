@@ -133,7 +133,7 @@ def test_consultar_projetos_empty_q_is_400():
 
 def test_consultar_projetos_success(monkeypatch):
     monkeypatch.setattr(
-        main_module, "buscar_projetos_de_lei", lambda termo: {"data": ["proj"]}
+        main_module, "buscar_projetos_de_lei", lambda termo, **_: {"data": ["proj"]}
     )
     resp = client.get("/consultar-projetos-lei/", params={"q": "reforma"})
     assert resp.status_code == 200
@@ -142,7 +142,9 @@ def test_consultar_projetos_success(monkeypatch):
 
 def test_consultar_projetos_upstream_error_is_502(monkeypatch):
     monkeypatch.setattr(
-        main_module, "buscar_projetos_de_lei", lambda termo: {"error": "indisponível"}
+        main_module,
+        "buscar_projetos_de_lei",
+        lambda termo, **_: {"error": "indisponível"},
     )
     resp = client.get("/consultar-projetos-lei/", params={"q": "reforma"})
     assert resp.status_code == 502
@@ -150,7 +152,7 @@ def test_consultar_projetos_upstream_error_is_502(monkeypatch):
 
 def test_canonical_proposicoes_success(monkeypatch):
     monkeypatch.setattr(
-        main_module, "buscar_projetos_de_lei", lambda termo: {"data": []}
+        main_module, "buscar_projetos_de_lei", lambda termo, **_: {"data": []}
     )
     resp = client.get("/api/v1/proposicoes-legislativas", params={"q": "reforma"})
     assert resp.status_code == 200

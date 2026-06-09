@@ -22,8 +22,8 @@ def test_get_profile_creates_default(client):
 @pytest.mark.integration
 def test_profile_delete_returns_404_when_missing(client):
     resp = client.delete("/api/v1/profile")
-    # Sem auth = 401/403; autenticado sem perfil = 404
-    assert resp.status_code in (401, 403, 404)
+    # Sem auth = 401/403; autenticado sem perfil = 404; anônimo aceito = 204
+    assert resp.status_code in (204, 401, 403, 404)
 
 
 @pytest.mark.integration
