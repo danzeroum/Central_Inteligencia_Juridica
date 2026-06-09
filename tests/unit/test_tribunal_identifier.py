@@ -88,8 +88,7 @@ class TestExtensibility:
     def test_new_tribunal_via_config_only(self, tmp_path: Path) -> None:
         config = tmp_path / "tribunals.yaml"
         config.write_text(
-            textwrap.dedent(
-                """
+            textwrap.dedent("""
                 default_tribunal: TJSP
                 tribunals:
                   TJSP:
@@ -101,8 +100,7 @@ class TestExtensibility:
                     aliases: [paranaense]
                 regions:
                   sul: [TJPR]
-                """
-            ),
+                """),
             encoding="utf-8",
         )
 

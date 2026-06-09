@@ -14,8 +14,7 @@ from src.contracts.schemas import Achado
 from src.documents.schemas import DISCLAIMER_OAB
 from src.tools.mcp_registry import MCPToolRegistry
 
-_CONTRATO_RISCO = textwrap.dedent(
-    """
+_CONTRATO_RISCO = textwrap.dedent("""
     CLÁUSULA 1 - DO OBJETO
     O presente contrato tem por objeto a prestação de serviços.
 
@@ -24,18 +23,15 @@ _CONTRATO_RISCO = textwrap.dedent(
 
     CLÁUSULA 3 - DO FORO
     As partes elegem o foro da Comarca de São Paulo para dirimir controvérsias.
-    """
-)
+    """)
 
-_CONTRATO_LIMPO = textwrap.dedent(
-    """
+_CONTRATO_LIMPO = textwrap.dedent("""
     CLÁUSULA 1 - DO OBJETO
     Prestação de serviços de consultoria, com obrigações recíprocas e equilibradas.
 
     CLÁUSULA 2 - DO PAGAMENTO
     O pagamento será efetuado mensalmente conforme cronograma anexo.
-    """
-)
+    """)
 
 
 def test_regras_carregam_do_yaml():
@@ -107,8 +103,7 @@ def test_detector_llm_opcional_substitui_regras():
 def test_ruleset_custom_isolado(tmp_path):
     cfg = tmp_path / "regras.yaml"
     cfg.write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             regras:
               teste:
                 categoria: "Cláusula de teste"
@@ -117,8 +112,7 @@ def test_ruleset_custom_isolado(tmp_path):
                 recomendacao: "verificar"
                 padroes:
                   - "palavra-gatilho"
-            """
-        ),
+            """),
         encoding="utf-8",
     )
     analyzer = ContractAnalyzer(ruleset=ContractRuleSet.from_config(cfg))

@@ -1,0 +1,27 @@
+[
+  {
+    "question": "Qual o princípio da inafastabilidade da jurisdição?",
+    "expected_keywords": ["Judiciário", "lesão", "ameaça", "apreciação"],
+    "reference_doc": "CF_art5"
+  },
+  {
+    "question": "O que é boa-fé processual no CPC?",
+    "expected_keywords": ["boa-fé", "processo", "comportar"],
+    "reference_doc": "CPC_arts1_a_20"
+  },
+  {
+    "question": "Qual o início do processo civil?",
+    "expected_keywords": ["iniciativa", "parte", "impulso", "oficial"],
+    "reference_doc": "CPC_arts1_a_20"
+  },
+  {
+    "question": "O que garante o Art. 5 da CF sobre igualdade?",
+    "expected_keywords": ["iguais", "lei", "distinção", "brasileiros"],
+    "reference_doc": "CF_art5"
+  },
+  {
+    "question": "O que é legitimidade processual?",
+    "expected_keywords": ["interesse", "legitimidade", "postular", "juízo"],
+    "reference_doc": "CPC_arts1_a_20"
+  }
+]

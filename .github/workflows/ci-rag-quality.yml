@@ -1,0 +1,87 @@
+name: CI — RAG Quality Gate
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - "src/tools/rag_tool.py"
+      - "src/memory/**"
+      - "src/rag/**"
+      - "config/**"
+      - "tests/rag_quality/**"
+
+jobs:
+  rag-quality:
+    name: RAG Quality Metrics
+    runs-on: ubuntu-latest
+
+    services:
+      chromadb:
+        image: chromadb/chroma:latest
+        ports:
+          - 8000:8000
+        options: >-
+          --health-cmd "bash -c 'cat < /dev/null > /dev/tcp/localhost/8000'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 30s
+
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+
+    env:
+      CHROMA_HOST: localhost
+      CHROMA_PORT: "8000"
+      VECTOR_MEMORY_MODE: local
+      ENVIRONMENT: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Seed base de conhecimento para testes
+        run: |
+          python scripts/ingest_kb.py \
+            --area juridico_generico --file tests/fixtures/legal_docs/generico/CF_art5.txt \
+            --id cf_art5 --tipo lei
+          python scripts/ingest_kb.py \
+            --area juridico_generico --file tests/fixtures/legal_docs/generico/CPC_arts1_a_20.txt \
+            --id cpc_arts1_20 --tipo codigo
+          python scripts/ingest_kb.py \
+            --area trabalhista --file tests/fixtures/legal_docs/trabalhista/CLT_art1_a_50.txt \
+            --id clt_art1_50 --tipo consolidacao
+          python scripts/ingest_kb.py \
+            --area trabalhista --file tests/fixtures/legal_docs/trabalhista/sumula_TST_339.txt \
+            --id tst_339 --tipo acordao --tribunal TST
+          python scripts/ingest_kb.py \
+            --area previdenciario --file tests/fixtures/legal_docs/previdenciario/lei_8213_art1_a_30.txt \
+            --id lei_8213 --tipo lei
+
+      - name: Pull modelo Ollama para judge (A5)
+        run: |
+          curl -s http://localhost:11434/api/version || echo "Ollama não disponível — skip"
+          curl -X POST http://localhost:11434/api/pull \
+            -d '{"name": "llama3.2:3b"}' --retry 5 --retry-delay 3 \
+            --max-time 120 || echo "Pull do modelo falhou — testes continuam sem judge LLM"
+
+      - name: Aguardar modelo pronto
+        run: sleep 10
+
+      - name: RAG quality tests
+        run: pytest tests/rag_quality/ --tb=short -v
+
+      # Gate: bloqueia merge se Precision@5 < 0.60 (falha no step anterior)

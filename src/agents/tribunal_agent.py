@@ -160,10 +160,25 @@ class TribunalAgent(A2ACapable):
 
     _JURIS_KEYWORDS = frozenset(
         [
-            "jurisprudência", "jurisprudencia", "decisão", "decisões", "decisoes",
-            "acórdão", "acordao", "acórdãos", "acordaos", "precedente", "precedentes",
-            "comparar", "comparação", "comparacao", "entendimento", "julgamento",
-            "julgamentos", "súmula", "sumula",
+            "jurisprudência",
+            "jurisprudencia",
+            "decisão",
+            "decisões",
+            "decisoes",
+            "acórdão",
+            "acordao",
+            "acórdãos",
+            "acordaos",
+            "precedente",
+            "precedentes",
+            "comparar",
+            "comparação",
+            "comparacao",
+            "entendimento",
+            "julgamento",
+            "julgamentos",
+            "súmula",
+            "sumula",
         ]
     )
 

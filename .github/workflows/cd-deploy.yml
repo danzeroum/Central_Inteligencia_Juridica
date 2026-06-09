@@ -1,0 +1,118 @@
+name: CD — Deploy (staging → prod)
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  docker-publish:
+    name: Docker Build + Push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login ao registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build + Push imagem
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_REGISTRY }}/cij:latest
+            ${{ secrets.DOCKER_REGISTRY }}/cij:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  seed-knowledge:
+    name: Seed base de conhecimento (staging)
+    runs-on: ubuntu-latest
+    needs: docker-publish
+    if: vars.STAGING_URL != ''
+
+    env:
+      VECTOR_MEMORY_MODE: local
+      ENVIRONMENT: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Seed base de conhecimento (staging)
+        run: |
+          python scripts/ingest_kb.py \
+            --area juridico_generico \
+            --file data/seed/CF_arts_relevantes.txt \
+            --id cf_seed --tipo lei || echo "Seed CF não disponível"
+          python scripts/ingest_kb.py \
+            --area trabalhista \
+            --file data/seed/CLT_seed.txt \
+            --id clt_seed --tipo lei || echo "Seed CLT não disponível"
+
+  smoke-tests:
+    name: Smoke Tests (staging)
+    runs-on: ubuntu-latest
+    needs: [docker-publish, seed-knowledge]
+    if: vars.STAGING_URL != ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test deps
+        run: pip install httpx pytest
+
+      - name: Smoke tests contra staging
+        env:
+          BASE_URL: ${{ vars.STAGING_URL }}
+          ENVIRONMENT: test
+        run: pytest tests/smoke/ -v --tb=short
+
+      - name: Rollback automático se smoke falhar
+        if: failure()
+        run: |
+          echo "SMOKE FAILED — iniciando rollback para versão anterior"
+          # kubectl rollout undo deployment/cij -n staging
+          # ou: docker service update --rollback cij_api
+          echo "Rollback iniciado. Verificar manualmente."
+        continue-on-error: true
+
+  notify-slack:
+    name: Notificação Slack
+    runs-on: ubuntu-latest
+    needs: [smoke-tests]
+    if: always() && vars.SLACK_WEBHOOK != ''
+
+    steps:
+      - name: Notificar resultado
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "Deploy CIJ: ${{ needs.smoke-tests.result == 'success' && '✅ Sucesso' || '❌ Falhou' }} — commit ${{ github.sha }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK }}

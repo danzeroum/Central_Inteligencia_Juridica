@@ -312,11 +312,45 @@ class SupervisorAgent(A2ACapable):
 
         return self.tribunal_identifier.identify_primary(task)
 
-    async def process_task(self, task_description: str) -> Dict[str, Any]:
+    async def process_task(
+        self,
+        task_description: str,
+        user_profile: Any | None = None,
+        cliente_profile: Any | None = None,
+    ) -> Dict[str, Any]:
         """
         Main entry point for task processing.
         EVOLUÇÃO STANDARD: Usa LLM-based intent classification.
+
+        Args:
+            task_description: Descrição da tarefa jurídica.
+            user_profile: GenericUserProfile opcional — modula área, linguagem e formalidade.
+            cliente_profile: ClienteProfile opcional — ajusta linguagem para o cliente final.
+                Se consentimento_lgpd=False, processa sem dados do cliente (A9).
         """
+
+        # A9 — LGPD: sem consentimento, dados do cliente são omitidos do contexto
+        if cliente_profile is not None and not getattr(
+            cliente_profile, "consentimento_lgpd", True
+        ):
+            self.logger.warning(
+                "Cliente %s: sem consentimento LGPD. Dados omitidos.",
+                getattr(cliente_profile, "cliente_id", "desconhecido"),
+            )
+            cliente_profile = None
+
+        # A4 — fallbacks explícitos quando perfil não fornecido
+        effective_areas: List[str] = (
+            [a.value if hasattr(a, "value") else a for a in user_profile.especialidades]
+            if user_profile and user_profile.especialidades
+            else []
+        )
+        effective_formality: str = (
+            user_profile.preferred_formality if user_profile else "accessible"
+        )
+        effective_tecnicidade: int = (
+            user_profile.nivel_tecnicidade if user_profile else 3
+        )
 
         start_time = time.time()
         consensus_strength_value: float | None = None
@@ -333,6 +367,9 @@ class SupervisorAgent(A2ACapable):
                     "sanitized_task": sanitized_task,
                     "input_pii_types": pii_types(task_description),
                     "step": "initial_processing",
+                    "profile_areas": effective_areas,
+                    "profile_formality": effective_formality,
+                    "profile_tecnicidade": effective_tecnicidade,
                 },
             )
 

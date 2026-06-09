@@ -9,6 +9,7 @@ import ProcessScreen from './screens/user/ProcessScreen.jsx';
 import JurisScreen from './screens/user/JurisScreen.jsx';
 import LegisScreen from './screens/user/LegisScreen.jsx';
 import HistoryScreen from './screens/user/HistoryScreen.jsx';
+import ProfileScreen from './screens/user/ProfileScreen.jsx';
 
 import HitlScreen from './screens/admin/HitlScreen.jsx';
 import HitlDetailScreen from './screens/admin/HitlDetailScreen.jsx';
@@ -25,6 +26,7 @@ const NAV = {
     { id: 'juris', label: 'Jurisprudência', icon: 'scale' },
     { id: 'legis', label: 'Legislativo', icon: 'law' },
     { id: 'history', label: 'Minhas consultas', icon: 'clock' },
+    { id: 'perfil', label: 'Meu Perfil', icon: 'cog' },
   ],
   admin: [
     { id: 'hitl', label: 'Aprovações', icon: 'shield' },
@@ -42,6 +44,7 @@ const TITLES = {
   juris: ['Espaço de Trabalho', 'Jurisprudência'],
   legis: ['Espaço de Trabalho', 'Legislativo'],
   history: ['Espaço de Trabalho', 'Minhas consultas'],
+  perfil: ['Espaço de Trabalho', 'Meu Perfil'],
   hitl: ['Administração', 'Aprovações'],
   'hitl-detail': ['Administração', 'Aprovações', 'Modificar'],
   training: ['Administração', 'Treinamento'],
@@ -145,6 +148,7 @@ export default function App() {
     juris: <JurisScreen />,
     legis: <LegisScreen />,
     history: <HistoryScreen go={go} />,
+    perfil: <ProfileScreen />,
     hitl: <HitlScreen go={go} onPendingChange={setPendingCount} />,
     'hitl-detail': <HitlDetailScreen go={go} />,
     training: <TrainingScreen />,

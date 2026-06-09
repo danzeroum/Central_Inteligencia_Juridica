@@ -136,16 +136,14 @@ def test_gerador_llm_substitui_preenchimento(service):
 def test_registry_from_config_custom(tmp_path):
     cfg = tmp_path / "pecas.yaml"
     cfg.write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             pecas:
               recurso:
                 nome: "Recurso de Apelação"
                 base_legal: "CPC art. 1.010"
                 campos_obrigatorios: [razoes]
                 template: "RAZÕES: {razoes}"
-            """
-        ),
+            """),
         encoding="utf-8",
     )
     registry = PecaTemplateRegistry.from_config(cfg)
