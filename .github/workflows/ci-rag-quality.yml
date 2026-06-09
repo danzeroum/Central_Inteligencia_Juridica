@@ -26,6 +26,11 @@ jobs:
           --health-timeout 5s
           --health-retries 8
 
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+
     env:
       CHROMA_HOST: localhost
       CHROMA_PORT: "8000"
@@ -64,6 +69,16 @@ jobs:
           python scripts/ingest_kb.py \
             --area previdenciario --file tests/fixtures/legal_docs/previdenciario/lei_8213_art1_a_30.txt \
             --id lei_8213 --tipo lei
+
+      - name: Pull modelo Ollama para judge (A5)
+        run: |
+          curl -s http://localhost:11434/api/version || echo "Ollama não disponível — skip"
+          curl -X POST http://localhost:11434/api/pull \
+            -d '{"name": "llama3.2:3b"}' --retry 5 --retry-delay 3 \
+            --max-time 120 || echo "Pull do modelo falhou — testes continuam sem judge LLM"
+
+      - name: Aguardar modelo pronto
+        run: sleep 10
 
       - name: RAG quality tests
         run: pytest tests/rag_quality/ --tb=short -v

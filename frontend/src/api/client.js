@@ -136,4 +136,22 @@ export const api = {
 
   // Monitoramento
   monitoringHealth: () => request('/api/v1/monitoring/health'),
+
+  // Perfil de usuário
+  getProfile: () => request('/api/v1/profile'),
+  updateProfile: (payload) => request('/api/v1/profile', { method: 'PUT', body: payload }),
+  deleteProfile: () => request('/api/v1/profile', { method: 'DELETE' }),
+  getProfileArea: () => request('/api/v1/profile/area'),
+  updateProfileArea: (especialidades) =>
+    request('/api/v1/profile/area', { method: 'PUT', body: { especialidades } }),
+  listClientes: () => request('/api/v1/profile/clientes'),
+  getCliente: (clienteId) => request(`/api/v1/profile/clientes/${clienteId}`),
+  createCliente: (payload) =>
+    request('/api/v1/profile/clientes', { method: 'POST', body: payload }),
+
+  // Métodos genéricos para uso direto por screens que precisam de flexibilidade
+  get: (path) => request(path),
+  post: (path, body) => request(path, { method: 'POST', body }),
+  put: (path, body) => request(path, { method: 'PUT', body }),
+  del: (path) => request(path, { method: 'DELETE' }),
 };

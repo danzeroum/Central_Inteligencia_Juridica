@@ -26,6 +26,7 @@ class AreaJuridica(str, enum.Enum):
     DIGITAL = "digital"
     SERVIDOR_PUBLICO = "servidor_publico"
     SAUDE = "saude"
+    JURIDICO_GENERICO = "juridico_generico"
 
 
 class Role(str, enum.Enum):

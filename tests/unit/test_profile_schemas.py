@@ -18,7 +18,8 @@ from src.profiles.schemas import (
 def test_area_juridica_enum_values():
     assert AreaJuridica.TRABALHISTA == "trabalhista"
     assert AreaJuridica.SERVIDOR_PUBLICO == "servidor_publico"
-    assert len(list(AreaJuridica)) == 16
+    assert AreaJuridica.JURIDICO_GENERICO == "juridico_generico"
+    assert len(list(AreaJuridica)) == 17
 
 
 def test_generic_user_profile_defaults():
