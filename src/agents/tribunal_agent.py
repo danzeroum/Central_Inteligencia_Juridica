@@ -56,6 +56,8 @@ class TribunalAgent(A2ACapable):
                 result = self._check_tribunal_status()
             elif operation == "process_query":
                 result = self._process_query(sanitized_task)
+            elif operation == "jurisprudencia":
+                result = self._jurisprudencia_search(sanitized_task)
             else:
                 result = self._simulate_generic_response(sanitized_task)
         except Exception as exc:  # pragma: no cover - defensive safeguard
@@ -156,16 +158,28 @@ class TribunalAgent(A2ACapable):
             timeout=30.0,
         )
 
+    _JURIS_KEYWORDS = frozenset(
+        [
+            "jurisprudência", "jurisprudencia", "decisão", "decisões", "decisoes",
+            "acórdão", "acordao", "acórdãos", "acordaos", "precedente", "precedentes",
+            "comparar", "comparação", "comparacao", "entendimento", "julgamento",
+            "julgamentos", "súmula", "sumula",
+        ]
+    )
+
     def _determine_operation(self, task: str) -> str:
         lower = task.lower()
-        if "status" in lower or "disponibilidade" in lower:
-            return "status"
+        # Process number takes priority: "status do processo X" is a process query
         if (
             "processo" in lower
             or "processar" in lower
             or self._PROCESS_NUMBER_RE.search(lower)
         ):
             return "process_query"
+        if "status" in lower or "disponibilidade" in lower:
+            return "status"
+        if any(kw in lower for kw in self._JURIS_KEYWORDS):
+            return "jurisprudencia"
         return "generic"
 
     def _check_tribunal_status(self) -> Dict[str, Any]:
@@ -249,6 +263,41 @@ class TribunalAgent(A2ACapable):
             "status": "success",
             "process_number": process_number,
             "data": processo_payload,
+            "metadata": metadata,
+        }
+
+    def _jurisprudencia_search(self, task: str) -> Dict[str, Any]:
+        """Busca jurisprudência por tema no DataJud para este tribunal."""
+        # Extrai o tema: remove menções ao tribunal para não poluir a query
+        tema = re.sub(
+            r"\b(comparar|jurisprudência|jurisprudencia|decisões|decisao|acórdão|acordao"
+            r"|no\s+\w+|do\s+\w+|no\s+stf|no\s+stj|no\s+tj\w+)\b",
+            " ",
+            task,
+            flags=re.IGNORECASE,
+        ).strip()
+        tema = re.sub(r"\s+", " ", tema).strip() or task
+
+        resultado = self.api_adapter.search_tema_sync(tema, size=5)
+
+        if resultado is None:
+            return {
+                "tribunal": self.tribunal_code,
+                "operation": "jurisprudencia",
+                "status": "simulated",
+                "message": "DataJud indisponível ou sem chave configurada.",
+                "tema": tema,
+                "processos": [],
+            }
+
+        metadata = resultado.pop("_metadata", {})
+        return {
+            "tribunal": self.tribunal_code,
+            "operation": "jurisprudencia",
+            "status": "success",
+            "tema": tema,
+            "total": resultado.get("total", 0),
+            "processos": resultado.get("processos", []),
             "metadata": metadata,
         }
 

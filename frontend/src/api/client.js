@@ -69,10 +69,11 @@ export const api = {
   history: (limit = 20) => request(`/api/v1/history?limit=${limit}`),
 
   // Jurisprudência (CNJ DataJud — Frente F.1)
-  jurisprudencia: ({ tribunal, q, assunto, grau, size } = {}) => {
+  jurisprudencia: ({ tribunal, q, tema, assunto, grau, size } = {}) => {
     const params = new URLSearchParams()
     if (tribunal) params.set('tribunal', tribunal)
     if (q) params.set('q', q)
+    if (tema) params.set('tema', tema)
     if (grau) params.set('grau', grau)
     if (size) params.set('size', String(size))
     for (const a of assunto || []) params.append('assunto', String(a))
@@ -80,10 +81,12 @@ export const api = {
   },
 
   // Legislativo
-  legislativeBills: (q) =>
-    request(`/consultar-projetos-lei/?q=${encodeURIComponent(q)}`),
+  legislativeBills: (q, { pagina = 1, itens = 15 } = {}) =>
+    request(
+      `/api/v1/proposicoes-legislativas?q=${encodeURIComponent(q)}&pagina=${pagina}&itens=${itens}`
+    ),
   legislativeAnalysis: (tema) =>
-    request(`/analise-legislativa/?tema=${encodeURIComponent(tema)}`, { method: 'POST' }),
+    request('/api/v1/analises-legislativas', { method: 'POST', body: { tema } }),
 
   // HITL
   hitlPending: () => request('/api/v1/hitl/pending'),

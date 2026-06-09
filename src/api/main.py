@@ -1024,14 +1024,16 @@ async def compare_modes(
     }
 
 
-async def _consultar_projetos(termo_busca: str) -> Dict[str, Any]:
+async def _consultar_projetos(
+    termo_busca: str, pagina: int = 1, itens: int = 15
+) -> Dict[str, Any]:
     """Lógica compartilhada de consulta de proposições (legado + canônico)."""
 
     termo_busca = termo_busca.strip()
     if not termo_busca:
         raise HTTPException(status_code=400, detail="Parametro 'q' e obrigatorio.")
 
-    resultado = buscar_projetos_de_lei(termo_busca)
+    resultado = buscar_projetos_de_lei(termo_busca, pagina=pagina, itens=itens)
     if "error" in resultado:
         raise HTTPException(status_code=502, detail=resultado["error"])
     return resultado
@@ -1074,12 +1076,14 @@ async def pesquisar_proposicoes(
         max_length=200,
         description="Termo de busca para proposições legislativas",
     ),
+    pagina: int = Query(1, ge=1, description="Número da página (começa em 1)"),
+    itens: int = Query(15, ge=1, le=100, description="Itens por página (máx. 100)"),
     _principal: Principal = Depends(current_principal),
     _: None = Depends(enforce_rate_limit),
 ) -> Dict[str, Any]:
     """Consulta proposições legislativas na API da Câmara dos Deputados."""
 
-    return await _consultar_projetos(q)
+    return await _consultar_projetos(q, pagina=pagina, itens=itens)
 
 
 @app.post("/analise-legislativa/", tags=["Análises de IA"], deprecated=True)

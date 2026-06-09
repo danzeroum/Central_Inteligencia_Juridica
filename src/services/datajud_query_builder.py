@@ -34,6 +34,64 @@ class DataJudQueryBuilder:
         self._must.append({"match": {"numeroProcesso": numero}})
         return self
 
+    def with_texto(self, texto: str) -> "DataJudQueryBuilder":
+        """Busca por tema nos metadados de capa do DataJud.
+
+        Para consultas multi-palavra exige ≥2 termos significativos (evita falsos
+        positivos por stop-words). Para consultas de 1 palavra usa min=1.
+        """
+        significant = [w for w in texto.split() if len(w) > 2]
+        min_match = "2" if len(significant) >= 2 else "1"
+        self._must.append(
+            {
+                "bool": {
+                    "should": [
+                        # Frase exata (maior precisão)
+                        {
+                            "match_phrase": {
+                                "assuntos.nome": {"query": texto, "boost": 4.0}
+                            }
+                        },
+                        # Match normal com termos mínimos
+                        {
+                            "match": {
+                                "assuntos.nome": {
+                                    "query": texto,
+                                    "minimum_should_match": min_match,
+                                    "boost": 2.0,
+                                }
+                            }
+                        },
+                        # Fuzziness cobre acentos e pequenos erros (ex: feminicidio → feminicídio)
+                        {
+                            "match": {
+                                "assuntos.nome": {
+                                    "query": texto,
+                                    "fuzziness": "AUTO",
+                                    "boost": 1.5,
+                                }
+                            }
+                        },
+                        {
+                            "match_phrase": {
+                                "classe.nome": {"query": texto, "boost": 1.5}
+                            }
+                        },
+                        {
+                            "match": {
+                                "classe.nome": {
+                                    "query": texto,
+                                    "minimum_should_match": min_match,
+                                }
+                            }
+                        },
+                    ],
+                    "minimum_should_match": 1,
+                }
+            }
+        )
+        return self
+
     def with_assuntos(self, codigos: List[int]) -> "DataJudQueryBuilder":
         self._filter.append({"terms": {"assuntos.codigo": codigos}})
         return self
