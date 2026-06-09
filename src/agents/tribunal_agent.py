@@ -179,6 +179,37 @@ class TribunalAgent(A2ACapable):
             "julgamentos",
             "súmula",
             "sumula",
+            # Direito do trabalho / direitos
+            "demitido",
+            "demissão",
+            "demissao",
+            "estabilidade",
+            "gestante",
+            "trabalhista",
+            "trabalhistas",
+            "indenização",
+            "indenizacao",
+            "rescisão",
+            "rescisao",
+            "horas extras",
+            "assédio",
+            "assedio",
+            # Direito tributário / empresarial
+            "tributário",
+            "tributaria",
+            "tributária",
+            "tributario",
+            "imposto",
+            "impostos",
+            "simples nacional",
+            "reforma tributária",
+            "reforma tributaria",
+            # Direito do consumidor / civil
+            "dano moral",
+            "danos morais",
+            "consumidor",
+            "responsabilidade civil",
+            "direitos",
         ]
     )
 
@@ -281,16 +312,29 @@ class TribunalAgent(A2ACapable):
             "metadata": metadata,
         }
 
+    # Meta-palavras que não descrevem o assunto jurídico em si
+    _TEMA_STRIP_RE = re.compile(
+        r"\b("
+        r"comparar|comparação|comparacao"
+        r"|entendimento"
+        r"|jurisprudência|jurisprudencia"
+        r"|decisões|decisao|acórdão|acordao|acórdãos|acordaos"
+        r"|precedente|precedentes|súmula|sumula"
+        r"|julgamento|julgamentos"
+        r"|quais?|principais?|impactos?"
+        r"|sobre|entre|para|pelo|pela|com|que|são|os|as|um|uma|\be\b"
+        # Códigos de tribunal com ou sem preposição
+        r"|(?:(?:no|do|da|no|pelo|pela|em)\s+)?(?:stf|stj|tst|trf\d*|tj[a-z]{2,})"
+        r"|stf|stj|tst|trf\d*|tjsp|tjrj|tjmg|tjba|tjsc|tjrs|tjpr|tjpe|tjgo|tjam|tjdf"
+        r")\b",
+        re.IGNORECASE,
+    )
+
     def _jurisprudencia_search(self, task: str) -> Dict[str, Any]:
         """Busca jurisprudência por tema no DataJud para este tribunal."""
-        # Extrai o tema: remove menções ao tribunal para não poluir a query
-        tema = re.sub(
-            r"\b(comparar|jurisprudência|jurisprudencia|decisões|decisao|acórdão|acordao"
-            r"|no\s+\w+|do\s+\w+|no\s+stf|no\s+stj|no\s+tj\w+)\b",
-            " ",
-            task,
-            flags=re.IGNORECASE,
-        ).strip()
+        # Remove meta-palavras e códigos de tribunal para não poluir a query DataJud
+        tema = self._TEMA_STRIP_RE.sub(" ", task)
+        tema = re.sub(r"[?!.,;:]+", " ", tema)
         tema = re.sub(r"\s+", " ", tema).strip() or task
 
         resultado = self.api_adapter.search_tema_sync(tema, size=5)
