@@ -66,16 +66,14 @@ def test_tipo_nao_governado_e_permitido():
 def test_from_config_le_arquivo_custom(tmp_path):
     cfg = tmp_path / "ds.yaml"
     cfg.write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             data_types:
               x_critico:
                 fonte: "API X"
                 llm: nao
                 critico: true
                 cache_ttl: "1h"
-            """
-        ),
+            """),
         encoding="utf-8",
     )
     policy = DataSourcePolicy.from_config(cfg)

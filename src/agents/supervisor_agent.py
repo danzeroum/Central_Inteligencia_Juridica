@@ -330,7 +330,9 @@ class SupervisorAgent(A2ACapable):
         """
 
         # A9 — LGPD: sem consentimento, dados do cliente são omitidos do contexto
-        if cliente_profile is not None and not getattr(cliente_profile, "consentimento_lgpd", True):
+        if cliente_profile is not None and not getattr(
+            cliente_profile, "consentimento_lgpd", True
+        ):
             self.logger.warning(
                 "Cliente %s: sem consentimento LGPD. Dados omitidos.",
                 getattr(cliente_profile, "cliente_id", "desconhecido"),

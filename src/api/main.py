@@ -265,8 +265,12 @@ class TaskRequest(BaseModel):
     )
     # Campos opcionais para personalização — retrocompatíveis com clientes existentes
     profile_id: Optional[str] = Field(None, description="ID do perfil do usuário")
-    cliente_id: Optional[str] = Field(None, description="ID do cliente para ajuste de linguagem")
-    output_language: Optional[str] = Field(None, description="Idioma de saída (ex: pt-BR)")
+    cliente_id: Optional[str] = Field(
+        None, description="ID do cliente para ajuste de linguagem"
+    )
+    output_language: Optional[str] = Field(
+        None, description="Idioma de saída (ex: pt-BR)"
+    )
 
     @field_validator("task_description")
     @classmethod

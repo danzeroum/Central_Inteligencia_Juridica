@@ -320,6 +320,7 @@ class VectorMemory:
             # LGPD / PII (Item 18): redigir PII antes de indexar no ChromaDB
             try:
                 from src.safety.pii import redact_pii as _redact_pii
+
                 task = _redact_pii(task)
             except Exception:  # pragma: no cover - defensive
                 pass
@@ -569,7 +570,9 @@ class VectorMemory:
         (``tribunal_interactions``), preservando isolamento semântico.
         """
         if self.client is None:
-            logger.warning("ChromaDB indisponível: namespace '%s' não criado.", area_key)
+            logger.warning(
+                "ChromaDB indisponível: namespace '%s' não criado.", area_key
+            )
             return None
 
         collection_name = f"{area_key}_kb"
