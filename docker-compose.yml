@@ -4,8 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: central-inteligencia-juridica
-    ports:
-      - "8002:8000"
+    # Sem host-port: acesso externo passa SOMENTE pelo ingress nginx (TLS).
+    expose:
+      - "8000"
     volumes:
       - ./src:/app/src:ro
       - ./tests:/app/tests:ro
@@ -56,8 +57,7 @@ services:
       # ChromaDB (RAG — Item 11/12). VECTOR_MEMORY_MODE=local usa PersistentClient
       # embutido (padrão, single-node). Para escalar horizontalmente defina
       # VECTOR_MEMORY_MODE=remote, CHROMA_HOST=chromadb e suba com
-      # --profile chromadb. A versão do servidor deve ser compatível com
-      # chromadb==0.4.18 (requirements.txt).
+      # --profile chromadb.
       - CHROMA_HOST=${CHROMA_HOST:-localhost}
       - CHROMA_PORT=${CHROMA_PORT:-8000}
       # DataJud (CNJ) — jurisprudência real. Sem chave usa mock automaticamente.
@@ -87,7 +87,7 @@ services:
         condition: service_healthy
         required: false
     networks:
-      - default
+      - cij_internal
       - btv-prod-net
 
   redis:
@@ -99,8 +99,6 @@ services:
       - redis-server
       - --requirepass
       - ${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -116,13 +114,13 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+    networks:
+      - cij_internal
 
   prometheus:
     # Imagem fixada (sem :latest) para builds reproduzíveis e proteção contra drift.
     image: prom/prometheus:v2.54.1
     container_name: tribunal-prometheus
-    ports:
-      - "9091:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
@@ -144,13 +142,13 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+    networks:
+      - cij_internal
 
   alertmanager:
     # OBSERVABILITY: roteia/silencia os alertas disparados pelo Prometheus.
     image: prom/alertmanager:v0.27.0
     container_name: tribunal-alertmanager
-    ports:
-      - "9093:9093"
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -168,13 +166,13 @@ services:
         reservations:
           cpus: '0.1'
           memory: 64M
+    networks:
+      - cij_internal
 
   grafana:
     # Imagem fixada (sem :latest).
     image: grafana/grafana:11.2.0
     container_name: tribunal-grafana
-    ports:
-      - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -197,6 +195,8 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+    networks:
+      - cij_internal
 
   # ChromaDB externo (RAG knowledge-base — Item 11-13).
   # Só necessário quando VECTOR_MEMORY_MODE=remote (escalonamento horizontal).
@@ -209,8 +209,6 @@ services:
     container_name: cij-chromadb
     profiles:
       - chromadb
-    ports:
-      - "8003:8000"
     volumes:
       - chromadb_data:/data
     environment:
@@ -235,6 +233,8 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+    networks:
+      - cij_internal
 
   # CLOUD-READINESS: coletor de tracing opcional. Sobe apenas com o profile
   # 'tracing' (docker compose --profile tracing up). Na nuvem, troque o
@@ -244,12 +244,11 @@ services:
     container_name: tribunal-jaeger
     profiles:
       - tracing
-    ports:
-      - "16686:16686"  # UI
-      - "4318:4318"    # OTLP HTTP
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    networks:
+      - cij_internal
 
 volumes:
   redis_data:
@@ -260,6 +259,8 @@ volumes:
   chromadb_data:        # coleções RAG quando VECTOR_MEMORY_MODE=remote
 
 networks:
-  default:
+  cij_internal:
+    driver: bridge
   btv-prod-net:
     external: true
+    name: btv-prod-net
