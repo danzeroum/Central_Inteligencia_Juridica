@@ -84,8 +84,8 @@
 
   // ── 6. JURISPRUDÊNCIA (DataJud) ──────────────────────────────────────────────
   console.log('\n── 6. Jurisprudência / DataJud');
-  chk('GET /api/v1/jurisprudencia?tribunal=TJSP',
-    await req('GET', '/api/v1/jurisprudencia?tribunal=TJSP'), [200]);
+  chk('GET /api/v1/jurisprudencia?tribunal=TJSP&tema=processo',
+    await req('GET', '/api/v1/jurisprudencia?tribunal=TJSP&tema=processo'), [200]);
 
   // ── 7. PERFIL ────────────────────────────────────────────────────────────────
   console.log('\n── 7. Perfil');
