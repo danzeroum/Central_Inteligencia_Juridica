@@ -11,6 +11,9 @@ services:
     volumes:
       - ./src:/app/src:ro
       - ./tests:/app/tests:ro
+      - ./config:/app/config:ro          # personas YAML (legal_areas.py / Item 5-6)
+      - ./data:/app/data:ro              # documentos de seed (ingest_kb.py / A7)
+      - ./scripts:/app/scripts:ro        # CLI de ingestão e utilitários
       - ./logs:/app/logs
       - vector_memory_data:/app/.vector_memory
     working_dir: /app
@@ -52,6 +55,13 @@ services:
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      # ChromaDB (RAG — Item 11/12). VECTOR_MEMORY_MODE=local usa PersistentClient
+      # embutido (padrão, single-node). Para escalar horizontalmente defina
+      # VECTOR_MEMORY_MODE=remote, CHROMA_HOST=chromadb e suba com
+      # --profile chromadb. A versão do servidor deve ser compatível com
+      # chromadb==0.4.18 (requirements.txt).
+      - CHROMA_HOST=${CHROMA_HOST:-localhost}
+      - CHROMA_PORT=${CHROMA_PORT:-8000}
       # DataJud (CNJ) — jurisprudência real. Sem chave usa mock automaticamente.
       - DATAJUD_API_KEY=${DATAJUD_API_KEY:-}
     restart: unless-stopped
@@ -185,6 +195,37 @@ services:
           cpus: '0.25'
           memory: 128M
 
+  # ChromaDB externo (RAG knowledge-base — Item 11-13).
+  # Só necessário quando VECTOR_MEMORY_MODE=remote (escalonamento horizontal).
+  # Ative com: docker compose --profile chromadb up
+  # E defina no .env: VECTOR_MEMORY_MODE=remote CHROMA_HOST=chromadb
+  # Pino de versão: alinhe com chromadb==0.4.18 do requirements.txt.
+  chromadb:
+    image: chromadb/chroma:0.4.18
+    container_name: cij-chromadb
+    profiles:
+      - chromadb
+    ports:
+      - "8003:8000"
+    volumes:
+      - chromadb_data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
   # CLOUD-READINESS: coletor de tracing opcional. Sobe apenas com o profile
   # 'tracing' (docker compose --profile tracing up). Na nuvem, troque o
   # OTEL_EXPORTER_OTLP_ENDPOINT para um backend gerenciado (X-Ray/Tempo/Datadog).
@@ -206,6 +247,7 @@ volumes:
   alertmanager_data:
   grafana_data:
   vector_memory_data:
+  chromadb_data:        # coleções RAG quando VECTOR_MEMORY_MODE=remote
 
 networks:
   default:
