@@ -1,12 +1,14 @@
 // ══════════════════════════════════════════════════════════════════════════════
 //  Central de Inteligência Jurídica — Suite de Testes de Produção
 //
-//  USO: Cole no console do browser (F12) estando no domínio da aplicação.
-//       Altere BASE, USER e PASS antes de executar.
+//  USO: Abra o browser no domínio da aplicação, F12 → Console → cole e Enter.
+//       Altere USER e PASS antes de executar.
+//       BASE vazio = URL relativa (funciona com CSP connect-src 'self').
+//       Se rodar de outra aba, preencha BASE com o domínio completo.
 // ══════════════════════════════════════════════════════════════════════════════
 (async () => {
 
-  const BASE = 'https://SEU-DOMINIO-AQUI';   // ex: https://cij.buildtovalue.cloud
+  const BASE = '';          // deixe vazio se estiver na aba da própria aplicação
   const USER = 'admin';
   const PASS = 'SuaSenhaAqui';
 
