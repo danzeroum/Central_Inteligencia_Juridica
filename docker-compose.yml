@@ -95,6 +95,8 @@ services:
     container_name: tribunal-redis
     # SECURITY (SEC-003/CWE-306): Redis exige autenticação. Sem REDIS_PASSWORD
     # o compose falha em vez de subir um Redis aberto.
+    # user: redis evita setuid (cap_drop: ALL bloqueia setresuid no entrypoint).
+    user: redis
     command:
       - redis-server
       - --requirepass
