@@ -1,22 +1,35 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # smoke_test.sh — Central de Inteligência Jurídica
-# 18 seções de smoke test cobrindo todos os endpoints e a camada 360°.
 #
-# Uso:
-#   bash scripts/smoke_test.sh
-#   BASE_URL=https://meudominio.com bash scripts/smoke_test.sh
-#   TEST_CNPJ=00360305000104 VERBOSE=1 bash scripts/smoke_test.sh
+# Modo de execução (auto-detectado, ou forçado via SMOKE_MODE):
+#
+#   docker  (padrão quando o container está rodando):
+#     Executa curl DENTRO do container → acessa localhost:8000 diretamente,
+#     sem precisar expor a porta no host ou passar pelo nginx.
+#     Comando: bash scripts/smoke_test.sh
+#
+#   http    (externo via nginx/domínio):
+#     Usa BASE_URL para todas as chamadas (segue o caminho nginx → TLS).
+#     Comando: SMOKE_MODE=http BASE_URL=https://dominio.com bash scripts/smoke_test.sh
+#
+# Variáveis de ambiente aceitas:
+#   SMOKE_MODE      — docker|http  (padrão: docker se container estiver up)
+#   CONTAINER       — nome do container (padrão: central-inteligencia-juridica)
+#   BASE_URL        — usado apenas em SMOKE_MODE=http
+#   ADMIN_USER/PASS — credenciais admin (padrão: admin/admin)
+#   OP_USER/PASS    — credenciais operador (padrão: operator/operator)
+#   TEST_CNPJ       — CNPJ para teste 360° (padrão: Petrobras)
+#   VERBOSE         — 1 para mostrar payloads completos
 # ─────────────────────────────────────────────────────────────────────────────
-# NOTA: sem set -e para evitar saída prematura em ((0++))
 set -uo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:8000}"
+CONTAINER="${CONTAINER:-central-inteligencia-juridica}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASS="${ADMIN_PASS:-admin}"
 OP_USER="${OP_USER:-operator}"
 OP_PASS="${OP_PASS:-operator}"
-TEST_CNPJ="${TEST_CNPJ:-33000167000101}"   # Petrobras — CNPJ público
+TEST_CNPJ="${TEST_CNPJ:-33000167000101}"
 VERBOSE="${VERBOSE:-0}"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YEL='\033[1;33m'
@@ -25,66 +38,102 @@ BLU='\033[0;34m'; CYN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'
 PASS=0; FAIL=0; WARN=0
 FAILURES=()
 
-# Usar COUNTER=$((COUNTER+1)) — evita bug de set-e com ((0++)) == falso
-pass()  { echo -e "  ${GRN}✔${NC} $1"; PASS=$((PASS+1)); }
-fail()  { echo -e "  ${RED}✗${NC} $1 ${detail:-}"; FAIL=$((FAIL+1)); FAILURES+=("$1"); }
-warn()  { echo -e "  ${YEL}⚠${NC} $1"; WARN=$((WARN+1)); }
-info()  { echo -e "  ${CYN}ℹ${NC} $1"; }
-section(){ echo -e "\n${BOLD}${BLU}── $1 ──────────────────────────────────────────────${NC}"; }
+pass()    { echo -e "  ${GRN}✔${NC} $1"; PASS=$((PASS+1)); }
+fail()    { echo -e "  ${RED}✗${NC} $1"; FAIL=$((FAIL+1)); FAILURES+=("$1"); }
+warn()    { echo -e "  ${YEL}⚠${NC} $1"; WARN=$((WARN+1)); }
+info()    { echo -e "  ${CYN}ℹ${NC} $1"; }
+section() { echo -e "\n${BOLD}${BLU}── $1 ──────────────────────────────────────────────${NC}"; }
 
-http_get()  { curl -s -o /dev/null -w "%{http_code}" ${1:+-H "$1"} "$2"; }
-http_body() { curl -s ${1:+-H "$1"} "$2"; }
-http_post() { curl -s -X POST -H "Content-Type: application/json" ${1:+-H "$1"} -d "$3" "$2"; }
+command -v python3 >/dev/null || { echo "ERRO: python3 não encontrado"; exit 1; }
 
-# JSON parse via stdin para evitar problemas de quoting
-jq_field() {
-  # $1 = campo, lê JSON de stdin
+# ─── Auto-detect modo de execução ───────────────────────────────────────────
+if [ -z "${SMOKE_MODE:-}" ]; then
+  if docker inspect "$CONTAINER" >/dev/null 2>&1 \
+      && [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" = "true" ]; then
+    SMOKE_MODE="docker"
+  else
+    SMOKE_MODE="http"
+    BASE_URL="${BASE_URL:-http://localhost:8000}"
+  fi
+fi
+
+if [ "$SMOKE_MODE" = "docker" ]; then
+  IBASE="http://localhost:8000"
+  _raw_curl() { docker exec "$CONTAINER" curl -s "$@" 2>/dev/null; }
+  info_mode="docker exec $CONTAINER curl → $IBASE"
+else
+  command -v curl >/dev/null || { echo "ERRO: curl não encontrado"; exit 1; }
+  IBASE="${BASE_URL:-http://localhost:8000}"
+  _raw_curl() { curl -s "$@" 2>/dev/null; }
+  info_mode="curl direto → $IBASE"
+fi
+
+http_code() { _raw_curl -o /dev/null -w "%{http_code}" ${1:+-H "$1"} "$IBASE$2"; }
+http_body() { _raw_curl ${1:+-H "$1"} "$IBASE$2"; }
+http_post() { _raw_curl -X POST -H "Content-Type: application/json" ${1:+-H "$1"} -d "$3" "$IBASE$2"; }
+
+jval() {
+  # lê JSON de stdin, avalia a expressão python $1 sobre o dict d
   python3 -c "import sys,json; d=json.load(sys.stdin); print($1)" 2>/dev/null || echo ""
 }
 
-command -v curl    >/dev/null || { echo "ERRO: curl não encontrado"; exit 1; }
-command -v python3 >/dev/null || { echo "ERRO: python3 não encontrado"; exit 1; }
-
 echo -e "${BOLD}Central de Inteligência Jurídica — Smoke Test${NC}"
-echo    "Base URL : $BASE_URL"
+echo    "Modo     : $info_mode"
 echo    "Data/hora: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+section "0. Modos de integração (mock vs real)"
+# ═══════════════════════════════════════════════════════════════════════════════
+# Lê variáveis de ambiente do container para saber quais fontes estão em mock
+if [ "$SMOKE_MODE" = "docker" ]; then
+  ENV_OUT=$(docker exec "$CONTAINER" env 2>/dev/null || echo "")
+  for SRC in DATAJUD DJEN RECEITA_CNPJ TSE CRC_PROTESTOS CADIN ONR_IMOVEIS; do
+    MODE=$(echo "$ENV_OUT" | grep "^INTEGRATIONS_${SRC}_MODE=" | cut -d= -f2)
+    MODE="${MODE:-mock}"
+    if [ "$MODE" = "real" ]; then
+      pass "INTEGRATIONS_${SRC}_MODE = real ✓"
+    else
+      warn "INTEGRATIONS_${SRC}_MODE = mock (dados simulados) — adicione ao .env para ativar real"
+    fi
+  done
+else
+  warn "Modo http: não é possível inspecionar variáveis do container"
+fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "1. Health"
 # ═══════════════════════════════════════════════════════════════════════════════
-STATUS=$(http_get "" "$BASE_URL/health")
-[ "$STATUS" = "200" ] && pass "GET /health → 200" || fail "GET /health → $STATUS (esperado 200)"
+STATUS=$(http_code "" "/health")
+[ "$STATUS" = "200" ] && pass "GET /health → 200" || fail "GET /health → $STATUS"
 
-BODY=$(http_body "" "$BASE_URL/health")
-UP=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))" 2>/dev/null || echo "?")
+BODY=$(http_body "" "/health")
+UP=$(echo "$BODY" | jval "d.get('status','?')")
 if [ "$UP" = "ok" ] || [ "$UP" = "healthy" ]; then
   pass "health.status = $UP"
 else
-  warn "health.status = $UP (esperado ok|healthy) — payload: ${BODY:0:100}"
+  warn "health.status = '$UP' — payload: ${BODY:0:120}"
 fi
-[ "$VERBOSE" = "1" ] && info "payload: $BODY"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "2. Autenticação"
 # ═══════════════════════════════════════════════════════════════════════════════
-LOGIN_ADMIN=$(http_post "" "$BASE_URL/auth/login" \
+LOGIN_ADMIN=$(http_post "" "/auth/login" \
   "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}")
-ADMIN_TOKEN=$(echo "$LOGIN_ADMIN" | jq_field "d.get('access_token','')")
+ADMIN_TOKEN=$(echo "$LOGIN_ADMIN" | jval "d.get('access_token','')")
 [ -n "$ADMIN_TOKEN" ] \
   && pass "POST /auth/login (admin) → JWT emitido" \
-  || fail "POST /auth/login (admin) → sem token — payload: ${LOGIN_ADMIN:0:120}"
+  || fail "POST /auth/login (admin) → sem token — payload: ${LOGIN_ADMIN:0:200}"
 
-LOGIN_OP=$(http_post "" "$BASE_URL/auth/login" \
+LOGIN_OP=$(http_post "" "/auth/login" \
   "{\"username\":\"${OP_USER}\",\"password\":\"${OP_PASS}\"}")
-OP_TOKEN=$(echo "$LOGIN_OP" | jq_field "d.get('access_token','')")
+OP_TOKEN=$(echo "$LOGIN_OP" | jval "d.get('access_token','')")
 [ -n "$OP_TOKEN" ] \
   && pass "POST /auth/login (operator) → JWT emitido" \
   || fail "POST /auth/login (operator) → sem token"
 
-# Senha errada → sem token
-BAD=$(http_post "" "$BASE_URL/auth/login" '{"username":"admin","password":"ERRADO"}')
-BAD_TOK=$(echo "$BAD" | jq_field "d.get('access_token','NONE')")
-[ "$BAD_TOK" = "NONE" ] || [ -z "$BAD_TOK" ] \
+BAD=$(http_post "" "/auth/login" '{"username":"admin","password":"ERRADO"}')
+BAD_TOK=$(echo "$BAD" | jval "d.get('access_token','NONE')")
+[ -z "$BAD_TOK" ] || [ "$BAD_TOK" = "NONE" ] \
   && pass "POST /auth/login (senha errada) → sem token ✓" \
   || fail "POST /auth/login (senha errada) → token vazou!"
 
@@ -94,27 +143,26 @@ OHDR="Authorization: Bearer ${OP_TOKEN}"
 # ═══════════════════════════════════════════════════════════════════════════════
 section "3. RBAC"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "" "$BASE_URL/api/v1/agents")
+S=$(http_code "" "/api/v1/agents")
 [ "$S" = "401" ] && pass "Sem token → /agents → 401" \
   || warn "Sem token → /agents → $S (esperado 401)"
 
-S=$(http_get "$OHDR" "$BASE_URL/api/v1/hitl/pending")
-[ "$S" = "403" ] && pass "Operador → /hitl/pending → 403 (RBAC ok)" \
+S=$(http_code "$OHDR" "/api/v1/hitl/pending")
+[ "$S" = "403" ] && pass "Operador → /hitl/pending → 403 ✓" \
   || warn "Operador → /hitl/pending → $S (esperado 403)"
 
-S=$(http_get "$AHDR" "$BASE_URL/api/v1/hitl/pending")
-[ "$S" = "200" ] && pass "Admin → /hitl/pending → 200" || fail "Admin → /hitl/pending → $S"
+S=$(http_code "$AHDR" "/api/v1/hitl/pending")
+[ "$S" = "200" ] && pass "Admin → /hitl/pending → 200" \
+  || fail "Admin → /hitl/pending → $S"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "4. HITL"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$AHDR" "$BASE_URL/api/v1/hitl/stats")
+S=$(http_code "$AHDR" "/api/v1/hitl/stats")
 [ "$S" = "200" ] && pass "GET /hitl/stats → 200" || fail "GET /hitl/stats → $S"
 
-PENDING_BODY=$(http_body "$AHDR" "$BASE_URL/api/v1/hitl/pending")
-PENDING_N=$(echo "$PENDING_BODY" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
+PENDING_N=$(http_body "$AHDR" "/api/v1/hitl/pending" | python3 -c "
+import sys,json; d=json.load(sys.stdin)
 print(len(d) if isinstance(d,list) else d.get('total',d.get('count',0)))
 " 2>/dev/null || echo "?")
 info "Itens pendentes no HITL: $PENDING_N"
@@ -122,36 +170,32 @@ info "Itens pendentes no HITL: $PENDING_N"
 # ═══════════════════════════════════════════════════════════════════════════════
 section "5. Ledger / Auditoria"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$AHDR" "$BASE_URL/api/v1/ledger")
+S=$(http_code "$AHDR" "/api/v1/ledger")
 [ "$S" = "200" ] && pass "GET /ledger → 200" || fail "GET /ledger → $S"
 
-LEDGER_BODY=$(http_body "$AHDR" "$BASE_URL/api/v1/ledger?limit=3")
-ENTRIES=$(echo "$LEDGER_BODY" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
+ENTRIES=$(http_body "$AHDR" "/api/v1/ledger?limit=3" | python3 -c "
+import sys,json; d=json.load(sys.stdin)
 items=d.get('items',d) if isinstance(d,dict) else d
 print(len(items) if isinstance(items,list) else '?')
 " 2>/dev/null || echo "?")
-info "Entradas no ledger (sample 3): $ENTRIES"
+info "Entradas no ledger (amostra): $ENTRIES"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "6. Treinamento"
 # ═══════════════════════════════════════════════════════════════════════════════
 for ep in "stats" "history?limit=5" "active-sessions"; do
-  S=$(http_get "$AHDR" "$BASE_URL/api/v1/training/$ep")
+  S=$(http_code "$AHDR" "/api/v1/training/$ep")
   [ "$S" = "200" ] && pass "GET /training/$ep → 200" || fail "GET /training/$ep → $S"
 done
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "7. Agentes MCP"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$AHDR" "$BASE_URL/api/v1/agents")
+S=$(http_code "$AHDR" "/api/v1/agents")
 [ "$S" = "200" ] && pass "GET /agents → 200" || fail "GET /agents → $S"
 
-AGENTS_BODY=$(http_body "$AHDR" "$BASE_URL/api/v1/agents")
-AGENT_N=$(echo "$AGENTS_BODY" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
+AGENT_N=$(http_body "$AHDR" "/api/v1/agents" | python3 -c "
+import sys,json; d=json.load(sys.stdin)
 items=d.get('agents',d) if isinstance(d,dict) else d
 print(len(items) if isinstance(items,list) else '?')
 " 2>/dev/null || echo "?")
@@ -160,57 +204,55 @@ info "Agentes registrados: $AGENT_N"
 # ═══════════════════════════════════════════════════════════════════════════════
 section "8. Autonomia (DMN)"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$AHDR" "$BASE_URL/api/v1/autonomy/config")
+S=$(http_code "$AHDR" "/api/v1/autonomy/config")
 [ "$S" = "200" ] && pass "GET /autonomy/config → 200" || fail "GET /autonomy/config → $S"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "9. Monitoramento"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$AHDR" "$BASE_URL/api/v1/monitoring/health")
+S=$(http_code "$AHDR" "/api/v1/monitoring/health")
 [ "$S" = "200" ] && pass "GET /monitoring/health → 200" || fail "GET /monitoring/health → $S"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "10. Perfil"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$OHDR" "$BASE_URL/api/v1/profile")
+S=$(http_code "$OHDR" "/api/v1/profile")
 [ "$S" = "200" ] && pass "GET /profile → 200" || fail "GET /profile → $S"
 
-S=$(http_get "$OHDR" "$BASE_URL/api/v1/profile/area")
+S=$(http_code "$OHDR" "/api/v1/profile/area")
 [ "$S" = "200" ] && pass "GET /profile/area → 200" || fail "GET /profile/area → $S"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "11. Histórico"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$OHDR" "$BASE_URL/api/v1/history?limit=5")
+S=$(http_code "$OHDR" "/api/v1/history?limit=5")
 [ "$S" = "200" ] && pass "GET /history → 200" || fail "GET /history → $S"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "12. Jurisprudência (CNJ DataJud)"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$OHDR" "$BASE_URL/api/v1/jurisprudencia?tribunal=tjsp&q=dano+moral&size=3")
-[ "$S" = "200" ] && pass "GET /jurisprudencia?q=dano+moral → 200" || fail "GET /jurisprudencia → $S"
+S=$(http_code "$OHDR" "/api/v1/jurisprudencia?tribunal=tjsp&q=dano+moral&size=3")
+[ "$S" = "200" ] && pass "GET /jurisprudencia → 200" || fail "GET /jurisprudencia → $S"
 
-JURIS_BODY=$(http_body "$OHDR" "$BASE_URL/api/v1/jurisprudencia?tribunal=tjsp&q=dano+moral&size=3")
-JURIS_N=$(echo "$JURIS_BODY" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
+JURIS_N=$(http_body "$OHDR" "/api/v1/jurisprudencia?tribunal=tjsp&q=dano+moral&size=3" | python3 -c "
+import sys,json; d=json.load(sys.stdin)
 if isinstance(d,list): print(len(d))
 elif isinstance(d,dict):
-    for k in ('hits','items','results','acórdãos','acordaos','total'):
+    for k in ('hits','items','results','acordaos','total'):
         v=d.get(k)
         if isinstance(v,list): print(len(v)); break
-        elif isinstance(v,int): print(v); break
-    else: print(next((len(v) for v in d.values() if isinstance(v,list)),0))
+        elif isinstance(v,(int,float)) and k=='total': print(int(v)); break
+    else: print(sum(len(v) for v in d.values() if isinstance(v,list)) or 0)
 else: print(0)
 " 2>/dev/null || echo "0")
-[ "$JURIS_N" != "0" ] \
-  && pass "DataJud retornou $JURIS_N acórdãos (fonte real)" \
-  || warn "DataJud retornou 0 resultados para 'dano moral tjsp' — verificar CNJ API"
+[ "${JURIS_N:-0}" != "0" ] \
+  && pass "DataJud retornou ${JURIS_N} acórdão(s)" \
+  || warn "DataJud retornou 0 — verifique INTEGRATIONS_DATAJUD_MODE e CNJ API"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "13. Legislativo"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "$OHDR" "$BASE_URL/api/v1/proposicoes-legislativas?q=LGPD&pagina=1&itens=3")
+S=$(http_code "$OHDR" "/api/v1/proposicoes-legislativas?q=LGPD&pagina=1&itens=3")
 [ "$S" = "200" ] && pass "GET /proposicoes-legislativas → 200" || fail "GET /proposicoes → $S"
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -218,131 +260,108 @@ section "14. Investigação 360° — CNPJ Petrobras"
 # ═══════════════════════════════════════════════════════════════════════════════
 info "Consultando CNPJ ${TEST_CNPJ}..."
 
-GQL_BODY=$(cat <<GQLEOF
+GQL_BODY=$(cat <<'HEREDOC'
 {
-  "query": "query I360(\$identifier: String!, \$expandQsa: Boolean!) { intelligence(identifier: \$identifier, expandQsa: \$expandQsa) { queryId identifierMasked identifierType riskScore hitlStatus summary riskDimensions { name score } riskFactors { code description weight dimension } results { source status dataMode latencyMs totalAvailable error } } }",
-  "variables": { "identifier": "${TEST_CNPJ}", "expandQsa": false }
+  "query": "query I360($identifier: String!, $expandQsa: Boolean!) { intelligence(identifier: $identifier, expandQsa: $expandQsa) { queryId identifierMasked identifierType riskScore hitlStatus riskDimensions { name score } results { source status dataMode latencyMs totalAvailable error } } }",
+  "variables": {}
 }
-GQLEOF
+HEREDOC
 )
+# Injeta CNPJ no campo variables após o heredoc para evitar escaping
+GQL_BODY=$(echo "$GQL_BODY" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+d['variables']={'identifier':'${TEST_CNPJ}','expandQsa':False}
+print(json.dumps(d))
+")
 
-RESP_360=$(curl -s -X POST "$BASE_URL/api/v1/intelligence/graphql" \
-  -H "Content-Type: application/json" \
-  -H "$OHDR" \
-  -d "$GQL_BODY")
-
-QUERY_ID=$(echo "$RESP_360" | jq_field "d.get('data',{}).get('intelligence',{}).get('queryId','')")
+RESP_360=$(http_post "$OHDR" "/api/v1/intelligence/graphql" "$GQL_BODY")
+QUERY_ID=$(echo "$RESP_360" | jval "d.get('data',{}).get('intelligence',{}).get('queryId','')")
 
 if [ -n "$QUERY_ID" ]; then
-  RISK=$(echo "$RESP_360" | jq_field "d['data']['intelligence']['riskScore']")
-  MASKED=$(echo "$RESP_360" | jq_field "d['data']['intelligence']['identifierMasked']")
-  HITL_ST=$(echo "$RESP_360" | jq_field "d['data']['intelligence'].get('hitlStatus','?')")
-  ID_TYPE=$(echo "$RESP_360" | jq_field "d['data']['intelligence']['identifierType']")
+  RISK=$(echo "$RESP_360"   | jval "d['data']['intelligence']['riskScore']")
+  MASKED=$(echo "$RESP_360" | jval "d['data']['intelligence']['identifierMasked']")
+  HITL_ST=$(echo "$RESP_360"| jval "d['data']['intelligence'].get('hitlStatus','?')")
+  ID_TYPE=$(echo "$RESP_360"| jval "d['data']['intelligence']['identifierType']")
 
   pass "POST /intelligence/graphql (CNPJ) → queryId=${QUERY_ID}"
   info "tipo=${ID_TYPE} | mascarado=${MASKED} | riskScore=${RISK} | hitlStatus=${HITL_ST}"
 
   # LGPD: CNPJ bruto não pode aparecer na resposta
   if echo "$RESP_360" | grep -qF "$TEST_CNPJ"; then
-    fail "LGPD VIOLATION: CNPJ sem máscara presente no payload GraphQL!"
+    fail "LGPD VIOLATION: CNPJ sem máscara no payload!"
   else
-    pass "LGPD: CNPJ mascarado no payload (Art. 18) ✓"
+    pass "LGPD: CNPJ mascarado ✓"
   fi
 
   # Tabela por fonte
   echo ""
-  echo -e "  ${BOLD}Análise por fonte (data_mode):${NC}"
-  echo   "  ┌─────────────────────┬────────┬──────────┬──────────┬──────────────┐"
-  echo   "  │ fonte               │ mode   │ status   │  itens   │  latência    │"
-  echo   "  ├─────────────────────┼────────┼──────────┼──────────┼──────────────┤"
-  echo "$RESP_360" | python3 -c "
+  echo -e "  ${BOLD}Fontes (data_mode):${NC}"
+  echo   "  ┌─────────────────────┬────────┬──────────┬────────┬─────────────┐"
+  echo   "  │ fonte               │ mode   │ status   │ itens  │ latência    │"
+  echo   "  ├─────────────────────┼────────┼──────────┼────────┼─────────────┤"
+  echo "$RESP_360" | python3 - <<'PYEOF'
 import sys,json
 resp = json.load(sys.stdin)
 results = resp.get('data',{}).get('intelligence',{}).get('results',[])
 real_n = sum(1 for r in results if r.get('dataMode')=='real')
 mock_n = sum(1 for r in results if r.get('dataMode')=='mock')
 for r in results:
-    mode   = r.get('dataMode','?')
-    status = r.get('status','?')
-    lat    = r.get('latencyMs') or 0
-    total  = r.get('totalAvailable') or 0
-    err    = (r.get('error') or '')[:28]
-    mark   = '★' if mode=='real' else '○'
-    print(f'  │ {mark} {r[\"source\"]:<18}│ {mode:<7}│ {status:<9}│ {total:>7}   │ {lat:>7} ms   │{\" ERR:\"+err if err else \"\"}')
-print('  └─────────────────────┴────────┴──────────┴──────────┴──────────────┘')
-print(f'')
-print(f'  ★ Fontes REAIS: {real_n}  ○ Fontes MOCK: {mock_n}')
+    mode  = r.get('dataMode','?')
+    status= r.get('status','?')
+    lat   = r.get('latencyMs') or 0
+    total = r.get('totalAvailable') or 0
+    err   = (r.get('error') or '')[:28]
+    mark  = '*' if mode=='real' else 'o'
+    print(f"  | {mark} {r['source']:<18}| {mode:<7}| {status:<9}| {total:>5}  | {lat:>6} ms   |{' ERR:'+err if err else ''}")
+print("  └─────────────────────┴────────┴──────────┴────────┴─────────────┘")
+print(f"\n  [*] REAL: {real_n}  [o] MOCK: {mock_n}")
 dims = resp.get('data',{}).get('intelligence',{}).get('riskDimensions',[])
 if dims:
-    print('')
-    print('  Dimensões de risco:')
+    print("\n  Dimensões de risco:")
     for d in dims:
-        bar = '█' * max(1,int(d[\"score\"]//10))
-        print(f'    {d[\"name\"]:<22} {d[\"score\"]:>3}  {bar}')
-" 2>/dev/null || warn "Falha ao parsear resposta detalhada"
+        bar = '█' * max(1,int(d['score']//10))
+        print(f"    {d['name']:<22} {d['score']:>3}  {bar}")
+PYEOF
 
   REAL_DATA=$(echo "$RESP_360" | python3 -c "
 import sys,json
-results = json.load(sys.stdin).get('data',{}).get('intelligence',{}).get('results',[])
-print(sum(1 for r in results if r.get('dataMode')=='real' and (r.get('totalAvailable') or 0)>0))
+r=json.load(sys.stdin).get('data',{}).get('intelligence',{}).get('results',[])
+print(sum(1 for x in r if x.get('dataMode')=='real' and (x.get('totalAvailable') or 0)>0))
 " 2>/dev/null || echo "0")
   [ "${REAL_DATA:-0}" -gt 0 ] \
     && pass "${REAL_DATA} fonte(s) real(is) com dados efetivos" \
-    || warn "0 fontes reais retornaram dados — APIs externas offline ou CNPJ sem match"
-
+    || warn "0 fontes reais com dados — todas as fontes estão em MOCK (ver seção 0)"
 else
-  fail "POST /intelligence/graphql (CNPJ) → resposta inválida"
-  [ "$VERBOSE" = "1" ] && info "payload: ${RESP_360:0:500}"
+  fail "POST /intelligence/graphql → resposta inválida"
+  [ "$VERBOSE" = "1" ] && info "raw: ${RESP_360:0:400}"
 fi
 
 # ─── QSA expansion ────────────────────────────────────────────────────────────
 echo ""
 info "QSA expansion (expandQsa=true)..."
-GQL_QSA=$(cat <<QSAEOF
-{
-  "query": "query I360(\$identifier: String!, \$expandQsa: Boolean!) { intelligence(identifier: \$identifier, expandQsa: \$expandQsa) { queryId relatedParties { nome vinculo tipo totalOcorrencias } } }",
-  "variables": { "identifier": "${TEST_CNPJ}", "expandQsa": true }
-}
-QSAEOF
-)
-RESP_QSA=$(curl -s -X POST "$BASE_URL/api/v1/intelligence/graphql" \
-  -H "Content-Type: application/json" \
-  -H "$OHDR" \
-  -d "$GQL_QSA")
-QSA_N=$(echo "$RESP_QSA" | python3 -c "
-import sys,json
-rp=json.load(sys.stdin).get('data',{}).get('intelligence',{}).get('relatedParties',[])
-print(len(rp))
-" 2>/dev/null || echo "0")
-pass "QSA expansion → ${QSA_N} partes relacionadas"
+QSA_BODY=$(python3 -c "import json; print(json.dumps({'query':'query I360(\$i:String!,\$e:Boolean!){intelligence(identifier:\$i,expandQsa:\$e){queryId relatedParties{nome vinculo}}}','variables':{'i':'${TEST_CNPJ}','e':True}}))")
+RESP_QSA=$(http_post "$OHDR" "/api/v1/intelligence/graphql" "$QSA_BODY")
+QSA_N=$(echo "$RESP_QSA" | jval "len(d.get('data',{}).get('intelligence',{}).get('relatedParties',[]))")
+pass "QSA expansion → ${QSA_N:-0} partes relacionadas"
 
 # ─── Detecção por Nome ────────────────────────────────────────────────────────
 echo ""
 info "Detecção por Nome..."
-GQL_NOME=$(cat <<NOMEEOF
-{
-  "query": "query I360(\$identifier: String!, \$expandQsa: Boolean!) { intelligence(identifier: \$identifier, expandQsa: \$expandQsa) { identifierType riskScore results { source dataMode status } } }",
-  "variables": { "identifier": "Jose da Silva Santos", "expandQsa": false }
-}
-NOMEEOF
-)
-RESP_NOME=$(curl -s -X POST "$BASE_URL/api/v1/intelligence/graphql" \
-  -H "Content-Type: application/json" \
-  -H "$OHDR" \
-  -d "$GQL_NOME")
-ID_TYPE_NOME=$(echo "$RESP_NOME" | jq_field "d.get('data',{}).get('intelligence',{}).get('identifierType','?')")
+NOME_BODY='{"query":"query I360($i:String!,$e:Boolean!){intelligence(identifier:$i,expandQsa:$e){identifierType}}","variables":{"i":"Jose da Silva Santos","e":false}}'
+RESP_NOME=$(http_post "$OHDR" "/api/v1/intelligence/graphql" "$NOME_BODY")
+ID_TYPE_NOME=$(echo "$RESP_NOME" | jval "d.get('data',{}).get('intelligence',{}).get('identifierType','?')")
 [ "$ID_TYPE_NOME" = "NOME" ] \
-  && pass "Detecção de tipo NOME → ${ID_TYPE_NOME} ✓" \
-  || warn "Tipo detectado: ${ID_TYPE_NOME} (esperado: NOME)"
+  && pass "Detecção NOME → ${ID_TYPE_NOME} ✓" \
+  || warn "Tipo detectado: '${ID_TYPE_NOME}' (esperado: NOME)"
 
 # ═══════════════════════════════════════════════════════════════════════════════
-section "15. Submissão de tarefa"
+section "15. Submissão de tarefa (assistente)"
 # ═══════════════════════════════════════════════════════════════════════════════
-TASK_RES=$(http_post "$OHDR" "$BASE_URL/api/v1/tasks" \
+TASK_RES=$(http_post "$OHDR" "/api/v1/tasks" \
   '{"task_description":"O que e dano moral segundo a jurisprudencia do STJ?"}')
 TASK_ID=$(echo "$TASK_RES" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
+import sys,json; d=json.load(sys.stdin)
 print(d.get('task_id') or d.get('id') or d.get('status',''))
 " 2>/dev/null || echo "")
 [ -n "$TASK_ID" ] \
@@ -352,46 +371,41 @@ print(d.get('task_id') or d.get('id') or d.get('status',''))
 # ═══════════════════════════════════════════════════════════════════════════════
 section "16. SPA Frontend"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(http_get "" "$BASE_URL/app/")
+S=$(http_code "" "/app/")
 [ "$S" = "200" ] && pass "GET /app/ → 200 (SPA servida)" || fail "GET /app/ → $S"
 
-SPA_HTML=$(http_body "" "$BASE_URL/app/")
+SPA_HTML=$(http_body "" "/app/")
 echo "$SPA_HTML" | grep -q "\.js" && pass "SPA HTML referencia bundle JS" \
   || warn "SPA HTML sem referência a bundle JS"
 
 # ═══════════════════════════════════════════════════════════════════════════════
-section "17. WebSocket HITL (curl handshake)"
+section "17. WebSocket HITL"
 # ═══════════════════════════════════════════════════════════════════════════════
-if command -v websocat >/dev/null 2>&1; then
-  WS_BASE="${BASE_URL/http/ws}"
-  WS_RES=$(printf '{"type":"ping"}' | timeout 3 websocat "${WS_BASE}/api/v1/hitl/ws?token=${ADMIN_TOKEN}" 2>&1 || true)
-  echo "$WS_RES" | grep -q ".\{3\}" \
-    && pass "WebSocket /hitl/ws → handshake OK" \
-    || warn "WebSocket → sem resposta em 3s"
-else
-  # Verifica upgrade header via curl
-  WS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+if [ "$SMOKE_MODE" = "docker" ]; then
+  # Usa curl dentro do container para verificar o upgrade
+  WS_STATUS=$(docker exec "$CONTAINER" curl -s -o /dev/null -w "%{http_code}" \
     -H "Upgrade: websocket" \
     -H "Connection: Upgrade" \
     -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
     -H "Sec-WebSocket-Version: 13" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-    "$BASE_URL/api/v1/hitl/ws" 2>/dev/null || echo "000")
-  [ "$WS_STATUS" = "101" ] && pass "WebSocket /hitl/ws → 101 Switching Protocols" \
-    || warn "WebSocket → $WS_STATUS (websocat não instalado para teste completo: apt install websocat)"
+    "http://localhost:8000/api/v1/hitl/ws" 2>/dev/null || echo "000")
+  [ "$WS_STATUS" = "101" ] && pass "WebSocket /hitl/ws → 101 Switching Protocols ✓" \
+    || warn "WebSocket → $WS_STATUS (101 esperado)"
+else
+  warn "WebSocket: instale websocat para teste completo em modo http"
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
 section "18. Métricas Prometheus"
 # ═══════════════════════════════════════════════════════════════════════════════
-S=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/metrics" 2>/dev/null || echo "000")
+S=$(http_code "" "/metrics")
 if [ "$S" = "200" ]; then
-  METRICS=$(http_body "" "$BASE_URL/metrics")
-  echo "$METRICS" | grep -qE "http_requests_total|process_cpu|python_" \
-    && pass "GET /metrics → Prometheus metrics OK" \
-    || warn "GET /metrics → 200 mas formato inesperado"
+  http_body "" "/metrics" | grep -qE "http_requests_total|process_cpu|python_" \
+    && pass "GET /metrics → Prometheus OK" \
+    || warn "GET /metrics → 200 mas sem métricas reconhecíveis"
 else
-  warn "GET /metrics → $S (endpoint pode não estar exposto externamente)"
+  warn "GET /metrics → $S"
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -400,30 +414,27 @@ fi
 TOTAL=$((PASS+FAIL+WARN))
 echo ""
 echo -e "${BOLD}${BLU}═══════════════════════════════════════════════════════${NC}"
-echo -e "${BOLD} RESUMO DO SMOKE TEST${NC}"
+echo -e "${BOLD} RESUMO${NC}"
 echo -e "${BOLD}${BLU}═══════════════════════════════════════════════════════${NC}"
-echo -e "  Total : $TOTAL verificações"
-echo -e "  ${GRN}✔ OK    : $PASS${NC}"
-echo -e "  ${YEL}⚠ Aviso : $WARN${NC}"
-echo -e "  ${RED}✗ Falha : $FAIL${NC}"
+echo -e "  ${GRN}✔ OK    : $PASS${NC}  ${YEL}⚠ Aviso: $WARN${NC}  ${RED}✗ Falha: $FAIL${NC}  (total: $TOTAL)"
 
 if [ ${#FAILURES[@]} -gt 0 ]; then
   echo ""
   echo -e "  ${RED}Falhas:${NC}"
-  for f in "${FAILURES[@]}"; do
-    echo -e "    ${RED}•${NC} $f"
-  done
+  for f in "${FAILURES[@]}"; do echo -e "    • $f"; done
 fi
 
 echo ""
-echo -e "  ${BOLD}Legenda data_mode:${NC}"
-echo    "    ★ real — dados da API pública externa (BrasilAPI, TSE, CNJ)"
-echo    "    ○ mock — dados simulados (fonte restrita sem convênio)"
-echo    "      → crc_protestos, cadin, onr_imoveis são sempre mock por design"
+echo    "  Para ativar dados reais (fontes públicas gratuitas), adicione ao .env:"
+echo -e "    ${CYN}INTEGRATIONS_DATAJUD_MODE=real${NC}   # CNJ DataJud (processo por número)"
+echo -e "    ${CYN}INTEGRATIONS_DJEN_MODE=real${NC}      # Comunica PJe"
+echo -e "    ${CYN}INTEGRATIONS_RECEITA_CNPJ_MODE=real${NC} # BrasilAPI (CNPJ → gratuito)"
+echo -e "    ${CYN}INTEGRATIONS_TSE_MODE=real${NC}       # TSE dados eleitorais (gratuito)"
+echo    "  Depois: docker compose restart agent-system"
 echo ""
 
 [ "$FAIL" -eq 0 ] \
   && echo -e "  ${GRN}${BOLD}✔  Smoke test PASSOU${NC}" \
-  || echo -e "  ${RED}${BOLD}✗  Smoke test FALHOU — veja itens acima${NC}"
+  || echo -e "  ${RED}${BOLD}✗  Smoke test FALHOU${NC}"
 
 exit "$FAIL"
