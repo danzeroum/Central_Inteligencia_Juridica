@@ -149,6 +149,24 @@ export const api = {
   createCliente: (payload) =>
     request('/api/v1/profile/clientes', { method: 'POST', body: payload }),
 
+  // Investigação 360° (GraphQL)
+  intelligence360: (identifier, expandQsa = false) => {
+    const gql = `query I360($identifier: String!, $expandQsa: Boolean!) {
+      intelligence(identifier: $identifier, expandQsa: $expandQsa) {
+        queryId identifierMasked identifierType riskScore
+        riskDimensions { name score }
+        riskFactors { code description weight source dimension }
+        relatedParties { nome vinculo tipo fonte totalOcorrencias homonimoPossivel resumo }
+        recommendations summary hitlStatus
+        results { source status dataMode latencyMs totalAvailable items error }
+      }
+    }`;
+    return request('/api/v1/intelligence/graphql', {
+      method: 'POST',
+      body: { query: gql, variables: { identifier, expandQsa } },
+    });
+  },
+
   // Métodos genéricos para uso direto por screens que precisam de flexibilidade
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body }),

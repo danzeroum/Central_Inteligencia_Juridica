@@ -35,6 +35,16 @@ const ICONS = {
   refresh: 'M4 12a8 8 0 0 1 14-5l2 2 M20 5v4h-4 M20 12a8 8 0 0 1-14 5l-2-2 M4 19v-4h4',
   lock: 'M6 10h12v10H6z M9 10V7a3 3 0 0 1 6 0v3',
   compare: 'M12 3v18 M7 7 3 11l4 4 M17 7l4 4-4 4',
+  // Fase 1
+  radar: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z M12 2v2 M12 20v2 M2 12h2 M20 12h2',
+  home: 'M3 11l9-8 9 8v10h-5v-6h-8v6H3z',
+  building: 'M3 21h18 M6 3h12v18H6z M9 7h2 M13 7h2 M9 11h2 M13 11h2 M9 15h2 M13 15h2',
+  info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 10v5 M12 8h.01',
+  unlock: 'M6 10h12v10H6z M8 10V7a4 4 0 0 1 8 0',
+  privacy: 'M12 3 4 6v5c0 5 4 9 8 11 4-2 8-6 8-11V6z M9 12l2 2 4-4',
+  map: 'M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z M9 3v15 M15 6v15',
+  kit: 'M4 4h5v5H4z M15 4h5v5h-5z M4 15h5v5H4z M15 15h5v5h-5z',
+  copy: 'M16 3H5a1 1 0 0 0-1 1v11 M9 7h10a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z',
 };
 
 export function Icon({ name, className, style, title }) {
@@ -61,10 +71,11 @@ export function Icon({ name, className, style, title }) {
   );
 }
 
-export function Badge({ kind = 'mut', dot, children }) {
+export function Badge({ kind = 'mut', dot, icon, title, children }) {
   return (
-    <span className={`badge b-${kind}`}>
+    <span className={`badge b-${kind}`} title={title}>
       {dot && <span className="dot" style={{ background: 'currentColor' }} />}
+      {icon && <Icon name={icon} style={{ width: 11, height: 11 }} />}
       {children}
     </span>
   );
@@ -109,6 +120,71 @@ export function Gauge({ value, label, color = 'var(--ok)' }) {
       </svg>
       <div><div style={{ fontWeight: 600, fontSize: 13 }}>{label}</div></div>
     </div>
+  );
+}
+
+// ----- Drawer lateral acessível (painel deslizante da direita) -----
+export function Drawer({ title, sub, children, footer, onClose }) {
+  const drawerRef = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose?.();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    const node = drawerRef.current;
+    if (!node) return undefined;
+    const SELECTOR = 'a[href],button:not([disabled]),textarea,input:not([disabled]),select,[tabindex]:not([tabindex="-1"])';
+    const focusables = () => Array.from(node.querySelectorAll(SELECTOR));
+    const first = focusables()[0];
+    if (first) first.focus();
+    const trap = (e) => {
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (!items.length) return;
+      if (e.shiftKey && document.activeElement === items[0]) { e.preventDefault(); items[items.length - 1].focus(); }
+      else if (!e.shiftKey && document.activeElement === items[items.length - 1]) { e.preventDefault(); items[0].focus(); }
+    };
+    node.addEventListener('keydown', trap);
+    return () => node.removeEventListener('keydown', trap);
+  }, []);
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div ref={drawerRef} className="drawer" role="dialog" aria-modal="true" aria-label={title}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="drawer-head">
+          <div>
+            <div className="drawer-title">{title}</div>
+            {sub && <div className="drawer-sub">{sub}</div>}
+          </div>
+          <button className="icon-btn" aria-label="Fechar" onClick={onClose}><Icon name="x" /></button>
+        </div>
+        <div className="drawer-body">{children}</div>
+        {footer && <div className="drawer-foot">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ----- CopyLine — linha copiável com feedback visual -----
+export function CopyLine({ value, label }) {
+  const [copied, setCopied] = React.useState(false);
+  const doCopy = async () => {
+    try { await navigator.clipboard.writeText(value); } catch { /* fallback */ }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+  return (
+    <button className="copy-line" onClick={doCopy} aria-label={`Copiar ${label || value}`}>
+      <span className="mono" style={{ fontSize: 12 }}>{value}</span>
+      <span className="copy-act">
+        <Icon name={copied ? 'check' : 'copy'} />
+        {copied ? 'Copiado' : 'Copiar'}
+      </span>
+    </button>
   );
 }
 
