@@ -24,25 +24,9 @@ class FiscalAgent:
     @property
     def orchestrator(self):
         if self._orchestrator is None:
-            from src.integrations.orchestrator import IntelligenceOrchestrator
-            from src.integrations.registry import get_registry
-            from src.integrations.risk_engine import get_risk_engine
-            from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
-            from src.integrations.adapters.cadin_adapter import CadinAdapter
-            from src.integrations.adapters.crc_protestos_adapter import CrcProtestosAdapter
+            from src.integrations.orchestrator import get_intelligence_orchestrator
 
-            registry = get_registry()
-            for cls in [ReceitaCnpjAdapter, CadinAdapter, CrcProtestosAdapter]:
-                if not registry.get(cls.service_name):
-                    try:
-                        registry.register(cls)
-                    except Exception as exc:
-                        logger.warning("Falha ao registrar %s: %s", cls.service_name, exc)
-
-            self._orchestrator = IntelligenceOrchestrator(
-                registry,
-                risk_engine=get_risk_engine(),
-            )
+            self._orchestrator = get_intelligence_orchestrator()
         return self._orchestrator
 
     async def get_fiscal_profile(
@@ -105,7 +89,10 @@ class FiscalAgent:
     ) -> Dict[str, Any]:
         """Gera proposta de consenso na dimensão fiscal."""
         from src.integrations.orchestrator import IntelligenceOrchestrator
-        return IntelligenceOrchestrator.as_consensus_proposal(report, dimension=dimension)
+
+        return IntelligenceOrchestrator.as_consensus_proposal(
+            report, dimension=dimension
+        )
 
 
 __all__ = ["FiscalAgent"]

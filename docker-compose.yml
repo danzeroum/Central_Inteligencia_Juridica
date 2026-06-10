@@ -48,6 +48,19 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - CACHE_ENCRYPTION_ENABLED=${CACHE_ENCRYPTION_ENABLED:-false}
       - CACHE_ENCRYPTION_KEY=${CACHE_ENCRYPTION_KEY:-}
+      # Onda 1: Camada de Integrações Jurídicas.
+      # Modo padrão mock para desenvolvimento; defina =real para produção.
+      - INTEGRATIONS_DATAJUD_MODE=${INTEGRATIONS_DATAJUD_MODE:-mock}
+      - INTEGRATIONS_DJEN_MODE=${INTEGRATIONS_DJEN_MODE:-mock}
+      - INTEGRATIONS_RECEITA_CNPJ_MODE=${INTEGRATIONS_RECEITA_CNPJ_MODE:-mock}
+      - INTEGRATIONS_TSE_MODE=${INTEGRATIONS_TSE_MODE:-mock}
+      - INTEGRATIONS_CRC_PROTESTOS_MODE=${INTEGRATIONS_CRC_PROTESTOS_MODE:-mock}
+      - INTEGRATIONS_CADIN_MODE=${INTEGRATIONS_CADIN_MODE:-mock}
+      - INTEGRATIONS_ONR_IMOVEIS_MODE=${INTEGRATIONS_ONR_IMOVEIS_MODE:-mock}
+      # Chaves de API — deixe vazio em mock; configure no .env para =real
+      - INTEGRATIONS_DATAJUD_API_KEY=${INTEGRATIONS_DATAJUD_API_KEY:-}
+      - INTEGRATIONS_DJEN_API_KEY=${INTEGRATIONS_DJEN_API_KEY:-}
+      - INTEGRATIONS_TSE_API_KEY=${INTEGRATIONS_TSE_API_KEY:-}
       # LLM (DeepSeek / OpenAI / compatível). Sem OPENAI_API_KEY o IntentClassifier
       # usa fallback heurístico determinístico (llm_enabled=False).
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}

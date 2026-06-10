@@ -5,9 +5,19 @@ Tipos definidos manualmente (não usando ponte experimental pydantic↔strawberr
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import strawberry
+
+# Escalar JSON genérico — expõe items heterogêneos (processos, protestos, etc.)
+# sem exigir união de 7 tipos concretos.
+JSON = strawberry.scalar(
+    Any,
+    name="JSON",
+    description="Valor JSON arbitrário (objeto, lista ou primitivo)",
+    serialize=lambda v: v,
+    parse_value=lambda v: v,
+)
 
 
 @strawberry.type
@@ -45,6 +55,7 @@ class AdapterResultType:
     latency_ms: float
     total_available: int
     error: Optional[str]
+    items: JSON
 
 
 @strawberry.type
@@ -68,3 +79,4 @@ class SourceHealthType:
     enabled: bool
     mode: str
     zone: str
+    circuit_breaker: str

@@ -40,6 +40,7 @@ def _report_to_gql(report: ConsolidatedReport) -> ConsolidatedReportType:
             latency_ms=data.get("latency_ms", 0.0),
             total_available=data.get("total_available", 0),
             error=data.get("error"),
+            items=data.get("items", []),
         )
         for name, data in (report.results or {}).items()
     ]
@@ -82,34 +83,10 @@ def _report_to_gql(report: ConsolidatedReport) -> ConsolidatedReportType:
 
 
 def _get_orchestrator():
-    """Retorna o orquestrador de inteligência (lazy, singleton)."""
-    from src.integrations.orchestrator import IntelligenceOrchestrator
-    from src.integrations.registry import get_registry
-    from src.integrations.risk_engine import get_risk_engine
-    from src.integrations.adapters.datajud_adapter import DataJudAdapter
-    from src.integrations.adapters.djen_adapter import DjenAdapter
-    from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
-    from src.integrations.adapters.tse_adapter import TseAdapter
-    from src.integrations.adapters.crc_protestos_adapter import CrcProtestosAdapter
-    from src.integrations.adapters.cadin_adapter import CadinAdapter
-    from src.integrations.adapters.onr_imoveis_adapter import OnrImoveisAdapter
+    """Retorna o orquestrador singleton com todas as dependências injetadas."""
+    from src.integrations.orchestrator import get_intelligence_orchestrator
 
-    registry = get_registry()
-    # Registra apenas se ainda não registrado
-    for cls in [
-        DataJudAdapter, DjenAdapter, ReceitaCnpjAdapter, TseAdapter,
-        CrcProtestosAdapter, CadinAdapter, OnrImoveisAdapter,
-    ]:
-        if not registry.get(cls.service_name):
-            try:
-                registry.register(cls)
-            except Exception as exc:
-                logger.warning("Falha ao registrar %s: %s", cls.service_name, exc)
-
-    return IntelligenceOrchestrator(
-        registry,
-        risk_engine=get_risk_engine(),
-    )
+    return get_intelligence_orchestrator()
 
 
 @strawberry.type
@@ -150,15 +127,19 @@ class Query:
         """Status de saúde de cada fonte de integração."""
         registry = get_registry()
         result = []
+        from src.integrations.orchestrator import _source_circuit_breakers
+
         for name in registry.names():
             adapter = registry.get(name)
             if adapter:
+                cb = _source_circuit_breakers.get(f"integration_{name}")
                 result.append(
                     SourceHealthType(
                         source=name,
                         enabled=adapter.enabled,
                         mode=adapter.settings.mode,
                         zone=adapter.zone.value,
+                        circuit_breaker=cb.state.value if cb else "closed",
                     )
                 )
         return result
@@ -166,6 +147,7 @@ class Query:
 
 def get_registry():
     from src.integrations.registry import get_registry as _get
+
     return _get()
 
 
@@ -179,5 +161,5 @@ def create_graphql_router() -> GraphQLRouter:
     return GraphQLRouter(
         schema,
         context_getter=get_context,
-        graphiql=not _ENV_PROD,  # GraphiQL só fora de produção
+        graphql_ide="graphiql" if not _ENV_PROD else None,
     )

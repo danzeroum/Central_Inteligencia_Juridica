@@ -42,12 +42,18 @@ def _make_adapter_cls(source_name: str, response: AdapterResult, id_types):
     return _MockAdapter
 
 
-def _make_registry_with_mocks(adapter_responses: Dict[str, AdapterResult]) -> AdapterRegistry:
+def _make_registry_with_mocks(
+    adapter_responses: Dict[str, AdapterResult],
+) -> AdapterRegistry:
     """Cria registry com adaptadores mockados retornando respostas pré-definidas."""
     registry = AdapterRegistry()
 
     for source_name, response in adapter_responses.items():
-        id_types = {IdentifierType.CNPJ, IdentifierType.CPF, IdentifierType.NUMERO_PROCESSO}
+        id_types = {
+            IdentifierType.CNPJ,
+            IdentifierType.CPF,
+            IdentifierType.NUMERO_PROCESSO,
+        }
         if source_name == "datajud":
             id_types = {IdentifierType.NUMERO_PROCESSO}
         elif source_name == "receita_cnpj":
@@ -100,7 +106,9 @@ class TestOrchestratorBasic:
         registry = _make_registry_with_mocks(responses)
         orch = IntelligenceOrchestrator(registry)
 
-        report = await orch.investigate("00000000000191", sources=["receita_cnpj", "crc_protestos", "cadin"])
+        report = await orch.investigate(
+            "00000000000191", sources=["receita_cnpj", "crc_protestos", "cadin"]
+        )
         assert isinstance(report, ConsolidatedReport)
         assert report.identifier_type == IdentifierType.CNPJ
         assert report.risk_score > 0
@@ -126,7 +134,9 @@ class TestOrchestratorBasic:
         registry = _make_registry_with_mocks(responses)
         orch = IntelligenceOrchestrator(registry)
 
-        report = await orch.investigate("00000000000191", sources=["receita_cnpj", "crc_protestos"])
+        report = await orch.investigate(
+            "00000000000191", sources=["receita_cnpj", "crc_protestos"]
+        )
         assert isinstance(report, ConsolidatedReport)
         assert report.results["crc_protestos"]["status"] == "failed"
         assert report.results["receita_cnpj"]["status"] == "success"
@@ -259,8 +269,7 @@ class TestHitlGate:
         orch = IntelligenceOrchestrator(registry)
 
         report = await orch.investigate(
-            "00000000000191",
-            sources=["crc_protestos", "cadin", "datajud"]
+            "00000000000191", sources=["crc_protestos", "cadin", "datajud"]
         )
         # Score alto deve resultar em HITL pending (sem autonomy_manager real)
         if report.risk_score >= 70:
@@ -271,8 +280,8 @@ class TestLedgerLogging:
     @pytest.mark.asyncio
     async def test_ledger_called_without_pii(self):
         """Ledger é chamado com hash, não PII bruta."""
-        mock_ledger = MagicMock()
-        mock_ledger.record = MagicMock()
+        mock_ledger = MagicMock(spec=["log_decision"])
+        mock_ledger.log_decision = MagicMock()
 
         responses = {
             "receita_cnpj": AdapterResult(
@@ -285,10 +294,11 @@ class TestLedgerLogging:
         orch = IntelligenceOrchestrator(registry, ledger=mock_ledger)
         await orch.investigate("00000000000191", sources=["receita_cnpj"])
 
-        mock_ledger.record.assert_called_once()
-        call_kwargs = mock_ledger.record.call_args[1]
-        # Verifica que não há PII bruta
-        identifier_hash = call_kwargs.get("identifier_hash", "")
+        mock_ledger.log_decision.assert_called_once()
+        call_kwargs = mock_ledger.log_decision.call_args[1]
+        # Verifica que não há PII bruta — hash está em metadata
+        metadata = call_kwargs.get("metadata", {})
+        identifier_hash = metadata.get("identifier_hash", "")
         assert "00000000000191" not in identifier_hash
         assert len(identifier_hash) == 64  # sha256 hex
 
@@ -357,6 +367,8 @@ class TestAsConsensusProposal:
             ],
             summary="Score: 65/100",
         )
-        proposal = IntelligenceOrchestrator.as_consensus_proposal(report, dimension="fiscal")
+        proposal = IntelligenceOrchestrator.as_consensus_proposal(
+            report, dimension="fiscal"
+        )
         assert proposal["risk_score"] == 40.0
         assert proposal["dimension"] == "fiscal"

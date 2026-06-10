@@ -7,7 +7,6 @@ calcula risk score multidimensional e aciona HITL quando necessário.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
@@ -21,7 +20,6 @@ from src.integrations.models import (
     AdapterResult,
     AdapterStatus,
     ConsolidatedReport,
-    DataMode,
     HitlStatus,
     IdentifierQuery,
     IdentifierType,
@@ -32,6 +30,23 @@ from src.integrations.risk_engine import RiskEngine
 from src.integrations.settings import get_qsa_settings
 
 logger = logging.getLogger(__name__)
+
+# Per-source circuit breakers — created on first use by _get_source_cb()
+_source_circuit_breakers: Dict[str, Any] = {}
+
+
+def _get_source_cb(source: str):
+    """Return (or create) the CircuitBreaker for a given integration source."""
+    if source not in _source_circuit_breakers:
+        from src.tools.circuit_breaker import CircuitBreaker
+
+        _source_circuit_breakers[source] = CircuitBreaker(
+            name=f"integration_{source}",
+            failure_threshold=5,
+            timeout_seconds=60.0,
+            success_threshold=2,
+        )
+    return _source_circuit_breakers[source]
 
 
 class IntelligenceOrchestrator:
@@ -101,10 +116,25 @@ class IntelligenceOrchestrator:
         id_masked = mask_identifier(identifier, id_type)
         id_hash = audit_hash(identifier)
 
-        # Seleciona adaptadores
+        # Seleciona adaptadores; aplica política de fonte (CJ-001)
         candidates = self.registry.for_identifier(id_type)
         if sources:
             candidates = [a for a in candidates if a.service_name in sources]
+
+        if self._policy:
+            allowed = []
+            for adapter in candidates:
+                authorized = self._policy.authorized_source(adapter.data_type)
+                if authorized and authorized.lower() == "llm":
+                    # CJ-001: data_type governado como LLM-only — não consultar API real
+                    logger.warning(
+                        "CJ-001: %s/%s marcado como fonte LLM; adaptador ignorado.",
+                        adapter.service_name,
+                        adapter.data_type,
+                    )
+                else:
+                    allowed.append(adapter)
+            candidates = allowed
 
         q = IdentifierQuery(
             identifier=identifier,
@@ -115,20 +145,10 @@ class IntelligenceOrchestrator:
 
         # Execução paralela com captura de erros
         results: Dict[str, AdapterResult] = {}
-        skipped: List[str] = []
 
         if candidates:
-            tasks = []
-            names = []
-            for adapter in candidates:
-                # Verificação de política
-                if self._policy:
-                    try:
-                        self._policy.assert_source(adapter.data_type, "llm")
-                    except Exception:
-                        pass  # apenas garantindo que não é LLM
-                tasks.append(self._query_with_cache(adapter, q))
-                names.append(adapter.service_name)
+            tasks = [self._query_with_cache(adapter, q) for adapter in candidates]
+            names = [adapter.service_name for adapter in candidates]
 
             raw_results = await asyncio.gather(*tasks, return_exceptions=True)
             for name, res in zip(names, raw_results):
@@ -155,44 +175,39 @@ class IntelligenceOrchestrator:
             related_parties = await self._expand_qsa(results, q)
 
         # Risk score
-        risk_score = 0.0
-        risk_dimensions = []
-        risk_factors = []
-        recommendations: List[str] = []
-        summary = None
-
-        if self._risk_engine:
-            risk_score, risk_dimensions, risk_factors, recommendations, summary = (
-                self._risk_engine.score(results, related_parties)
-            )
-        else:
+        engine = self._risk_engine
+        if engine is None:
             from src.integrations.risk_engine import get_risk_engine
-            engine = get_risk_engine()
-            risk_score, risk_dimensions, risk_factors, recommendations, summary = (
-                engine.score(results, related_parties)
-            )
 
-        # HITL gate
+            engine = get_risk_engine()
+
+        risk_score, risk_dimensions, risk_factors, recommendations, summary = (
+            engine.score(results, related_parties)
+        )
+
+        # HITL gate — resultados retidos até decisão quando PENDING ou REJECTED
         hitl_status = HitlStatus.NOT_REQUIRED
-        engine = self._risk_engine or __import__(
-            "src.integrations.risk_engine", fromlist=["get_risk_engine"]
-        ).get_risk_engine()
         if engine.requires_hitl(risk_score):
             hitl_status = HitlStatus.PENDING
             if self._autonomy:
                 try:
                     decision = await self._autonomy.execute_with_autonomy(
                         "intelligence_agent",
-                        {"type": "intelligence_query", "score": risk_score, "critical": True},
+                        {
+                            "type": "intelligence_query",
+                            "score": risk_score,
+                            "critical": True,
+                        },
                     )
-                    if decision.get("executed"):
-                        hitl_status = HitlStatus.APPROVED
-                    else:
-                        hitl_status = HitlStatus.REJECTED
+                    hitl_status = (
+                        HitlStatus.APPROVED
+                        if decision.get("executed")
+                        else HitlStatus.REJECTED
+                    )
                 except Exception as exc:
                     logger.warning("HITL gate falhou: %s", exc)
 
-        # Ledger
+        # Ledger — registra decisão com hash (nunca PII bruta)
         self._log_to_ledger(
             query_id=query_id,
             identifier_hash=id_hash,
@@ -202,11 +217,18 @@ class IntelligenceOrchestrator:
             principal_id=principal_id,
         )
 
+        # Retém resultados brutos enquanto HITL não for aprovado
+        exposed_results = (
+            {}
+            if hitl_status in (HitlStatus.PENDING, HitlStatus.REJECTED)
+            else {k: v.model_dump() for k, v in results.items()}
+        )
+
         return ConsolidatedReport(
             query_id=query_id,
             identifier_masked=id_masked,
             identifier_type=id_type,
-            results={k: v.model_dump() for k, v in results.items()},
+            results=exposed_results,
             risk_score=risk_score,
             risk_dimensions=risk_dimensions,
             risk_factors=risk_factors,
@@ -222,7 +244,7 @@ class IntelligenceOrchestrator:
         )
 
     async def _query_with_cache(self, adapter, q: IdentifierQuery) -> AdapterResult:
-        """Executa consulta com cache opcional e rate limiting."""
+        """Executa consulta com cache, rate limiting e circuit breaker por fonte."""
         source = adapter.service_name
 
         # Rate limiter
@@ -232,30 +254,45 @@ class IntelligenceOrchestrator:
             except Exception as exc:
                 logger.warning("Rate limiter falhou para %s: %s", source, exc)
 
-        # Cache (síncrono via thread)
-        cache_key = None
+        # Cache hit — retorna antes de tocar o CB
         if self._cache:
-            cache_key = f"ci_integrations:{source}:{audit_hash(q.identifier)}"
             try:
                 cached = await asyncio.to_thread(
-                    self._cache.get_cached, "ci_integrations", source,
-                    identifier=audit_hash(q.identifier)
+                    self._cache.get_cached,
+                    "ci_integrations",
+                    source,
+                    identifier=audit_hash(q.identifier),
                 )
                 if cached is not None:
                     from src.integrations.metrics import record_cache_hit
+
                     record_cache_hit(source)
                     result_data = cached if isinstance(cached, dict) else {}
-                    result = AdapterResult(**result_data) if result_data else None
-                    if result:
+                    if result_data:
+                        result = AdapterResult.model_validate(result_data)
                         result.from_cache = True
                         return result
             except Exception as exc:
                 logger.debug("Cache read falhou para %s: %s", source, exc)
 
-        # Consulta real
-        result = await adapter.query(q)
+        # Circuit breaker protege a chamada real ao adaptador
+        cb = _get_source_cb(source)
+        from src.tools.circuit_breaker import CircuitBreakerOpenError
 
-        # Grava cache
+        try:
+            with cb.protect():
+                result = await adapter.query(q)
+        except CircuitBreakerOpenError:
+            from src.integrations.metrics import record_circuit_state
+
+            record_circuit_state(source, "open")
+            return AdapterResult(
+                source=source,
+                status=AdapterStatus.FAILED,
+                error="circuit_breaker_open",
+            )
+
+        # Grava resultado no cache
         if self._cache and result.status == AdapterStatus.SUCCESS:
             try:
                 ttl = adapter.settings.cache_ttl_seconds
@@ -270,15 +307,17 @@ class IntelligenceOrchestrator:
             except Exception as exc:
                 logger.debug("Cache write falhou para %s: %s", source, exc)
 
-        # Métricas
+        # Métricas Prometheus
         try:
-            from src.integrations.metrics import record_query
+            from src.integrations.metrics import record_circuit_state, record_query
+
             record_query(
                 source=source,
                 status=result.status.value,
                 data_mode=result.data_mode.value,
                 latency_s=result.latency_ms / 1000,
             )
+            record_circuit_state(source, cb.state.value)
         except Exception:
             pass
 
@@ -305,7 +344,6 @@ class IntelligenceOrchestrator:
 
         empresa = receita_result.items[0]
         if not isinstance(empresa, EmpresaCadastro):
-            # Pode ser dict se veio do cache
             if isinstance(empresa, dict):
                 empresa = EmpresaCadastro.model_validate(empresa)
             else:
@@ -333,13 +371,13 @@ class IntelligenceOrchestrator:
             fontes_usadas = []
 
             if tipo == "PJ":
-                # Sócio PJ: consulta receita_cnpj
                 identificador = (
                     socio.identificador_mascarado
                     if hasattr(socio, "identificador_mascarado")
                     else (socio.get("identificador_mascarado") or "")
                 )
                 import re
+
                 d = re.sub(r"\D", "", identificador or "")
                 if len(d) == 14:
                     q_pj = IdentifierQuery(
@@ -363,7 +401,6 @@ class IntelligenceOrchestrator:
                     homonimo_possivel=False,
                 )
             else:
-                # Sócio PF: consulta DJEN e TSE por nome
                 q_nome = IdentifierQuery(
                     identifier=nome,
                     identifier_type=IdentifierType.NOME,
@@ -408,7 +445,8 @@ class IntelligenceOrchestrator:
                         else f"Sócio PF: {nome} (sem ocorrências nas fontes consultadas)."
                     ),
                     total_ocorrencias=total_ocorrencias,
-                    homonimo_possivel=True,  # busca por nome sempre tem risco de homônimos
+                    # busca por nome tem risco inerente de homônimos
+                    homonimo_possivel=True,
                 )
         except Exception as exc:
             logger.warning("_consult_socio falhou para %s: %s", socio, exc)
@@ -426,28 +464,33 @@ class IntelligenceOrchestrator:
         if not self._ledger:
             return
         try:
-            self._ledger.record(
+            self._ledger.log_decision(
+                agent_type="intelligence_agent",
                 decision_type="INTELLIGENCE_QUERY",
-                identifier_hash=identifier_hash,
-                identifier_type=identifier_type.value,
-                query_id=query_id,
-                risk_score=risk_score,
-                hitl_status=hitl_status.value,
-                principal_id=principal_id or "anonymous",
+                metadata={
+                    "identifier_hash": identifier_hash,
+                    "identifier_type": identifier_type.value,
+                    "query_id": query_id,
+                    "risk_score": risk_score,
+                    "hitl_status": hitl_status.value,
+                    "principal_id": principal_id or "anonymous",
+                },
             )
         except Exception as exc:
-            logger.debug("Ledger record falhou: %s", exc)
+            logger.debug("Ledger log_decision falhou: %s", exc)
 
     def health(self) -> Dict[str, Any]:
-        """Status de saúde do orquestrador e de cada adaptador."""
+        """Status de saúde do orquestrador, adaptadores e circuit breakers."""
         adapters_health = {}
         for name in self.registry.names():
             adapter = self.registry.get(name)
             if adapter:
+                cb = _source_circuit_breakers.get(f"integration_{name}")
                 adapters_health[name] = {
                     "enabled": adapter.enabled,
                     "mode": adapter.settings.mode,
                     "zone": adapter.zone.value,
+                    "circuit_breaker": cb.state.value if cb else "closed",
                 }
         return {"status": "ok", "adapters": adapters_health}
 
@@ -456,10 +499,7 @@ class IntelligenceOrchestrator:
         report: ConsolidatedReport,
         dimension: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Converte relatório em proposta de consenso para o WeightedConsensusEngine.
-
-        dimension=None → usa score total; dimension='fiscal' → usa score fiscal.
-        """
+        """Converte relatório em proposta de consenso para o WeightedConsensusEngine."""
         if dimension:
             dim_score = next(
                 (d.score for d in report.risk_dimensions if d.name == dimension), 0.0
@@ -476,4 +516,81 @@ class IntelligenceOrchestrator:
         }
 
 
-__all__ = ["IntelligenceOrchestrator"]
+_orchestrator_singleton: Optional[IntelligenceOrchestrator] = None
+
+
+def get_intelligence_orchestrator() -> IntelligenceOrchestrator:
+    """Singleton factory que constrói o orquestrador com todas as dependências.
+
+    Usado por schema.py, IntelligenceAgent e FiscalAgent para compartilhar
+    instância com cache/ledger/policy/rate_limiter/autonomy devidamente injetados.
+    """
+    global _orchestrator_singleton
+    if _orchestrator_singleton is not None:
+        return _orchestrator_singleton
+
+    from src.integrations.adapters.cadin_adapter import CadinAdapter
+    from src.integrations.adapters.crc_protestos_adapter import CrcProtestosAdapter
+    from src.integrations.adapters.datajud_adapter import DataJudAdapter
+    from src.integrations.adapters.djen_adapter import DjenAdapter
+    from src.integrations.adapters.onr_imoveis_adapter import OnrImoveisAdapter
+    from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+    from src.integrations.adapters.tse_adapter import TseAdapter
+    from src.integrations.rate_limiter import AsyncRateLimiter
+    from src.integrations.registry import get_registry
+    from src.integrations.risk_engine import get_risk_engine
+    from src.utils.ledger import DecisionLedger
+
+    registry = get_registry()
+    for cls in [
+        DataJudAdapter,
+        DjenAdapter,
+        ReceitaCnpjAdapter,
+        TseAdapter,
+        CrcProtestosAdapter,
+        CadinAdapter,
+        OnrImoveisAdapter,
+    ]:
+        if not registry.get(cls.service_name):
+            try:
+                registry.register(cls)
+            except Exception as exc:
+                logger.warning("Falha ao registrar %s: %s", cls.service_name, exc)
+
+    cache = None
+    try:
+        from src.utils.cache_manager import CacheManager
+
+        cache = CacheManager()
+    except Exception as exc:
+        logger.warning("CacheManager indisponível: %s — continuando sem cache", exc)
+
+    autonomy = None
+    try:
+        from src.hitl.progressive_autonomy import get_autonomy_manager
+
+        autonomy = get_autonomy_manager()
+    except Exception as exc:
+        logger.warning("AutonomyManager indisponível: %s", exc)
+
+    policy = None
+    try:
+        from src.governance.data_source_policy import get_data_source_policy
+
+        policy = get_data_source_policy()
+    except Exception as exc:
+        logger.warning("DataSourcePolicy indisponível: %s", exc)
+
+    _orchestrator_singleton = IntelligenceOrchestrator(
+        registry,
+        cache=cache,
+        ledger=DecisionLedger(),
+        autonomy=autonomy,
+        policy=policy,
+        risk_engine=get_risk_engine(),
+        rate_limiter=AsyncRateLimiter(),
+    )
+    return _orchestrator_singleton
+
+
+__all__ = ["IntelligenceOrchestrator", "get_intelligence_orchestrator"]
