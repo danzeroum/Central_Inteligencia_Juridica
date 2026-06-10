@@ -17,7 +17,9 @@
   const CNPJ   = '33000167000101'; // Petrobras — CNPJ público para teste
   const NOME   = 'Jose da Silva Santos';
 
-  const TOKEN  = localStorage.getItem('cij_token')
+  // Chave exata definida em frontend/src/api/auth.js
+  const TOKEN  = localStorage.getItem('cij.token')
+               || localStorage.getItem('cij_token')
                || localStorage.getItem('token')
                || sessionStorage.getItem('token')
                || '';
@@ -113,8 +115,9 @@
   check('GET /app/ → 200', spa.ok, `HTTP ${spa.status}`);
   check('SPA HTML contém bundle JS', spaHtml.includes('.js'), '');
   check('SPA HTML contém bundle CSS', spaHtml.includes('.css'), '');
-  check('GET /favicon.ico presente', !(await fetch('/favicon.ico')).ok === false,
-    'favicon 404 é esperado em dev');
+  // favicon 404 é esperado em dev — apenas aviso
+  const faviconOk = (await fetch('/favicon.ico')).ok;
+  check('GET /favicon.ico', faviconOk || 'warn', faviconOk ? 'ok' : '404 (normal em dev)');
   console.groupEnd();
 
   /* ──────────────────────────────────────────────────────────────────────── */
