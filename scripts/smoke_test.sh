@@ -77,8 +77,51 @@ jval() {
   python3 -c "import sys,json; d=json.load(sys.stdin); print($1)" 2>/dev/null || echo ""
 }
 
+# ─── Auto-detecção de credenciais do AUTH_USERS do container ────────────────
+# Só ativa quando SMOKE_MODE=docker e o usuário não passou ADMIN_USER explícito
+_CRED_AUTODETECT=0
+if [ "$SMOKE_MODE" = "docker" ] && [ "${ADMIN_USER}" = "admin" ]; then
+  _AUTH_USERS_JSON=$(docker exec "$CONTAINER" sh -c 'printf "%s" "$AUTH_USERS"' 2>/dev/null || echo "")
+  if [ -n "$_AUTH_USERS_JSON" ] && [ "$_AUTH_USERS_JSON" != "{}" ]; then
+    _DETECTED=$(printf '%s' "$_AUTH_USERS_JSON" | python3 - <<'PYDET'
+import sys, json
+try:
+    users = json.loads(sys.stdin.read())
+    admin = next(
+        ((k, v['password']) for k,v in users.items() if 'admin' in v.get('roles',[])),
+        None
+    )
+    op = next(
+        ((k, v['password']) for k,v in users.items()
+         if any(r in v.get('roles',[]) for r in ('operator','auditor'))
+         and 'admin' not in v.get('roles',[])),
+        admin  # fallback: usa o admin como operador se não houver outro
+    )
+    if admin:
+        print(f"ADMIN_USER={admin[0]}")
+        print(f"ADMIN_PASS={admin[1]}")
+    if op:
+        print(f"OP_USER={op[0]}")
+        print(f"OP_PASS={op[1]}")
+    print("AUTODETECT=1")
+except Exception as e:
+    pass
+PYDET
+)
+    if echo "$_DETECTED" | grep -q "AUTODETECT=1"; then
+      eval "$_DETECTED"
+      _CRED_AUTODETECT=1
+    fi
+  fi
+fi
+
 echo -e "${BOLD}Central de Inteligência Jurídica — Smoke Test${NC}"
 echo    "Modo     : $info_mode"
+if [ "$_CRED_AUTODETECT" = "1" ]; then
+  echo  "Auth     : credenciais detectadas do AUTH_USERS (admin=${ADMIN_USER}, op=${OP_USER})"
+else
+  echo  "Auth     : ADMIN_USER=${ADMIN_USER} OP_USER=${OP_USER}"
+fi
 echo    "Data/hora: $(date '+%Y-%m-%d %H:%M:%S %Z')"
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -342,8 +385,11 @@ echo ""
 info "QSA expansion (expandQsa=true)..."
 QSA_BODY=$(python3 -c "import json; print(json.dumps({'query':'query I360(\$i:String!,\$e:Boolean!){intelligence(identifier:\$i,expandQsa:\$e){queryId relatedParties{nome vinculo}}}','variables':{'i':'${TEST_CNPJ}','e':True}}))")
 RESP_QSA=$(http_post "$OHDR" "/api/v1/intelligence/graphql" "$QSA_BODY")
-QSA_N=$(echo "$RESP_QSA" | jval "len(d.get('data',{}).get('intelligence',{}).get('relatedParties',[]))")
-pass "QSA expansion → ${QSA_N:-0} partes relacionadas"
+QSA_ID=$(echo "$RESP_QSA" | jval "d.get('data',{}).get('intelligence',{}).get('queryId','')")
+QSA_N=$(echo "$RESP_QSA"  | jval "len(d.get('data',{}).get('intelligence',{}).get('relatedParties',[]))")
+[ -n "$QSA_ID" ] \
+  && pass "QSA expansion → ${QSA_N:-0} partes relacionadas" \
+  || fail "QSA expansion → resposta inválida (sem queryId)"
 
 # ─── Detecção por Nome ────────────────────────────────────────────────────────
 echo ""
