@@ -1,0 +1,12 @@
+[
+  {
+    "matricula": "123456",
+    "cartorio": "1º Registro de Imóveis de São Paulo",
+    "tipo_imovel": "Apartamento",
+    "municipio": "São Paulo",
+    "area": 85.5,
+    "data_registro": "2018-04-10",
+    "proprietario": "[REDACTED]",
+    "uf": "SP"
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "result": {
+    "records": [
+      {
+        "NM_CANDIDATO": "JOSE CANDIDATO DA SILVA",
+        "NR_CPF_CANDIDATO": "52998224725",
+        "SG_PARTIDO": "PSD",
+        "DS_CARGO": "VEREADOR",
+        "ANO_ELEICAO": 2020,
+        "SG_UF": "SP",
+        "NM_MUNICIPIO": "SAO PAULO",
+        "DS_SITUACAO_CANDIDATURA": "ELEITO"
+      }
+    ],
+    "total": 1
+  }
+}

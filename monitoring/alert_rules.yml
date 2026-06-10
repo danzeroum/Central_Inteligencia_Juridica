@@ -69,3 +69,60 @@ groups:
         annotations:
           summary: "Resposta HITL lenta (P90 > 5min)"
           description: "O P90 do tempo de decisão humana excedeu 5 minutos."
+
+  # ===== Onda 1: Alertas de Integrações Jurídicas =====
+  - name: cij-integrations
+    rules:
+      - alert: IntegrationSourceDown
+        # Fonte com circuit breaker aberto (integração indisponível).
+        expr: circuit_breaker_state{name=~"integration_.*"} >= 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Fonte de integração com falha: {{ $labels.name }}"
+          description: >
+            O circuit breaker '{{ $labels.name }}' está OPEN há mais de 2m.
+            Verificar conectividade com a fonte de dados correspondente.
+
+      - alert: IntegrationHighFailureRate
+        # Mais de 20% das consultas falhando (janela 5m, com proteção de tráfego mínimo).
+        expr: |
+          sum by (source) (rate(integrations_queries_total{status="failed"}[5m]))
+            /
+          sum by (source) (rate(integrations_queries_total[5m])) > 0.2
+          and sum by (source) (rate(integrations_queries_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alta taxa de falha na integração: {{ $labels.source }}"
+          description: "Fonte {{ $labels.source }} com mais de 20% de falhas nos últimos 5m."
+
+      - alert: IntegrationHighLatency
+        # P90 de latência acima de 5s (janela 5m).
+        expr: |
+          histogram_quantile(
+            0.9, sum by (source, le) (rate(integrations_latency_seconds_bucket[5m]))
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latência alta na integração: {{ $labels.source }}"
+          description: "P90 da latência de {{ $labels.source }} excedeu 5s nos últimos 5m."
+
+      - alert: IntegrationMockInProduction
+        # Fonte em modo mock sendo consultada em produção.
+        expr: |
+          sum by (source) (
+            increase(integrations_queries_total{data_mode="mock"}[5m])
+          ) > 0 and on() count(up{job="agent-api"}) > 0
+        for: 1m
+        labels:
+          severity: info
+        annotations:
+          summary: "Integração em modo MOCK: {{ $labels.source }}"
+          description: >
+            Fonte {{ $labels.source }} está operando em modo mock.
+            Verifique se INTEGRATIONS_{{ $labels.source | upper }}_MODE=real está configurado.

@@ -182,6 +182,16 @@ app.include_router(monitoring_router)
 app.include_router(jurisprudencia_router)
 app.include_router(profile_router)
 
+# ===== Onda 1: Integrações Jurídicas =====
+from src.api.intelligence_endpoints import router as intelligence_router  # noqa: E402
+from src.api.intelligence_graphql.schema import create_graphql_router  # noqa: E402
+
+app.include_router(intelligence_router)
+app.include_router(
+    create_graphql_router(),
+    prefix="/api/v1/intelligence/graphql",
+)
+
 
 # SECURITY (SEC-004 / CWE-209): handler global de exceções não tratadas. Em vez
 # de deixar o stack trace vazar na resposta, devolve um ProblemDetail opaco com

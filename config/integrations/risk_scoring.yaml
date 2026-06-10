@@ -1,0 +1,50 @@
+# Risk scoring — pesos dos fatores e dimensões
+# RiskEngine lê este arquivo para calcular o score 0-100
+
+weights:
+  protesto_ativo:
+    peso: 30
+    dimension: patrimonial
+  cadin_pendencia:
+    peso: 15
+    dimension: fiscal
+  processos_total_gt_5:
+    peso: 15
+    dimension: juridico
+  execucoes_gt_2:
+    peso: 10
+    dimension: juridico
+  imovel_transferencia_recente:
+    peso: 10
+    dimension: patrimonial
+    janela_anos: 2
+  empresa_situacao_irregular:
+    peso: 10
+    dimension: fiscal
+  publicacao_execucao_recente:
+    peso: 5
+    dimension: juridico
+  qsa_socio_com_processos:
+    peso: 10
+    dimension: societario
+  qsa_socio_com_publicacoes:
+    peso: 5
+    dimension: societario
+
+max_score: 100
+
+hitl:
+  enabled: true
+  threshold: 70
+
+recommendations:
+  protesto_ativo: "Verificar certidões de protesto atualizadas antes de contratar."
+  cadin_pendencia: "Consultar situação junto à Receita Federal antes de prosseguir."
+  processos_total_gt_5: "Avaliar natureza e impacto dos processos identificados."
+  execucoes_gt_2: "Verificar execuções fiscais e risco de penhora."
+  imovel_transferencia_recente: "Investigar transferência de imóveis recente (possível fraude à execução)."
+  empresa_situacao_irregular: "Empresa com situação irregular — verificar regularidade fiscal."
+  publicacao_execucao_recente: "Publicação de execução recente — monitorar andamento."
+  qsa_socio_com_processos: "Sócio com processos localizados — avaliar desconsideração/partes relacionadas."
+  qsa_socio_com_publicacoes: "Sócio mencionado em publicações — verificar envolvimento processual."
+  score_gte_70: "Recomenda-se due diligence aprofundada e revisão humana."

@@ -46,8 +46,16 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         "monitoring:read",
         # API-06: comparação de modos (2× custo LLM) é operação privilegiada.
         "tasks:compare",
+        # Inteligência jurídica (Onda 1)
+        "intelligence:query",
+        "intelligence:zone:credenciada",
     },
-    Role.OPERATOR: {"hitl:write", "agents:read", "monitoring:read"},
+    Role.OPERATOR: {
+        "hitl:write",
+        "agents:read",
+        "monitoring:read",
+        "intelligence:query",
+    },
     Role.AUDITOR: {"ledger:read", "lgpd:read", "monitoring:read"},
     Role.READONLY: {"monitoring:read"},
 }

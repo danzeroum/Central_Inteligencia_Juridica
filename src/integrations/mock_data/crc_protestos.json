@@ -1,0 +1,10 @@
+[
+  {
+    "cartorio": "1º Tabelionato de Protestos de São Paulo",
+    "data_protesto": "2023-03-15",
+    "valor": 15000.00,
+    "credor": "Banco Teste S.A.",
+    "tipo": "Duplicata",
+    "situacao": "PROTESTADO"
+  }
+]

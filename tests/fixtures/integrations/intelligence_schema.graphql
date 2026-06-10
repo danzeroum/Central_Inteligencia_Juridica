@@ -1,0 +1,58 @@
+type AdapterResultType {
+  source: String!
+  status: String!
+  dataMode: String!
+  fromCache: Boolean!
+  latencyMs: Float!
+  totalAvailable: Int!
+  error: String
+}
+
+type ConsolidatedReportType {
+  queryId: String!
+  identifierMasked: String!
+  identifierType: String!
+  riskScore: Float!
+  riskDimensions: [RiskDimensionType!]!
+  riskFactors: [RiskFactorType!]!
+  relatedParties: [RelatedPartyType!]!
+  recommendations: [String!]!
+  summary: String
+  hitlStatus: String!
+  results: [AdapterResultType!]!
+}
+
+type Query {
+  intelligence(identifier: String!, sources: [String!] = null, limit: Int! = 20, offset: Int! = 0, expandQsa: Boolean! = false): ConsolidatedReportType!
+  intelligenceHealth: [SourceHealthType!]!
+}
+
+type RelatedPartyType {
+  nome: String!
+  vinculo: String!
+  tipo: String
+  fonte: String!
+  resumo: String
+  totalOcorrencias: Int!
+  homonimoPossivel: Boolean!
+}
+
+type RiskDimensionType {
+  name: String!
+  score: Float!
+}
+
+type RiskFactorType {
+  code: String!
+  description: String!
+  weight: Int!
+  source: String!
+  dimension: String!
+}
+
+type SourceHealthType {
+  source: String!
+  enabled: Boolean!
+  mode: String!
+  zone: String!
+}

@@ -1,0 +1,34 @@
+{
+  "cnpj": "00000000000191",
+  "razao_social": "Empresa Receita Federal Ltda",
+  "nome_fantasia": "Receita Corp",
+  "descricao_situacao_cadastral": "ATIVA",
+  "data_inicio_atividade": "2000-01-01",
+  "capital_social": 500000.00,
+  "descricao_porte": "MEDIO",
+  "cnae_fiscal": "6201500",
+  "cnae_fiscal_descricao": "Desenvolvimento de programas de computador sob encomenda",
+  "cnaes_secundarias": [
+    {"codigo": "6202300", "descricao": "Desenvolvimento e licenciamento de programas de computador customizáveis"}
+  ],
+  "opcao_pelo_simples": false,
+  "opcao_pelo_mei": false,
+  "uf": "SP",
+  "municipio": "SAO PAULO",
+  "natureza_juridica": "Sociedade Empresária Limitada",
+  "codigo_natureza_juridica": "2062",
+  "qsa": [
+    {
+      "nome_socio": "João Teste da Silva",
+      "qualificacao_socio": "49-Sócio-Administrador",
+      "cnpj_cpf_do_socio": "***.***.***-01",
+      "data_entrada_sociedade": "2000-01-01"
+    },
+    {
+      "nome_socio": "Empresa Parceira SA",
+      "qualificacao_socio": "22-Sócio",
+      "cnpj_cpf_do_socio": "12.345.678/0001-95",
+      "data_entrada_sociedade": "2005-06-15"
+    }
+  ]
+}

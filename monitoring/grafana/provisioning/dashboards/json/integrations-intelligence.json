@@ -1,0 +1,111 @@
+{
+  "title": "CIJ — Integrações Jurídicas",
+  "uid": "cij-integrations-v1",
+  "version": 1,
+  "schemaVersion": 38,
+  "tags": ["cij", "integrations", "onda1"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total de Consultas",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(integrations_queries_total[5m]))",
+          "legendFormat": "req/s"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Taxa de Sucesso",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(integrations_queries_total{status='success'}[5m])) / sum(rate(integrations_queries_total[5m])) * 100",
+          "legendFormat": "%"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Cache Hit Rate",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "sum(rate(integrations_cache_hits_total[5m])) / sum(rate(integrations_queries_total[5m])) * 100",
+          "legendFormat": "%"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Circuit Breakers Abertos",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "targets": [
+        {
+          "expr": "count(circuit_breaker_state{name=~'integration_.*'} == 1)",
+          "legendFormat": "abertos"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "graph",
+      "title": "Latência P90 por Fonte (ms)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.90, rate(integrations_latency_seconds_bucket[5m])) * 1000",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "yAxes": [{"label": "ms", "min": 0}]
+    },
+    {
+      "id": 6,
+      "type": "graph",
+      "title": "Consultas por Status e Modo",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "targets": [
+        {
+          "expr": "sum by (source, status, data_mode) (rate(integrations_queries_total[5m]))",
+          "legendFormat": "{{source}} / {{status}} / {{data_mode}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "graph",
+      "title": "Distribuição Risk Score",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(integrations_risk_score_bucket[5m]))",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(integrations_risk_score_bucket[5m]))",
+          "legendFormat": "P50"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "HITL Acionamentos",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "targets": [
+        {
+          "expr": "increase(integrations_hitl_triggered_total[1h])",
+          "legendFormat": "na última hora"
+        }
+      ]
+    }
+  ]
+}

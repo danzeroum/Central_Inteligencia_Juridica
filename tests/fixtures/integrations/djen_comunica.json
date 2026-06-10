@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "numeroProcesso": "0001234-56.2023.8.26.0001",
+      "dataDisponibilizacao": "2024-01-15",
+      "texto": "Fica intimada a parte autora para manifestar-se em 15 dias.",
+      "siglaOrgao": "TJSP",
+      "tipoDocumento": "Intimação",
+      "nomeDestinatario": "Dr. Advogado Teste"
+    },
+    {
+      "numeroProcesso": "0001234-56.2023.8.26.0001",
+      "dataDisponibilizacao": "2024-02-01",
+      "texto": "Designada audiência de instrução e julgamento.",
+      "siglaOrgao": "TJSP",
+      "tipoDocumento": "Despacho",
+      "nomeDestinatario": "Dr. Advogado Teste"
+    }
+  ]
+}
