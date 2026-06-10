@@ -1,0 +1,26 @@
+[
+  {
+    "cnpj": "00000000000191",
+    "razao_social": "Empresa Teste Ltda",
+    "nome_fantasia": "Teste Corp",
+    "situacao_cadastral": "ATIVA",
+    "data_abertura": "2000-01-01",
+    "capital_social": 1000000.00,
+    "porte": "MEDIO",
+    "cnae_principal": {"codigo": "6201500", "descricao": "Desenvolvimento de programas de computador sob encomenda"},
+    "cnaes_secundarios": [],
+    "opcao_simples": false,
+    "opcao_mei": false,
+    "uf": "SP",
+    "municipio": "SAO PAULO",
+    "qsa": [
+      {
+        "nome": "Maria da Silva",
+        "qualificacao": "Sócia Administradora",
+        "tipo": "PF",
+        "identificador_mascarado": "***.***.***-99",
+        "data_entrada": "2000-01-01"
+      }
+    ]
+  }
+]

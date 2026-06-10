@@ -1,0 +1,9 @@
+[
+  {
+    "orgao": "Secretaria da Fazenda",
+    "tipo_pendencia": "Débito Fiscal",
+    "valor": 5000.00,
+    "data_inscricao": "2022-06-01",
+    "situacao": "ATIVO"
+  }
+]

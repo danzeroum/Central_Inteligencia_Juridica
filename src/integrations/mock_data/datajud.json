@@ -1,0 +1,13 @@
+[
+  {
+    "numero_processo": "0000001-02.2020.8.26.0001",
+    "tribunal": "TJSP",
+    "grau": "G1",
+    "data_ajuizamento": "2020-01-02T00:00:00.000Z",
+    "assuntos": [{"codigo": 10375, "nome": "Responsabilidade Civil"}],
+    "movimentos": [{"codigo": 26, "nome": "Distribuição", "dataHora": "2020-01-02T10:00:00.000Z"}],
+    "partes": [],
+    "classe": "Procedimento Comum",
+    "orgao_julgador": "1ª Vara Cível"
+  }
+]

@@ -32,8 +32,10 @@ python-json-logger>=2.0,<4.0
 # opentelemetry-instrumentation-httpx>=0.48b0
 
 # Data Validation
-pydantic==2.6.0
-pydantic-settings==2.1.0
+# pydantic 2.10 removed is_new_type from _typing_extra, breaking strawberry<0.240.
+# Pin to 2.9.x (the last safe range); satisfies ollama>=2.9 requirement.
+pydantic>=2.9.0,<2.10
+pydantic-settings>=2.1.0
 
 # Environment
 python-dotenv==1.0.1
@@ -49,3 +51,6 @@ numpy<2.0.0,>=1.22.0
 # LLM Integration
 ollama==0.1.9
 openai>=1.30,<2.0
+
+# GraphQL (Onda 1 — integrações jurídicas)
+strawberry-graphql[fastapi]>=0.236.0,<0.240.0

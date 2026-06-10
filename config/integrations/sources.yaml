@@ -1,0 +1,56 @@
+# Configuração operacional das fontes de integração jurídica (Onda 1)
+# Precedência: env INTEGRATIONS_{SOURCE}_{KEY} > este arquivo
+# Envs relevantes: INTEGRATIONS_{SOURCE}_MODE (real|mock), INTEGRATIONS_{SOURCE}_ENABLED (true|false)
+
+defaults:
+  enabled: true
+  mode: real
+  timeout_seconds: 10
+  rate_limit_per_minute: 30
+  cache_ttl_seconds: 900
+
+sources:
+  datajud:
+    zone: publica
+    data_type: processo_por_numero
+    timeout_seconds: 15
+    cache_ttl_seconds: 3600
+    rate_limit_per_minute: 60
+
+  djen:
+    zone: publica
+    data_type: publicacao_dje
+    cache_ttl_seconds: 1800
+
+  receita_cnpj:
+    zone: publica
+    data_type: cadastro_empresa
+    cache_ttl_seconds: 86400
+
+  tse:
+    zone: publica
+    data_type: eleitoral
+    cache_ttl_seconds: 86400
+
+  crc_protestos:
+    zone: restrita
+    data_type: protesto
+    mode: mock
+    cache_ttl_seconds: 900
+
+  cadin:
+    zone: restrita
+    data_type: cadin
+    mode: mock
+    cache_ttl_seconds: 900
+
+  onr_imoveis:
+    zone: restrita
+    data_type: imovel
+    mode: mock
+    cache_ttl_seconds: 900
+
+# Expansão QSA (override: INTEGRATIONS_QSA_*)
+qsa_expansion:
+  enabled: true
+  max_socios: 5

@@ -42,6 +42,7 @@ class DataSourceRule:
     llm: str
     critico: bool
     cache_ttl: Optional[str] = None
+    zone: str = "publica"  # publica | credenciada | restrita (retrocompatível)
 
 
 class DataSourcePolicy:
@@ -63,6 +64,7 @@ class DataSourcePolicy:
                 llm=str(spec.get("llm", "")),
                 critico=bool(spec.get("critico", False)),
                 cache_ttl=spec.get("cache_ttl"),
+                zone=str(spec.get("zone", "publica")),
             )
         return cls(rules)
 

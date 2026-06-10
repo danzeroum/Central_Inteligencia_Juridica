@@ -222,7 +222,12 @@ class TribunalAgent(A2ACapable):
             or self._PROCESS_NUMBER_RE.search(lower)
         ):
             return "process_query"
-        if "status" in lower or "disponív" in lower or "disponibilidade" in lower or "available" in lower:
+        if (
+            "status" in lower
+            or "disponív" in lower
+            or "disponibilidade" in lower
+            or "available" in lower
+        ):
             return "status"
         if any(kw in lower for kw in self._JURIS_KEYWORDS):
             return "jurisprudencia"

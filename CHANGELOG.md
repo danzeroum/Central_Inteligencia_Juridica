@@ -6,6 +6,26 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Não lançado] — Onda 1: Camada de Integrações Jurídicas
+
+### Adicionado
+- **src/integrations/** — camada dedicada de integrações jurídicas (7 fontes: DataJud, DJEN, Receita CNPJ, TSE, CRC, Cadin, ONR)
+- **CNPJ Light** — perfil societário completo (situação, QSA, capital, CNAE, Simples/MEI) via BrasilAPI
+- **Expansão QSA 360°** — cruzamento sócios × processos/publicações com flag `expand_qsa`
+- **Risk Score Multidimensional** — score 0-100 com dimensões jurídico/fiscal/patrimonial/societário via YAML configurável
+- **GraphQL** — endpoint `/api/v1/intelligence/graphql` (Strawberry, JWT, depth limit 10)
+- **IntelligenceAgent** e **FiscalAgent** — delegáveis pelo SupervisorAgent com proposta de consenso
+- **Observabilidade** — SpanRecord como context manager, dashboard Grafana provisionado, alertas grupo `cij-integrations`
+- **Governança** — 8 novos data_types no `data_sources.yaml` com campo `zone` (retrocompatível)
+- **RBAC** — permissions `intelligence:query` e `intelligence:zone:credenciada`
+- **Preparação Onda 2** — `credentials.py`, `oauth2_base.py`, `sped_regularidade` no governance
+
+### Corrigido
+- `SpanRecord` agora é context manager (corrige `with observer.start_span(...)` em `src/orchestrator.py`)
+- `src/orchestrator.py` usa `AgentObserver` em vez de `NullObserver`
+
+---
+
 ## [Não lançado] - Remediação da auditoria técnica
 
 ### 🔒 Security

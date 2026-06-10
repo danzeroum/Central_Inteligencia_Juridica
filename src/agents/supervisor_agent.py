@@ -312,6 +312,41 @@ class SupervisorAgent(A2ACapable):
 
         return self.tribunal_identifier.identify_primary(task)
 
+    async def _delegate_to_intelligence_agent(
+        self, task: str, operacao: str
+    ) -> Dict[str, Any]:
+        """Delega due_diligence → IntelligenceAgent, perfil_fiscal → FiscalAgent."""
+        try:
+            if operacao == "perfil_fiscal":
+                from src.agents.fiscal_agent import FiscalAgent
+
+                agent = FiscalAgent()
+            else:
+                from src.agents.intelligence_agent import IntelligenceAgent
+
+                agent = IntelligenceAgent()
+
+            result = await agent.process_task(task)
+            self.ledger.log_decision(
+                agent_type="SupervisorAgent",
+                decision_type="DELEGATED_TO_INTELLIGENCE",
+                metadata={"operacao": operacao, "status": result.get("status")},
+            )
+            return {
+                "status": result.get("status", "success"),
+                "mode": operacao,
+                "supervisor_result": result,
+                "timestamp": self._get_timestamp(),
+            }
+        except Exception as exc:
+            self.logger.error("Delegação para %s falhou: %s", operacao, exc)
+            return {
+                "status": "error",
+                "mode": operacao,
+                "message": f"Agente {operacao} indisponível.",
+                "timestamp": self._get_timestamp(),
+            }
+
     async def process_task(
         self,
         task_description: str,
@@ -442,6 +477,12 @@ class SupervisorAgent(A2ACapable):
                                 cached_result = None
 
             intent = await self._classify_intent(sanitized_task)
+
+            # Delegação para agentes especializados de inteligência
+            if intent.operacao in ("due_diligence", "perfil_fiscal"):
+                return await self._delegate_to_intelligence_agent(
+                    sanitized_task, intent.operacao
+                )
 
             if recalled_memories:
                 best_memory = recalled_memories[0]

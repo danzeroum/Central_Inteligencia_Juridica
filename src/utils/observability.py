@@ -37,6 +37,14 @@ class SpanRecord:
         """Mark the span as completed."""
         self.end_time = _utcnow()
 
+    # Context manager support (Sprint 7 fix — src/orchestrator.py usa `with`)
+    def __enter__(self) -> "SpanRecord":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        self.close()
+        return False
+
 
 class AgentObserver:
     """Simple tracing facility for orchestrated agent workflows."""

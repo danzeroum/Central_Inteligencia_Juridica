@@ -55,3 +55,63 @@ data_types:
     llm: exclusivo
     critico: false
     cache_ttl: "n/a"
+
+  # ===== Onda 1: Integrações Jurídicas =====
+
+  processo_por_numero:
+    fonte: "CNJ DataJud"
+    llm: sumarizacao
+    critico: true
+    cache_ttl: "1h"
+    zone: publica
+
+  publicacao_dje:
+    fonte: "DJEN / Comunica PJe"
+    llm: sumarizacao
+    critico: true
+    cache_ttl: "30min"
+    zone: publica
+
+  cadastro_empresa:
+    fonte: "Receita Federal / BrasilAPI"
+    llm: analise
+    critico: true
+    cache_ttl: "24h"
+    zone: publica
+
+  eleitoral:
+    fonte: "TSE Dados Abertos"
+    llm: analise
+    critico: true
+    cache_ttl: "24h"
+    zone: publica
+
+  protesto:
+    fonte: "CRC / CENPROT"
+    llm: nao
+    critico: true
+    cache_ttl: "15min"
+    zone: restrita
+
+  cadin:
+    fonte: "CADIN / Receita Federal"
+    llm: nao
+    critico: true
+    cache_ttl: "15min"
+    zone: restrita
+
+  imovel:
+    fonte: "ONR / SREI"
+    llm: nao
+    critico: true
+    cache_ttl: "15min"
+    zone: restrita
+
+  # ===== Onda 2: SPED (preparação arquitetural) =====
+
+  sped_regularidade:
+    fonte: "SPED / Receita Federal"
+    llm: nao
+    critico: true
+    cache_ttl: "24h"
+    zone: credenciada
