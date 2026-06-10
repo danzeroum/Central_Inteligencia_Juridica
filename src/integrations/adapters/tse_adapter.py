@@ -44,6 +44,7 @@ class TseAdapter(LegalDataAdapter):
         filters: Dict[str, Any] = {}
         if q.identifier_type == IdentifierType.CPF:
             import re
+
             cpf = re.sub(r"\D", "", q.identifier)
             filters["NR_CPF_CANDIDATO"] = cpf
         else:
@@ -67,6 +68,7 @@ class TseAdapter(LegalDataAdapter):
             # Mascara CPF antes de retornar
             if cpf_raw:
                 import re
+
                 d = re.sub(r"\D", "", str(cpf_raw))
                 if len(d) == 11:
                     cpf_raw = f"***.***.{d[6:9]}-{d[9:11]}"

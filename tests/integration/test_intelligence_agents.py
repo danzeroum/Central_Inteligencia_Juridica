@@ -186,11 +186,13 @@ class TestGoldenRegressionPostRefactor:
 
     def test_supervisor_members_intact(self):
         import os
+
         os.environ.setdefault(
             "JWT_SECRET", "development-secret-key-minimum-32-chars-long-for-tests"
         )
         os.environ["ENVIRONMENT"] = "test"
         from src.agents.supervisor_agent import SupervisorAgent
+
         sv = SupervisorAgent()
         # Membros externos que main.py e unified_orchestrator usam
         assert hasattr(sv, "active_delegates")

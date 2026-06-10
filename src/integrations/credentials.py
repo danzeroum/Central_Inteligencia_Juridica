@@ -25,8 +25,7 @@ class CredentialProvider(ABC):
     @abstractmethod
     def get_credentials(
         self, source: str, tenant_id: Optional[str] = None
-    ) -> Optional[SourceCredentials]:
-        ...
+    ) -> Optional[SourceCredentials]: ...
 
 
 class EnvCredentialProvider(CredentialProvider):

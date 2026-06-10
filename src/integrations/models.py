@@ -48,6 +48,7 @@ class HitlStatus(str, Enum):
 # Consulta
 # ---------------------------------------------------------------------------
 
+
 class IdentifierQuery(BaseModel):
     identifier: str
     identifier_type: IdentifierType
@@ -59,6 +60,7 @@ class IdentifierQuery(BaseModel):
 # ---------------------------------------------------------------------------
 # Itens normalizados
 # ---------------------------------------------------------------------------
+
 
 class ProcessoNormalizado(BaseModel):
     numero_processo: str
@@ -171,6 +173,7 @@ class AdapterResult(BaseModel, Generic[ItemT]):
 # Risk Engine
 # ---------------------------------------------------------------------------
 
+
 class RiskFactor(BaseModel):
     code: str
     description: str
@@ -197,6 +200,7 @@ class RelatedPartyFinding(BaseModel):
 # ---------------------------------------------------------------------------
 # Relatório consolidado
 # ---------------------------------------------------------------------------
+
 
 class ConsolidatedReport(BaseModel):
     query_id: str

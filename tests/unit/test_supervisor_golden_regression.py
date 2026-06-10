@@ -13,11 +13,13 @@ import pytest
 def supervisor():
     """SupervisorAgent mínimo (sem ChromaDB/Redis real)."""
     import os
+
     os.environ.setdefault(
         "JWT_SECRET", "development-secret-key-minimum-32-chars-long-for-tests"
     )
     from src.agents.supervisor_agent import SupervisorAgent
     from src.utils.ledger import DecisionLedger
+
     ledger = DecisionLedger()
     return SupervisorAgent(ledger=ledger)
 

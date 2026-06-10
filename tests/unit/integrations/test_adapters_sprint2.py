@@ -31,10 +31,12 @@ def _make_settings(name: str, mode: str = "real") -> SourceSettings:
 # DataJud Adapter
 # ---------------------------------------------------------------------------
 
+
 class TestDataJudAdapter:
     @pytest.fixture
     def adapter(self):
         from src.integrations.adapters.datajud_adapter import DataJudAdapter
+
         return DataJudAdapter(_make_settings("datajud"))
 
     def test_supports_numero_processo(self, adapter):
@@ -46,8 +48,12 @@ class TestDataJudAdapter:
     @pytest.mark.asyncio
     async def test_query_mock_mode(self):
         from src.integrations.adapters.datajud_adapter import DataJudAdapter
+
         adapter = DataJudAdapter(_make_settings("datajud", "mock"))
-        q = IdentifierQuery(identifier="0000001-02.2020.8.26.0001", identifier_type=IdentifierType.NUMERO_PROCESSO)
+        q = IdentifierQuery(
+            identifier="0000001-02.2020.8.26.0001",
+            identifier_type=IdentifierType.NUMERO_PROCESSO,
+        )
         result = await adapter.query(q)
         assert result.status == AdapterStatus.SUCCESS
         assert result.data_mode == DataMode.MOCK
@@ -56,11 +62,17 @@ class TestDataJudAdapter:
     @pytest.mark.asyncio
     async def test_query_never_raises(self):
         from src.integrations.adapters.datajud_adapter import DataJudAdapter
+
         adapter = DataJudAdapter(_make_settings("datajud"))
 
         # Mock do DataJudClient para lançar erro
-        with patch("src.services.datajud_client.DataJudClient.search", new=AsyncMock(side_effect=Exception("Erro de rede"))):
-            q = IdentifierQuery(identifier="xxx", identifier_type=IdentifierType.NUMERO_PROCESSO)
+        with patch(
+            "src.services.datajud_client.DataJudClient.search",
+            new=AsyncMock(side_effect=Exception("Erro de rede")),
+        ):
+            q = IdentifierQuery(
+                identifier="xxx", identifier_type=IdentifierType.NUMERO_PROCESSO
+            )
             try:
                 result = await adapter.query(q)
                 assert result.status == AdapterStatus.FAILED
@@ -72,10 +84,12 @@ class TestDataJudAdapter:
 # DJEN Adapter
 # ---------------------------------------------------------------------------
 
+
 class TestDjenAdapter:
     @pytest.fixture
     def adapter(self):
         from src.integrations.adapters.djen_adapter import DjenAdapter
+
         return DjenAdapter(_make_settings("djen"))
 
     def test_supports_numero_processo(self, adapter):
@@ -90,6 +104,7 @@ class TestDjenAdapter:
     @pytest.mark.asyncio
     async def test_query_mock_mode(self):
         from src.integrations.adapters.djen_adapter import DjenAdapter
+
         adapter = DjenAdapter(_make_settings("djen", "mock"))
         q = IdentifierQuery(identifier="Dr. Teste", identifier_type=IdentifierType.NOME)
         result = await adapter.query(q)
@@ -108,6 +123,7 @@ class TestDjenAdapter:
                 return_value=httpx.Response(200, json=fixture_data)
             )
             from src.integrations.adapters.djen_adapter import DjenAdapter
+
             adapter = DjenAdapter(_make_settings("djen"))
             q = IdentifierQuery(
                 identifier="0001234-56.2023.8.26.0001",
@@ -131,6 +147,7 @@ class TestDjenAdapter:
                 return_value=httpx.Response(429)
             )
             from src.integrations.adapters.djen_adapter import DjenAdapter
+
             adapter = DjenAdapter(_make_settings("djen"))
             q = IdentifierQuery(identifier="x", identifier_type=IdentifierType.NOME)
             result = await adapter.query(q)
@@ -156,8 +173,11 @@ class TestDjenAdapter:
                 return_value=httpx.Response(200, json=data)
             )
             from src.integrations.adapters.djen_adapter import DjenAdapter
+
             adapter = DjenAdapter(_make_settings("djen"))
-            q = IdentifierQuery(identifier="000-01", identifier_type=IdentifierType.NUMERO_PROCESSO)
+            q = IdentifierQuery(
+                identifier="000-01", identifier_type=IdentifierType.NUMERO_PROCESSO
+            )
             result = await adapter.query(q)
 
         assert result.status == AdapterStatus.SUCCESS
@@ -170,10 +190,12 @@ class TestDjenAdapter:
 # Receita CNPJ Adapter
 # ---------------------------------------------------------------------------
 
+
 class TestReceitaCnpjAdapter:
     @pytest.fixture
     def adapter(self):
         from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+
         return ReceitaCnpjAdapter(_make_settings("receita_cnpj"))
 
     def test_supports_cnpj(self, adapter):
@@ -185,8 +207,11 @@ class TestReceitaCnpjAdapter:
     @pytest.mark.asyncio
     async def test_query_mock_mode(self):
         from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+
         adapter = ReceitaCnpjAdapter(_make_settings("receita_cnpj", "mock"))
-        q = IdentifierQuery(identifier="00000000000191", identifier_type=IdentifierType.CNPJ)
+        q = IdentifierQuery(
+            identifier="00000000000191", identifier_type=IdentifierType.CNPJ
+        )
         result = await adapter.query(q)
         assert result.status == AdapterStatus.SUCCESS
         assert result.data_mode == DataMode.MOCK
@@ -202,7 +227,10 @@ class TestReceitaCnpjAdapter:
             respx.get("https://brasilapi.com.br/api/cnpj/v1/00000000000191").mock(
                 return_value=httpx.Response(200, json=fixture_data)
             )
-            from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+            from src.integrations.adapters.receita_cnpj_adapter import (
+                ReceitaCnpjAdapter,
+            )
+
             adapter = ReceitaCnpjAdapter(_make_settings("receita_cnpj"))
             q = IdentifierQuery(
                 identifier="00.000.000/0001-91",
@@ -228,9 +256,14 @@ class TestReceitaCnpjAdapter:
             respx.get("https://brasilapi.com.br/api/cnpj/v1/00000000000191").mock(
                 return_value=httpx.Response(200, json=fixture_data)
             )
-            from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+            from src.integrations.adapters.receita_cnpj_adapter import (
+                ReceitaCnpjAdapter,
+            )
+
             adapter = ReceitaCnpjAdapter(_make_settings("receita_cnpj"))
-            q = IdentifierQuery(identifier="00000000000191", identifier_type=IdentifierType.CNPJ)
+            q = IdentifierQuery(
+                identifier="00000000000191", identifier_type=IdentifierType.CNPJ
+            )
             result = await adapter.query(q)
 
         empresa = result.items[0]
@@ -249,9 +282,14 @@ class TestReceitaCnpjAdapter:
             respx.get("https://brasilapi.com.br/api/cnpj/v1/00000000000191").mock(
                 return_value=httpx.Response(500)
             )
-            from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+            from src.integrations.adapters.receita_cnpj_adapter import (
+                ReceitaCnpjAdapter,
+            )
+
             adapter = ReceitaCnpjAdapter(_make_settings("receita_cnpj"))
-            q = IdentifierQuery(identifier="00000000000191", identifier_type=IdentifierType.CNPJ)
+            q = IdentifierQuery(
+                identifier="00000000000191", identifier_type=IdentifierType.CNPJ
+            )
             result = await adapter.query(q)
 
         assert result.status == AdapterStatus.FAILED
@@ -266,9 +304,14 @@ class TestReceitaCnpjAdapter:
             respx.get("https://brasilapi.com.br/api/cnpj/v1/00000000000191").mock(
                 side_effect=httpx.TimeoutException("timeout")
             )
-            from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+            from src.integrations.adapters.receita_cnpj_adapter import (
+                ReceitaCnpjAdapter,
+            )
+
             adapter = ReceitaCnpjAdapter(_make_settings("receita_cnpj"))
-            q = IdentifierQuery(identifier="00000000000191", identifier_type=IdentifierType.CNPJ)
+            q = IdentifierQuery(
+                identifier="00000000000191", identifier_type=IdentifierType.CNPJ
+            )
             result = await adapter.query(q)
 
         assert result.status == AdapterStatus.FAILED
@@ -282,9 +325,14 @@ class TestReceitaCnpjAdapter:
             respx.get("https://brasilapi.com.br/api/cnpj/v1/00000000000191").mock(
                 return_value=httpx.Response(200, text="not-json{{{")
             )
-            from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+            from src.integrations.adapters.receita_cnpj_adapter import (
+                ReceitaCnpjAdapter,
+            )
+
             adapter = ReceitaCnpjAdapter(_make_settings("receita_cnpj"))
-            q = IdentifierQuery(identifier="00000000000191", identifier_type=IdentifierType.CNPJ)
+            q = IdentifierQuery(
+                identifier="00000000000191", identifier_type=IdentifierType.CNPJ
+            )
             result = await adapter.query(q)
 
         assert result.status == AdapterStatus.FAILED
@@ -298,9 +346,14 @@ class TestReceitaCnpjAdapter:
             respx.get("https://brasilapi.com.br/api/cnpj/v1/00000000000191").mock(
                 side_effect=RuntimeError("Unexpected crash")
             )
-            from src.integrations.adapters.receita_cnpj_adapter import ReceitaCnpjAdapter
+            from src.integrations.adapters.receita_cnpj_adapter import (
+                ReceitaCnpjAdapter,
+            )
+
             adapter = ReceitaCnpjAdapter(_make_settings("receita_cnpj"))
-            q = IdentifierQuery(identifier="00000000000191", identifier_type=IdentifierType.CNPJ)
+            q = IdentifierQuery(
+                identifier="00000000000191", identifier_type=IdentifierType.CNPJ
+            )
             # Nunca deve levantar exceção
             try:
                 result = await adapter.query(q)

@@ -79,6 +79,7 @@ class DataJudAdapter(LegalDataAdapter):
     async def query(self, q: IdentifierQuery):
         """Sobrescreve para mapear fallback do DataJudClient → data_mode=mock."""
         import time
+
         start = time.monotonic()
         try:
             items = await self.fetch_real(q)
@@ -102,6 +103,7 @@ class DataJudAdapter(LegalDataAdapter):
             latency = (time.monotonic() - start) * 1000
             logger.exception("DataJudAdapter falhou: %s", exc)
             from src.integrations.models import AdapterResult
+
             return AdapterResult(
                 source=self.service_name,
                 status=AdapterStatus.FAILED,

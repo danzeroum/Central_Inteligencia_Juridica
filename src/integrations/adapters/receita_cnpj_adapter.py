@@ -37,7 +37,9 @@ def _parse_qsa(qsa_raw: List[Dict[str, Any]]) -> List[SocioQSA]:
     for s in qsa_raw or []:
         nome = s.get("nome_socio") or s.get("nome") or ""
         qual = s.get("qualificacao_socio") or s.get("qualificacao") or ""
-        identificador = s.get("cnpj_cpf_do_socio") or s.get("cpf_representante_legal") or ""
+        identificador = (
+            s.get("cnpj_cpf_do_socio") or s.get("cpf_representante_legal") or ""
+        )
         # Determina tipo pelo comprimento do identificador (mascarado pode vir como ***.***.***-00)
         d = _digits(identificador)
         if len(d) == 14:

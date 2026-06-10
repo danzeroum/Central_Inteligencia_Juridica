@@ -27,7 +27,10 @@ from src.integrations.models import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_RISK_CONFIG = (
-    Path(__file__).resolve().parents[2] / "config" / "integrations" / "risk_scoring.yaml"
+    Path(__file__).resolve().parents[2]
+    / "config"
+    / "integrations"
+    / "risk_scoring.yaml"
 )
 
 
@@ -75,8 +78,10 @@ class RiskEngine:
             r = results["crc_protestos"]
             if r.status == AdapterStatus.SUCCESS and r.items:
                 ativos = [
-                    p for p in r.items
-                    if isinstance(p, Protesto) and (p.situacao or "").upper() in ("PROTESTADO", "ATIVO")
+                    p
+                    for p in r.items
+                    if isinstance(p, Protesto)
+                    and (p.situacao or "").upper() in ("PROTESTADO", "ATIVO")
                 ]
                 if ativos:
                     factors.append(self._factor("protesto_ativo", "crc_protestos"))
@@ -86,8 +91,10 @@ class RiskEngine:
             r = results["cadin"]
             if r.status == AdapterStatus.SUCCESS and r.items:
                 pendencias = [
-                    p for p in r.items
-                    if isinstance(p, PendenciaCadin) and (p.situacao or "").upper() == "ATIVO"
+                    p
+                    for p in r.items
+                    if isinstance(p, PendenciaCadin)
+                    and (p.situacao or "").upper() == "ATIVO"
                 ]
                 if pendencias:
                     factors.append(self._factor("cadin_pendencia", "cadin"))
@@ -100,11 +107,7 @@ class RiskEngine:
                 if total > 5:
                     factors.append(self._factor("processos_total_gt_5", "datajud"))
                 # Execuções: detecta pela classe/assunto
-                execucoes = sum(
-                    1
-                    for p in r.items
-                    if _is_execucao(p)
-                )
+                execucoes = sum(1 for p in r.items if _is_execucao(p))
                 if execucoes > 2:
                     factors.append(self._factor("execucoes_gt_2", "datajud"))
 
@@ -123,7 +126,9 @@ class RiskEngine:
                 for empresa in r.items:
                     sit = (getattr(empresa, "situacao_cadastral", "") or "").upper()
                     if sit in ("INAPTA", "SUSPENSA", "BAIXADA", "CANCELADA"):
-                        factors.append(self._factor("empresa_situacao_irregular", "receita_cnpj"))
+                        factors.append(
+                            self._factor("empresa_situacao_irregular", "receita_cnpj")
+                        )
                         break
 
         # QSA / relacionados
@@ -136,8 +141,7 @@ class RiskEngine:
                 factors.append(self._factor("qsa_socio_com_processos", "qsa"))
 
             com_publicacoes = any(
-                p.total_ocorrencias > 0 and p.fonte == "djen"
-                for p in related_parties
+                p.total_ocorrencias > 0 and p.fonte == "djen" for p in related_parties
             )
             if com_publicacoes:
                 factors.append(self._factor("qsa_socio_com_publicacoes", "qsa"))
@@ -183,7 +187,8 @@ class RiskEngine:
         ]
         if score >= self._hitl_threshold:
             generic = self._recommendations_config.get(
-                "score_gte_70", "Recomenda-se due diligence aprofundada e revisão humana."
+                "score_gte_70",
+                "Recomenda-se due diligence aprofundada e revisão humana.",
             )
             if generic not in recs:
                 recs.append(generic)
@@ -205,8 +210,7 @@ def _is_execucao(processo: Any) -> bool:
     classe = (getattr(processo, "classe", "") or "").lower()
     assuntos = getattr(processo, "assuntos", []) or []
     assunto_nomes = " ".join(
-        (a.get("nome", "") if isinstance(a, dict) else "").lower()
-        for a in assuntos
+        (a.get("nome", "") if isinstance(a, dict) else "").lower() for a in assuntos
     )
     return "execu" in classe or "execu" in assunto_nomes or "cobran" in classe
 

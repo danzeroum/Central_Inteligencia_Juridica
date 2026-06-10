@@ -64,8 +64,16 @@ class TestQSAExpansion:
             razao_social="Empresa Teste",
             situacao_cadastral="ATIVA",
             qsa=[
-                SocioQSA(nome="Maria Sócia PF", tipo="PF", identificador_mascarado="***.***.001-11"),
-                SocioQSA(nome="Empresa Sócia Ltda", tipo="PJ", identificador_mascarado="12.345.678/0001-95"),
+                SocioQSA(
+                    nome="Maria Sócia PF",
+                    tipo="PF",
+                    identificador_mascarado="***.***.001-11",
+                ),
+                SocioQSA(
+                    nome="Empresa Sócia Ltda",
+                    tipo="PJ",
+                    identificador_mascarado="12.345.678/0001-95",
+                ),
             ],
         )
 
@@ -130,13 +138,11 @@ class TestQSAExpansion:
         """Garante que max_socios é respeitado."""
         monkeypatch.setenv("INTEGRATIONS_QSA_MAX_SOCIOS", "2")
         from src.integrations import settings as s_mod
+
         s_mod._SETTINGS_CACHE = None
 
         # Empresa com 5 sócios
-        socios = [
-            SocioQSA(nome=f"Sócio {i}", tipo="PF")
-            for i in range(5)
-        ]
+        socios = [SocioQSA(nome=f"Sócio {i}", tipo="PF") for i in range(5)]
         empresa = EmpresaCadastro(
             cnpj="00000000000191",
             razao_social="Empresa Teste",
@@ -149,7 +155,9 @@ class TestQSAExpansion:
                 status=AdapterStatus.SUCCESS,
                 items=[empresa],
             ),
-            "djen": AdapterResult(source="djen", status=AdapterStatus.SUCCESS, items=[]),
+            "djen": AdapterResult(
+                source="djen", status=AdapterStatus.SUCCESS, items=[]
+            ),
             "tse": AdapterResult(source="tse", status=AdapterStatus.SUCCESS, items=[]),
         }
         registry = _build_registry(responses)
@@ -171,7 +179,9 @@ class TestQSAExpansion:
                 status=AdapterStatus.SUCCESS,
                 items=[empresa],
             ),
-            "djen": AdapterResult(source="djen", status=AdapterStatus.SUCCESS, items=[]),
+            "djen": AdapterResult(
+                source="djen", status=AdapterStatus.SUCCESS, items=[]
+            ),
             "tse": AdapterResult(source="tse", status=AdapterStatus.SUCCESS, items=[]),
         }
         registry = _build_registry(responses)
@@ -194,7 +204,9 @@ class TestQSAExpansion:
                 status=AdapterStatus.SUCCESS,
                 items=[empresa],
             ),
-            "djen": AdapterResult(source="djen", status=AdapterStatus.SUCCESS, items=[]),
+            "djen": AdapterResult(
+                source="djen", status=AdapterStatus.SUCCESS, items=[]
+            ),
             "tse": AdapterResult(source="tse", status=AdapterStatus.SUCCESS, items=[]),
         }
         registry = _build_registry(responses)
@@ -232,7 +244,9 @@ class TestQSAExpansion:
             "00000000000191", expand_qsa=True, sources=["receita_cnpj", "djen", "tse"]
         )
         # Se há related parties com ocorrências, deve haver fatores societários
-        parties_with_occ = [p for p in report.related_parties if p.total_ocorrencias > 0]
+        parties_with_occ = [
+            p for p in report.related_parties if p.total_ocorrencias > 0
+        ]
         if parties_with_occ:
             societario_dim = next(
                 (d for d in report.risk_dimensions if d.name == "societario"), None
@@ -248,7 +262,9 @@ class TestQSAExpansion:
                 status=AdapterStatus.FAILED,
                 error="Timeout",
             ),
-            "djen": AdapterResult(source="djen", status=AdapterStatus.SUCCESS, items=[]),
+            "djen": AdapterResult(
+                source="djen", status=AdapterStatus.SUCCESS, items=[]
+            ),
         }
         registry = _build_registry(responses)
         orch = IntelligenceOrchestrator(registry)
@@ -268,7 +284,9 @@ class TestQSAExpansion:
                 status=AdapterStatus.SUCCESS,
                 items=[empresa],
             ),
-            "djen": AdapterResult(source="djen", status=AdapterStatus.SUCCESS, items=[]),
+            "djen": AdapterResult(
+                source="djen", status=AdapterStatus.SUCCESS, items=[]
+            ),
             "tse": AdapterResult(source="tse", status=AdapterStatus.SUCCESS, items=[]),
         }
         registry = _build_registry(responses)

@@ -38,12 +38,12 @@ class AdapterRegistry:
 
         settings = settings_override or get_source_settings(name)
         if settings is None:
-            logger.warning(
-                "Nenhuma configuração para '%s'; usando defaults.", name
-            )
+            logger.warning("Nenhuma configuração para '%s'; usando defaults.", name)
             settings = SourceSettings(name=name)
 
-        instance = adapter_cls(settings, http_client=http_client, credentials=credentials)
+        instance = adapter_cls(
+            settings, http_client=http_client, credentials=credentials
+        )
         self._adapters[name] = instance
         logger.debug("Adapter '%s' registrado (mode=%s)", name, settings.mode)
         return instance
@@ -56,11 +56,7 @@ class AdapterRegistry:
 
     def for_identifier(self, identifier_type: IdentifierType) -> List[LegalDataAdapter]:
         """Retorna todos os adaptadores habilitados que suportam o tipo."""
-        return [
-            a
-            for a in self.all_enabled()
-            if a.supports(identifier_type)
-        ]
+        return [a for a in self.all_enabled() if a.supports(identifier_type)]
 
     def names(self) -> List[str]:
         return list(self._adapters.keys())

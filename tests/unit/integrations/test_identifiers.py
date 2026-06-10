@@ -51,8 +51,10 @@ class TestCNPJValidation:
 class TestCNJProcessValidation:
     def test_valid_processo_cnj(self):
         # Número CNJ com 20 dígitos — MOD 97-10
-        assert _validate_cnj_process("0000001-02.2020.8.26.0001") is True or \
-               _validate_cnj_process("0000001-02.2020.8.26.0001") is False  # aceita qualquer resultado estrutural
+        assert (
+            _validate_cnj_process("0000001-02.2020.8.26.0001") is True
+            or _validate_cnj_process("0000001-02.2020.8.26.0001") is False
+        )  # aceita qualquer resultado estrutural
 
     def test_invalid_processo_short(self):
         assert _validate_cnj_process("123456") is False
@@ -124,6 +126,7 @@ class TestGovernanceZone:
 
     def test_old_types_have_default_zone(self):
         from src.governance.data_source_policy import get_data_source_policy
+
         policy = get_data_source_policy()
         rule = policy.rule_for("legislacao")
         assert rule is not None
@@ -131,6 +134,7 @@ class TestGovernanceZone:
 
     def test_new_types_have_zone(self):
         from src.governance.data_source_policy import get_data_source_policy
+
         policy = get_data_source_policy()
         rule = policy.rule_for("protesto")
         assert rule is not None
@@ -138,6 +142,7 @@ class TestGovernanceZone:
 
     def test_sped_is_credenciada(self):
         from src.governance.data_source_policy import get_data_source_policy
+
         policy = get_data_source_policy()
         rule = policy.rule_for("sped_regularidade")
         assert rule is not None
@@ -150,6 +155,7 @@ class TestSettingsPrecedence:
     def test_env_overrides_mode(self, monkeypatch):
         monkeypatch.setenv("INTEGRATIONS_DATAJUD_MODE", "mock")
         from src.integrations import settings as s
+
         s._SETTINGS_CACHE = None  # reset cache
         settings = s.get_source_settings("datajud")
         assert settings is not None
@@ -159,6 +165,7 @@ class TestSettingsPrecedence:
     def test_env_overrides_enabled(self, monkeypatch):
         monkeypatch.setenv("INTEGRATIONS_TSE_ENABLED", "false")
         from src.integrations import settings as s
+
         s._SETTINGS_CACHE = None
         settings = s.get_source_settings("tse")
         assert settings is not None

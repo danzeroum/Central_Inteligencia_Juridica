@@ -78,21 +78,25 @@ class TestMetricsExist:
             integrations_risk_score,
             integrations_hitl_triggered_total,
         )
+
         # Verifica que são objetos Prometheus válidos
         assert integrations_queries_total is not None
         assert integrations_latency_seconds is not None
 
     def test_record_query_metric(self):
         from src.integrations.metrics import record_query
+
         # Deve executar sem erros
         record_query("test_source", "success", "mock", 0.1)
 
     def test_record_cache_hit(self):
         from src.integrations.metrics import record_cache_hit
+
         record_cache_hit("test_source")
 
     def test_record_circuit_state(self):
         from src.integrations.metrics import record_circuit_state
+
         record_circuit_state("integration_test", "open")
         record_circuit_state("integration_test", "closed")
 
@@ -122,9 +126,7 @@ class TestDashboardFile:
         from pathlib import Path
 
         alert_file = (
-            Path(__file__).resolve().parents[3]
-            / "monitoring"
-            / "alert_rules.yml"
+            Path(__file__).resolve().parents[3] / "monitoring" / "alert_rules.yml"
         )
         data = yaml.safe_load(alert_file.read_text())
         groups = {g["name"]: g for g in data.get("groups", [])}

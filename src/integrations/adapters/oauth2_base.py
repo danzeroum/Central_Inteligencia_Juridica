@@ -65,7 +65,9 @@ class OAuth2ClientCredentials:
             expires_at=time.time() + expires_in,
             token_type=data.get("token_type", "Bearer"),
         )
-        logger.debug("OAuth2 token obtido para %s (expira em %ds)", self.token_url, expires_in)
+        logger.debug(
+            "OAuth2 token obtido para %s (expira em %ds)", self.token_url, expires_in
+        )
         return token
 
     def invalidate(self) -> None:

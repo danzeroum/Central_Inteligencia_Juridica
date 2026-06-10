@@ -38,10 +38,12 @@ class TestSmoke:
 
     def test_import_graphql_schema(self):
         from src.api.intelligence_graphql.schema import schema
+
         assert schema is not None
 
     def test_import_intelligence_endpoints(self):
         from src.api.intelligence_endpoints import router
+
         assert router is not None
 
     def test_import_intelligence_agent(self):
@@ -55,23 +57,40 @@ class TestSmoke:
 
     def test_sources_yaml_loads(self):
         from src.integrations.settings import load_source_settings
+
         settings = load_source_settings()
         assert len(settings) == 7
-        expected = {"datajud", "djen", "receita_cnpj", "tse", "crc_protestos", "cadin", "onr_imoveis"}
+        expected = {
+            "datajud",
+            "djen",
+            "receita_cnpj",
+            "tse",
+            "crc_protestos",
+            "cadin",
+            "onr_imoveis",
+        }
         assert set(settings.keys()) == expected
 
     def test_risk_scoring_yaml_loads(self):
         from src.integrations.risk_engine import _load_risk_config, DEFAULT_RISK_CONFIG
+
         config = _load_risk_config(DEFAULT_RISK_CONFIG)
         assert "weights" in config
         assert "hitl" in config
 
     def test_governance_yaml_has_new_types(self):
         from src.governance.data_source_policy import get_data_source_policy
+
         policy = get_data_source_policy()
         new_types = [
-            "processo_por_numero", "publicacao_dje", "cadastro_empresa",
-            "eleitoral", "protesto", "cadin", "imovel", "sped_regularidade"
+            "processo_por_numero",
+            "publicacao_dje",
+            "cadastro_empresa",
+            "eleitoral",
+            "protesto",
+            "cadin",
+            "imovel",
+            "sped_regularidade",
         ]
         for dt in new_types:
             rule = policy.rule_for(dt)
@@ -79,6 +98,7 @@ class TestSmoke:
 
     def test_rbac_has_intelligence_permissions(self):
         from src.api.rbac import ROLE_PERMISSIONS, Role
+
         admin_perms = ROLE_PERMISSIONS[Role.ADMIN]
         assert "intelligence:query" in admin_perms
         assert "intelligence:zone:credenciada" in admin_perms
@@ -87,6 +107,7 @@ class TestSmoke:
 
     def test_span_record_context_manager(self):
         from src.utils.observability import SpanRecord
+
         span = SpanRecord(operation="smoke", metadata={})
         with span:
             pass
@@ -102,8 +123,13 @@ class TestSmoke:
         from src.integrations.adapters.onr_imoveis_adapter import OnrImoveisAdapter
 
         adapters = [
-            DataJudAdapter, DjenAdapter, ReceitaCnpjAdapter, TseAdapter,
-            CrcProtestosAdapter, CadinAdapter, OnrImoveisAdapter,
+            DataJudAdapter,
+            DjenAdapter,
+            ReceitaCnpjAdapter,
+            TseAdapter,
+            CrcProtestosAdapter,
+            CadinAdapter,
+            OnrImoveisAdapter,
         ]
         names = [a.service_name for a in adapters]
         assert len(set(names)) == 7
@@ -121,7 +147,10 @@ class TestSmoke:
 
         registry = AdapterRegistry()
         for cls in [ReceitaCnpjAdapter, CrcProtestosAdapter, CadinAdapter]:
-            registry.register(cls, settings_override=SourceSettings(name=cls.service_name, mode="mock"))
+            registry.register(
+                cls,
+                settings_override=SourceSettings(name=cls.service_name, mode="mock"),
+            )
 
         orch = IntelligenceOrchestrator(registry, risk_engine=RiskEngine())
         report = await orch.investigate("00000000000191")

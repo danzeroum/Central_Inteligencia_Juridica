@@ -31,6 +31,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "integrations"
 
 def _build_test_app():
     from src.api.auth import AuthManager
+
     AuthManager.configure(required=False)
 
     app = FastAPI()
@@ -112,7 +113,10 @@ class TestGraphQLIntelligence:
             with TestClient(app) as client:
                 resp = client.post(
                     "/api/v1/intelligence/graphql",
-                    json={"query": self.QUERY, "variables": {"id": "00.000.000/0001-91"}},
+                    json={
+                        "query": self.QUERY,
+                        "variables": {"id": "00.000.000/0001-91"},
+                    },
                 )
 
         assert resp.status_code == 200
@@ -135,7 +139,10 @@ class TestGraphQLIntelligence:
             with TestClient(app) as client:
                 resp = client.post(
                     "/api/v1/intelligence/graphql",
-                    json={"query": self.QUERY, "variables": {"id": "00.000.000/0001-91"}},
+                    json={
+                        "query": self.QUERY,
+                        "variables": {"id": "00.000.000/0001-91"},
+                    },
                 )
 
         dims = resp.json()["data"]["intelligence"]["riskDimensions"]
@@ -197,7 +204,10 @@ class TestGraphQLIntelligence:
             with TestClient(app) as client:
                 resp = client.post(
                     "/api/v1/intelligence/graphql",
-                    json={"query": paginated_query, "variables": {"id": "00000000000191"}},
+                    json={
+                        "query": paginated_query,
+                        "variables": {"id": "00000000000191"},
+                    },
                 )
 
         assert resp.status_code == 200
@@ -275,8 +285,9 @@ class TestSDLSnapshot:
             pytest.skip("SDL snapshot não existe ainda")
 
         from src.api.intelligence_graphql.schema import schema
+
         current_sdl = schema.as_str()
         saved_sdl = fixture_file.read_text()
-        assert current_sdl.strip() == saved_sdl.strip(), (
-            "SDL drift detectado! Atualize tests/fixtures/integrations/intelligence_schema.graphql"
-        )
+        assert (
+            current_sdl.strip() == saved_sdl.strip()
+        ), "SDL drift detectado! Atualize tests/fixtures/integrations/intelligence_schema.graphql"
