@@ -347,7 +347,10 @@ if [ -n "$QUERY_ID" ]; then
   echo   "  ┌─────────────────────┬────────┬──────────┬────────┬─────────────┐"
   echo   "  │ fonte               │ mode   │ status   │ itens  │ latência    │"
   echo   "  ├─────────────────────┼────────┼──────────┼────────┼─────────────┤"
-  echo "$RESP_360" | python3 - <<'PYEOF'
+  # Usa arquivo temp para o script Python — evita conflito pipe+heredoc
+  # (heredoc sobrescreve stdin do python3 -, pipe fica sem destino)
+  _TBL=$(mktemp /tmp/cij_tbl_XXXXXX.py)
+  cat > "$_TBL" << 'PYEOF'
 import sys,json
 resp = json.load(sys.stdin)
 results = resp.get('data',{}).get('intelligence',{}).get('results',[])
@@ -370,6 +373,8 @@ if dims:
         bar = '█' * max(1,int(d['score']//10))
         print(f"    {d['name']:<22} {d['score']:>3}  {bar}")
 PYEOF
+  echo "$RESP_360" | python3 "$_TBL" 2>/dev/null || warn "Falha ao renderizar tabela de fontes"
+  rm -f "$_TBL"
 
   REAL_DATA=$(echo "$RESP_360" | python3 -c "
 import sys,json
