@@ -30,7 +30,6 @@ router = APIRouter(prefix="/api/v1/fiscal", tags=["Fiscal"])
 _sanitizer = InputSanitizer(max_length=256)
 
 _ALLOWED_TIPOS = {"efd_icms", "efd_contrib", "xml", "pdf", "outro"}
-_ALLOWED_ORIGENS = {"upload"}
 
 
 class UploadResponse(BaseModel):

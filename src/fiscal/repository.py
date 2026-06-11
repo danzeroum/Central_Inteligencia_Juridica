@@ -12,13 +12,12 @@ Uso:
 
 from __future__ import annotations
 
-import functools
 import hashlib
 import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
