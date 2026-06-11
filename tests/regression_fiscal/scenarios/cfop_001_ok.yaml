@@ -1,0 +1,19 @@
+name: "CFOP-001: CFOP 5101 (saída estadual) — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C170
+    bloco: C
+    numero_linha: 1
+    campos:
+      num_item: "1"
+      cod_item: "PROD001"
+      cst_icms: "00"
+      cfop: "5101"
+      vl_bc_icms: "1000,00"
+      aliq_icms: "12,00"
+      vl_icms: "120,00"
+      cst_pis: "01"
+      cst_cofins: "01"
+esperado:
+  regra_ids_ausentes: ["CFOP-001"]
+  aprovado: true

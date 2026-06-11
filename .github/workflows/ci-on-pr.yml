@@ -1,3 +1,8 @@
+# DT-10 (S-C.3): este workflow complementa ci.yml com jobs adicionais específicos para PRs
+# (docker smoke test e frontend build) e usa uma matrix de Python para garantir
+# compatibilidade cross-version antes do merge. ci.yml é o gate principal para pushes
+# em branches protegidas (main/master/develop). Ambos são mantidos intencionalmente:
+# ci-on-pr.yml = validação completa pré-merge; ci-on-push.yml = feedback rápido em branches.
 name: CI — Pull Request (full suite)
 
 on:

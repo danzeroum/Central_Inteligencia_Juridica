@@ -1,0 +1,23 @@
+name: "ICMS-004: base ICMS excede valor total do documento"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "00"
+      ser: "001"
+      num_doc: "000000001"
+      chv_nfe: "33333333333333333333333333333333333333333333"
+      dt_doc: "2025-01-10"
+      vl_doc: "1000,00"
+      vl_bc_icms: "1200,00"
+      aliq_icms: "12,00"
+      vl_icms: "120,00"
+      vl_pis: "6,50"
+      vl_cofins: "30,00"
+esperado:
+  regra_ids_violadas: ["ICMS-004"]
+  aprovado: true

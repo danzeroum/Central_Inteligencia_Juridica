@@ -1,0 +1,15 @@
+name: "COFINS-M610-001: base de cálculo COFINS negativa (M610)"
+regime: lucro_real
+registros:
+  - tipo_registro: M610
+    bloco: M
+    numero_linha: 1
+    campos:
+      cst_cofins: "01"
+      vl_bc_cont: "-500,00"
+      aliq_cofins_perc: "7,60"
+      vl_cont: "0,00"
+      vl_cont_apr: "0,00"
+esperado:
+  regra_ids_violadas: ["COFINS-M610-001"]
+  aprovado: false

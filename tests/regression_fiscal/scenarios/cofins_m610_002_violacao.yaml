@@ -1,0 +1,15 @@
+name: "COFINS-M610-002: COFINS apurado inconsistente com base × alíquota (M610)"
+regime: lucro_real
+registros:
+  - tipo_registro: M610
+    bloco: M
+    numero_linha: 1
+    campos:
+      cst_cofins: "01"
+      vl_bc_cont: "1000,00"
+      aliq_cofins_perc: "7,60"
+      vl_cont: "100,00"
+      vl_cont_apr: "100,00"
+esperado:
+  regra_ids_violadas: ["COFINS-M610-002"]
+  aprovado: true

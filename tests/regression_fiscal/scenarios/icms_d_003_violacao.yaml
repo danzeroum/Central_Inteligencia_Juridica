@@ -1,0 +1,19 @@
+name: "ICMS-D-003: ICMS maior que base em CT-e (D100)"
+regime: lucro_real
+registros:
+  - tipo_registro: D100
+    bloco: D
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_sit: "00"
+      ser: "001"
+      num_doc: "000000001"
+      dt_doc: "2025-01-10"
+      vl_doc: "500,00"
+      vl_bc_icms: "100,00"
+      aliq_icms: "12,00"
+      vl_icms: "200,00"
+esperado:
+  regra_ids_violadas: ["ICMS-D-003"]
+  aprovado: false

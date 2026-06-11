@@ -1,0 +1,15 @@
+name: "PIS-M210-001: base de cálculo PIS negativa (M210)"
+regime: lucro_real
+registros:
+  - tipo_registro: M210
+    bloco: M
+    numero_linha: 1
+    campos:
+      cst_pis: "01"
+      vl_bc_cont: "-1000,00"
+      aliq_pis_perc: "1,65"
+      vl_cont: "0,00"
+      vl_cont_apr: "0,00"
+esperado:
+  regra_ids_violadas: ["PIS-M210-001"]
+  aprovado: false
