@@ -17,4 +17,7 @@ paths = [
 regexes = [
   '''x{16,}''',
   '''(prodpass|devpass|admin)''',
+  # Chave-exemplo de handshake WebSocket da RFC 6455 §1.2 ("the sample nonce"),
+  # usada no smoke test — não é um segredo.
+  '''dGhlIHNhbXBsZSBub25jZQ==''',
 ]

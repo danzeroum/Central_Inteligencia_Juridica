@@ -132,7 +132,9 @@ class SupervisorAgent(A2ACapable):
 
         # Delega para IntentClassifier mesmo sem LLM — ele tem _keyword_classify
         # com heurísticas melhores que "generic" para todos os casos.
-        self.logger.info("Using keyword-based intent classification via IntentClassifier")
+        self.logger.info(
+            "Using keyword-based intent classification via IntentClassifier"
+        )
         intent = await self.intent_classifier.classify(sanitized_task)
         self.ledger.log_decision(
             agent_type="SupervisorAgent",
