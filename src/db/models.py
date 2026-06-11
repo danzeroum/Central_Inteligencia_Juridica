@@ -258,6 +258,9 @@ class EscrituracaoFiscal(Base):
     documentos: Mapped[List["DocumentoFiscal"]] = relationship(
         "DocumentoFiscal", back_populates="escrituracao"
     )
+    apuracoes: Mapped[List["ApuracaoFiscal"]] = relationship(
+        "ApuracaoFiscal", back_populates="escrituracao", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("ix_escrituracao_fiscal_tenant_id", "tenant_id"),
@@ -345,4 +348,78 @@ class DocumentoFiscal(Base):
         Index("ix_documento_fiscal_tipo", "tipo"),
         Index("ix_documento_fiscal_chave_acesso", "chave_acesso"),
         Index("ix_documento_fiscal_status", "status"),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Apuração Fiscal — Bloco C (S-C.2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ApuracaoFiscal(Base):
+    """Resultado de apuração ICMS/PIS/COFINS calculado pelo ApuracaoEngine.
+
+    Armazena totais computados, saldo anterior, situação (devedor/credor) e
+    divergências detectadas em confronto com os valores declarados no bloco
+    E110 (ICMS) ou M200/M600 (PIS/COFINS).
+
+    Valores monetários são gravados como string para preservar precisão decimal.
+    """
+
+    __tablename__ = "apuracao_fiscal"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        SAUuid(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    escrituracao_id: Mapped[uuid.UUID] = mapped_column(
+        SAUuid(as_uuid=True),
+        ForeignKey("escrituracao_fiscal.id"),
+        nullable=False,
+    )
+    periodo_id: Mapped[uuid.UUID] = mapped_column(
+        SAUuid(as_uuid=True),
+        ForeignKey("periodo_fiscal.id"),
+        nullable=False,
+    )
+    # Tributo apurado: ICMS | PIS | COFINS
+    tributo: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Período de competência (AAAA-MM), derivado do registro 0000 do SPED
+    periodo_competencia: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)
+    # Valores monetários como string (evita perda de precisão)
+    total_debitos: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="0", server_default="0"
+    )
+    total_creditos: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="0", server_default="0"
+    )
+    saldo_credor_anterior: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="0", server_default="0"
+    )
+    saldo_apurado: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="0", server_default="0"
+    )
+    # Situação: devedor | credor | equilibrado
+    situacao: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="equilibrado", server_default="equilibrado"
+    )
+    # Lista de divergências (confronto computado × declarado)
+    divergencias: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(
+        JSON, nullable=True
+    )
+    detalhes: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    escrituracao: Mapped["EscrituracaoFiscal"] = relationship(
+        "EscrituracaoFiscal", back_populates="apuracoes"
+    )
+    periodo: Mapped["PeriodoFiscal"] = relationship("PeriodoFiscal")
+
+    __table_args__ = (
+        Index("ix_apuracao_fiscal_escrituracao_id", "escrituracao_id"),
+        Index("ix_apuracao_fiscal_periodo_id", "periodo_id"),
+        Index("ix_apuracao_fiscal_tributo", "tributo"),
+        Index("ix_apuracao_fiscal_situacao", "situacao"),
+        Index("ix_apuracao_fiscal_created_at", "created_at"),
     )

@@ -317,7 +317,11 @@ class HITLQueue:
         """Notifica todos os WebSockets conectados."""
         for callback in self._websocket_callbacks:
             try:
-                asyncio.create_task(callback(event_type, data))
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                continue  # DT-01: avoid "coroutine never awaited" when no loop is running
+            try:
+                loop.create_task(callback(event_type, data))
             except Exception:  # pragma: no cover - defensive
                 pass
 

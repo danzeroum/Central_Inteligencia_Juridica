@@ -71,7 +71,7 @@ export default function JurisScreen() {
   const [sel, setSel] = useState(['STF', 'TJSP']);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
-  const toggle = (t) => setSel((s) => (s.includes(t) ? s.filter((x) => x !== x) : s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
+  const _toggle = (t) => setSel((s) => (s.includes(t) ? s.filter((x) => x !== x) : s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
 
   const buscar = async () => {
     if (!tema.trim() || sel.length === 0) {

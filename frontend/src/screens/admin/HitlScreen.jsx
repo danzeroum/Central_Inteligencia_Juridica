@@ -129,7 +129,7 @@ export default function HitlScreen({ go, onPendingChange }) {
   const onApprove = useCallback((req, h) => {
     if (h.critical) { sendDecision(req, { approved: true }); return; }
     setList((l) => l.filter((r) => r.request_id !== req.request_id)); // remove otimista
-    const id = toast.push({
+    const _id = toast.push({
       kind: 'info',
       message: `Aprovação de "${h.label}" em ${UNDO_MS / 1000}s…`,
       action: { label: 'Desfazer', onClick: () => { clearTimeout(pendingUndo.current[req.request_id]); delete pendingUndo.current[req.request_id]; setList((l) => [...l, req]); } },

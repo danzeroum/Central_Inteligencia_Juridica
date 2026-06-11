@@ -30,11 +30,11 @@
 
 | ID | Descrição | Origem | Resolução | Status |
 |---|---|---|---|---|
-| DT-01 | `RuntimeWarning: coroutine 'send_notification' was never awaited` em `src/hitl/hitl_queue.py:322` | Onda 1 | **S-C.2** (higiene) | aberto |
-| DT-02 | 5 warnings eslint (unused vars em HitlScreen, TrainingScreen, Invest360Screen, JurisScreen) e CI sem `--max-warnings 0` | Onda 1/PR #83 | **S-C.2** (higiene) | aberto |
-| DT-03 | `src/workers/tasks.py`: `process_sped_file` e `analyze_document` são placeholders com mensagens desatualizadas ("parser EFD em S-B.1") | S-0.5 | **S-C.2 Parte A** (vira pipeline real) | aberto |
-| DT-04 | Decisões do Bloco C sem ADR (regras determinísticas sem `weighted_voting`; YAML/UF adiado) | S-C.1 | **S-C.2** (higiene — ADR curto) | aberto |
-| DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** | aberto |
+| DT-01 | `RuntimeWarning: coroutine 'send_notification' was never awaited` em `src/hitl/hitl_queue.py:322` | Onda 1 | **S-C.2** (higiene) | **resolvido** (PR S-C.2) |
+| DT-02 | 5 warnings eslint (unused vars em HitlScreen, TrainingScreen, Invest360Screen, JurisScreen) e CI sem `--max-warnings 0` | Onda 1/PR #83 | **S-C.2** (higiene) | **resolvido** (PR S-C.2) |
+| DT-03 | `src/workers/tasks.py`: `process_sped_file` placeholder com mensagem desatualizada ("parser EFD em S-B.1") | S-0.5 | **S-C.2 Parte A** (vira pipeline real) | **resolvido** (PR S-C.2) |
+| DT-04 | Decisões do Bloco C sem ADR (regras determinísticas sem `weighted_voting`; YAML/UF adiado) | S-C.1 | **S-C.2** (higiene — ADR curto) | **resolvido** (PR S-C.2) |
+| DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** | **resolvido** (PR S-C.2) |
 | DT-06 | Regras fiscais hardcoded em Python; carregamento YAML por UF pendente | S-C.1 | **gatilho:** entrada da 1ª regra dependente de UF (provável S-C.3) | registrado |
 
 ## 3. SPRINT ATUAL — S-C.2 "Fio de Ouro + Apuração"

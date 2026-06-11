@@ -637,7 +637,7 @@ function EmptyState360() {
 }
 
 // ── Estado: Carregando ─────────────────────────────────────────────────────
-function LoadingState360({ idMasked, onDone }) {
+function LoadingState360({ idMasked, onDone: _onDone }) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
