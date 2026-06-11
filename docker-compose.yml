@@ -44,6 +44,8 @@ services:
       - RATE_LIMIT_BACKEND=${RATE_LIMIT_BACKEND:-memory}
       - LEDGER_BACKEND=${LEDGER_BACKEND:-file}
       - HITL_BACKEND=${HITL_BACKEND:-memory}
+      # Onda 2 — persistência relacional. Vazio = sem Postgres (usa file/redis).
+      - DATABASE_URL=${DATABASE_URL:-}
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - CACHE_ENCRYPTION_ENABLED=${CACHE_ENCRYPTION_ENABLED:-false}
@@ -96,12 +98,54 @@ services:
         condition: service_started
       prometheus:
         condition: service_started
+      postgres:
+        condition: service_healthy
+        required: false
       chromadb:
         condition: service_healthy
         required: false
     networks:
       - cij_internal
       - btv-prod-net
+
+  # ─── Onda 2: Persistência relacional ────────────────────────────────────────
+  # PostgreSQL 15 — banco canônico fiscal. Suba com o stack completo ou
+  # adicione ao seu .env: DATABASE_URL=postgresql://cij:<senha>@postgres:5432/cij
+  postgres:
+    image: postgres:15-alpine
+    container_name: cij-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cij}
+      POSTGRES_USER: ${POSTGRES_USER:-cij}
+      # SECURITY: senha obrigatória — sem fallback (compose falha sem ela).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-cij} -d ${POSTGRES_DB:-cij}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    networks:
+      - cij_internal
 
   redis:
     image: redis:7-alpine
@@ -266,6 +310,7 @@ services:
       - cij_internal
 
 volumes:
+  postgres_data:
   redis_data:
   prometheus_data:
   alertmanager_data:

@@ -1175,6 +1175,22 @@ async def health_check(
     metrics_snapshot = MetricsCollector.snapshot()
     a2a_status = await a2a_channel.health_check()
 
+    db_status: Dict[str, Any] = {"status": "not_configured"}
+    if os.getenv("DATABASE_URL"):
+        try:
+            from sqlalchemy import text as _sql_text
+
+            from src.db.engine import get_async_engine
+
+            _engine = get_async_engine()
+            if _engine:
+                async with _engine.connect() as _conn:
+                    await _conn.execute(_sql_text("SELECT 1"))
+                db_status = {"status": "ok"}
+        except Exception as _db_exc:
+            logger.warning("DB health check failed: %s", _db_exc)
+            db_status = {"status": "error"}
+
     return {
         "status": overall_status,
         "timestamp": timestamp,
@@ -1182,6 +1198,7 @@ async def health_check(
             "agents": agent_stats,
             "metrics": metrics_snapshot,
             "a2a": a2a_status,
+            "database": db_status,
         },
     }
 
