@@ -64,3 +64,7 @@ openai>=1.30,<2.0
 
 # GraphQL (Onda 1 — integrações jurídicas)
 strawberry-graphql[fastapi]>=0.236.0,<0.240.0
+
+# Async jobs (Onda 2 — S-0.5)
+celery[redis]>=5.3,<6.0
+boto3>=1.34,<2.0

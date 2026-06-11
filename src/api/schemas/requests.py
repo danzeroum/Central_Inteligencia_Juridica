@@ -116,3 +116,32 @@ class A2ABroadcastRequest(BaseModel):
     @classmethod
     def _check_payload(cls, value: Dict[str, Any]) -> Dict[str, Any]:
         return _validate_payload_size(value)
+
+
+# ---------------------------------------------------------------------------
+# Jobs (S-0.5)
+# ---------------------------------------------------------------------------
+
+_ALLOWED_TASKS = frozenset({"analyze_document", "process_sped_file"})
+
+
+class JobRequest(BaseModel):
+    """Payload para submissão de job assíncrono."""
+
+    task: str = Field(
+        ...,
+        description=f"Nome da tarefa. Permitidos: {sorted(_ALLOWED_TASKS)}",
+    )
+    payload: Dict[str, Any] = Field(
+        default_factory=dict, description="Parâmetros da tarefa"
+    )
+    priority: int = Field(1, ge=1, le=3, description="Prioridade (1=baixa, 3=alta)")
+
+    @field_validator("task")
+    @classmethod
+    def _validate_task_name(cls, value: str) -> str:
+        if value not in _ALLOWED_TASKS:
+            raise ValueError(
+                f"Tarefa '{value}' não permitida. Permitidas: {sorted(_ALLOWED_TASKS)}"
+            )
+        return value

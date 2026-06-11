@@ -223,6 +223,28 @@ class SlotsResponse(BaseModel):
     slots: List[FrontendSlotResponse]
 
 
+class JobSubmitResponse(BaseModel):
+    """Confirmação de submissão de job assíncrono."""
+
+    job_id: str
+    task: str
+    status: str = "queued"
+    submitted_at: str
+    mode: str = Field(..., description="'async' (Celery) ou 'sync' (fallback)")
+
+
+class JobStatusResponse(BaseModel):
+    """Status de um job assíncrono."""
+
+    job_id: str
+    task: str
+    status: str = Field(..., description="queued | started | success | failure | sync")
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    submitted_at: str
+    completed_at: Optional[str] = None
+
+
 class HistoryRecord(BaseModel):
     """Uma consulta processada no histórico do consulente."""
 
