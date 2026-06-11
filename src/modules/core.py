@@ -59,4 +59,50 @@ JURISPRUDENCIA = ModuleManifest(
     ),
 )
 
-BUILTIN_MODULES = [JURIDICO_CORE, LEGISLATIVO, JURISPRUDENCIA]
+CADASTRO_RISCO = ModuleManifest(
+    module_id="cadastro_risco",
+    name="Cadastro e Risco",
+    version="1.0.0",
+    description=(
+        "Due Diligência Fiscal 360°: perfil societário+fiscal+protestos por CNPJ. "
+        "Módulo comercial — Bloco A (S-A.1)."
+    ),
+    capabilities=["due_diligence_360", "fiscal_profile", "risk_scoring"],
+    agent_types=["FiscalAgent"],
+    endpoints=["/api/v1/fiscal/due-diligence/{cnpj}"],
+    is_active=True,
+    slot=FrontendSlot(
+        label="Due Diligência",
+        icon="search",
+        route="/app/fiscal/due-diligence",
+        order=4,
+    ),
+)
+
+CONSULTORIA_TRIBUTARIA = ModuleManifest(
+    module_id="consultoria_tributaria",
+    name="Consultoria Tributária",
+    version="1.0.0",
+    description=(
+        "Parecer tributário assistido por RAG sobre legislação fiscal brasileira. "
+        "CJ-001: citações verificáveis; sem invenção de normas. Bloco A (S-A.2)."
+    ),
+    capabilities=["tax_advisory", "rag_tributario", "guardrails_cj001"],
+    agent_types=["FiscalAgent"],
+    endpoints=["/api/v1/fiscal/consultoria"],
+    is_active=True,
+    slot=FrontendSlot(
+        label="Consultoria Tributária",
+        icon="calculate",
+        route="/app/fiscal/consultoria",
+        order=5,
+    ),
+)
+
+BUILTIN_MODULES = [
+    JURIDICO_CORE,
+    LEGISLATIVO,
+    JURISPRUDENCIA,
+    CADASTRO_RISCO,
+    CONSULTORIA_TRIBUTARIA,
+]
