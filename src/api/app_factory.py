@@ -71,8 +71,10 @@ def create_app() -> FastAPI:
     # Onda 2 — routers decompostos do god module
     from src.api.routes.a2a import router as a2a_router
     from src.api.routes.agents import router as agents_router
+    from src.api.routes.jobs import router as jobs_router
     from src.api.routes.legislative import router as legislative_router
     from src.api.routes.modules import router as modules_router
+    from src.api.routes.slots import router as slots_router
     from src.api.routes.system import router as system_router
     from src.api.routes.tasks import router as tasks_router
 
@@ -82,6 +84,8 @@ def create_app() -> FastAPI:
     app.include_router(legislative_router)
     app.include_router(system_router)
     app.include_router(modules_router)
+    app.include_router(slots_router)
+    app.include_router(jobs_router)
 
     @app.exception_handler(Exception)
     async def _unhandled_exception_handler(

@@ -15,8 +15,9 @@ os.environ.setdefault("ENVIRONMENT", "test")
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from src.api import main as main_module  # noqa: E402
-from src.api.main import app, _decode_cursor, _encode_cursor  # noqa: E402
+from src.api.main import app  # noqa: E402
+from src.api.routes._shared import decode_cursor, encode_cursor  # noqa: E402
+from src.api.state import supervisor_agent  # noqa: E402
 from src.utils.ledger import DecisionLedger  # noqa: E402
 
 client = TestClient(app)
@@ -27,7 +28,7 @@ def temp_ledger(tmp_path, monkeypatch):
     """Substitui o ledger do supervisor por um isolado em arquivo temporário."""
 
     ledger = DecisionLedger(log_file=str(tmp_path / "ledger.json"))
-    monkeypatch.setattr(main_module.supervisor_agent, "ledger", ledger)
+    monkeypatch.setattr(supervisor_agent, "ledger", ledger)
     return ledger
 
 
@@ -104,5 +105,5 @@ def test_history_survives_restart(tmp_path):
 
 
 def test_cursor_roundtrip():
-    assert _decode_cursor(_encode_cursor(7)) == 7
-    assert _decode_cursor(None) == 0
+    assert decode_cursor(encode_cursor(7)) == 7
+    assert decode_cursor(None) == 0

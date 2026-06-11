@@ -15,8 +15,8 @@ os.environ.setdefault("ENVIRONMENT", "test")
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from src.api import main as main_module  # noqa: E402
 from src.api.main import app  # noqa: E402
+from src.api.state import supervisor_agent  # noqa: E402
 
 client = TestClient(app)
 # Cliente que NÃO re-levanta exceções do servidor: necessário para observar a
@@ -37,7 +37,7 @@ def test_task_description_empty_is_422():
 
 # --- H09: sanitização de texto na borda -------------------------------------
 def test_task_description_is_sanitized():
-    from src.api.main import TaskRequest
+    from src.api.schemas.requests import TaskRequest
 
     model = TaskRequest(task_description="<script>alert(1)</script> consulta TJSP")
     assert "<script>" not in model.task_description
@@ -98,7 +98,7 @@ def test_global_handler_returns_opaque_500(monkeypatch):
     async def _boom(*_a, **_k):
         raise RuntimeError("stacktrace-secreto-98765")
 
-    monkeypatch.setattr(main_module.supervisor_agent, "process_task", _boom)
+    monkeypatch.setattr(supervisor_agent, "process_task", _boom)
     resp = client_500.post("/tasks", json={"task_description": "consulta"})
     assert resp.status_code == 500
     assert "stacktrace-secreto-98765" not in resp.text

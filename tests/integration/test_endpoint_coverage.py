@@ -15,17 +15,19 @@ from unittest.mock import AsyncMock  # noqa: E402
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from src.api import main as main_module  # noqa: E402
 from src.api.main import app  # noqa: E402
+from src.api.state import (
+    a2a_channel,
+    supervisor_agent,
+    unified_orchestrator,
+)  # noqa: E402
 
 client = TestClient(app)
 
 
 # ── A2A broadcast (caminho de sucesso) ───────────────────────────────────────
 def test_broadcast_success(monkeypatch):
-    monkeypatch.setattr(
-        main_module.a2a_channel, "send_message", AsyncMock(return_value="msg_1")
-    )
+    monkeypatch.setattr(a2a_channel, "send_message", AsyncMock(return_value="msg_1"))
     resp = client.post(
         "/api/v1/a2a/broadcast",
         json={
@@ -45,7 +47,7 @@ def test_broadcast_success(monkeypatch):
 # ── Invocação direta de agente (MCP) ─────────────────────────────────────────
 def test_invoke_supervisor_agent(monkeypatch):
     monkeypatch.setattr(
-        main_module.supervisor_agent,
+        supervisor_agent,
         "process_task",
         AsyncMock(return_value={"status": "success", "n": 1}),
     )
@@ -62,12 +64,12 @@ def test_invoke_supervisor_agent(monkeypatch):
 def test_invoke_tribunal_by_suffix(monkeypatch):
     # agent_id que termina em _agent e não está no registry → ramo de delegação.
     monkeypatch.setattr(
-        main_module.supervisor_agent,
+        supervisor_agent,
         "identify_all_tribunals",
         lambda code: ["TJSP"],
     )
     monkeypatch.setattr(
-        main_module.supervisor_agent,
+        supervisor_agent,
         "delegate_to_tribunal_agent",
         AsyncMock(return_value={"status": "success"}),
     )
@@ -101,7 +103,7 @@ _VALID_TASK_RESULT = {
 
 def test_deprecated_tasks_endpoint_success(monkeypatch):
     monkeypatch.setattr(
-        main_module.supervisor_agent,
+        supervisor_agent,
         "process_task",
         AsyncMock(return_value=_VALID_TASK_RESULT),
     )
@@ -112,7 +114,7 @@ def test_deprecated_tasks_endpoint_success(monkeypatch):
 
 def test_advanced_task_success(monkeypatch):
     monkeypatch.setattr(
-        main_module.unified_orchestrator,
+        unified_orchestrator,
         "execute_complex_task",
         AsyncMock(return_value={"success": True}),
     )
@@ -132,8 +134,10 @@ def test_consultar_projetos_empty_q_is_400():
 
 
 def test_consultar_projetos_success(monkeypatch):
+    import src.api.routes.legislative as leg_mod
+
     monkeypatch.setattr(
-        main_module, "buscar_projetos_de_lei", lambda termo, **_: {"data": ["proj"]}
+        leg_mod, "buscar_projetos_de_lei", lambda termo, **_: {"data": ["proj"]}
     )
     resp = client.get("/consultar-projetos-lei/", params={"q": "reforma"})
     assert resp.status_code == 200
@@ -141,8 +145,10 @@ def test_consultar_projetos_success(monkeypatch):
 
 
 def test_consultar_projetos_upstream_error_is_502(monkeypatch):
+    import src.api.routes.legislative as leg_mod
+
     monkeypatch.setattr(
-        main_module,
+        leg_mod,
         "buscar_projetos_de_lei",
         lambda termo, **_: {"error": "indisponível"},
     )
@@ -151,8 +157,10 @@ def test_consultar_projetos_upstream_error_is_502(monkeypatch):
 
 
 def test_canonical_proposicoes_success(monkeypatch):
+    import src.api.routes.legislative as leg_mod
+
     monkeypatch.setattr(
-        main_module, "buscar_projetos_de_lei", lambda termo, **_: {"data": []}
+        leg_mod, "buscar_projetos_de_lei", lambda termo, **_: {"data": []}
     )
     resp = client.get("/api/v1/proposicoes-legislativas", params={"q": "reforma"})
     assert resp.status_code == 200
@@ -165,8 +173,10 @@ def test_analise_legislativa_empty_is_400():
 
 
 def test_analise_legislativa_success(monkeypatch):
+    import src.api.routes.legislative as leg_mod
+
     monkeypatch.setattr(
-        main_module, "analisar_cenario_legislativo", lambda tema: {"resumo": "ok"}
+        leg_mod, "analisar_cenario_legislativo", lambda tema: {"resumo": "ok"}
     )
     resp = client.post("/analise-legislativa/", json={"tema": "reforma tributária"})
     assert resp.status_code == 200
@@ -174,8 +184,10 @@ def test_analise_legislativa_success(monkeypatch):
 
 
 def test_canonical_analises_success(monkeypatch):
+    import src.api.routes.legislative as leg_mod
+
     monkeypatch.setattr(
-        main_module, "analisar_cenario_legislativo", lambda tema: {"resumo": "ok"}
+        leg_mod, "analisar_cenario_legislativo", lambda tema: {"resumo": "ok"}
     )
     resp = client.post(
         "/api/v1/analises-legislativas", json={"tema": "reforma tributária"}
@@ -187,7 +199,7 @@ def test_canonical_analises_success(monkeypatch):
 # ── /health verbose ──────────────────────────────────────────────────────────
 def test_health_verbose(monkeypatch):
     monkeypatch.setattr(
-        main_module.a2a_channel,
+        a2a_channel,
         "health_check",
         AsyncMock(return_value={"status": "ok"}),
     )

@@ -46,6 +46,15 @@ services:
       - HITL_BACKEND=${HITL_BACKEND:-memory}
       # Onda 2 — persistência relacional. Vazio = sem Postgres (usa file/redis).
       - DATABASE_URL=${DATABASE_URL:-}
+      # Onda 2 S-0.5 — jobs assíncronos. Vazio = fallback síncrono (dev/test).
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-}
+      # Onda 2 S-0.5 — armazenamento de documentos (MinIO/S3).
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-}
+      - MINIO_BUCKET=${MINIO_BUCKET:-cij-documents}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       - CACHE_ENCRYPTION_ENABLED=${CACHE_ENCRYPTION_ENABLED:-false}
@@ -309,9 +318,81 @@ services:
     networks:
       - cij_internal
 
+  # --------------------------------------------------------------------------
+  # Onda 2 S-0.5 — MinIO (S3-compatible object storage para documentos SPED)
+  # Acesso: http://localhost:9001 (console) | http://localhost:9000 (API)
+  # Credenciais via .env: MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
+  # --------------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2024-03-15T01-07-19Z
+    container_name: cij-minio
+    profiles:
+      - storage
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+      - "9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?defina MINIO_ACCESS_KEY no .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?defina MINIO_SECRET_KEY no .env}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - cij_internal
+
+  # --------------------------------------------------------------------------
+  # Onda 2 S-0.5 — Celery worker (processa jobs assíncronos: SPED, documentos)
+  # Requer: Redis (broker) + MinIO (storage) + DATABASE_URL (results)
+  # --------------------------------------------------------------------------
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cij-celery-worker
+    profiles:
+      - workers
+    command: >
+      celery -A src.workers.celery_app:celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=celery
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - HOME=/tmp
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:?defina CELERY_BROKER_URL no .env}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-}
+      - MINIO_BUCKET=${MINIO_BUCKET:-cij-documents}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - cij_internal
+
 volumes:
   postgres_data:
   redis_data:
+  minio_data:
   prometheus_data:
   alertmanager_data:
   grafana_data:

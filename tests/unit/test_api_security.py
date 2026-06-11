@@ -101,9 +101,7 @@ class TestErrorDisclosure:
         async def boom(_payload):
             raise RuntimeError("segredo-interno /etc/passwd host=db pass=1234")
 
-        monkeypatch.setattr(
-            unified_orchestrator, "execute_complex_task", boom
-        )
+        monkeypatch.setattr(unified_orchestrator, "execute_complex_task", boom)
 
         resp = client.post("/api/v1/tasks/advanced", json={"task_description": "x"})
         assert resp.status_code == 500
