@@ -74,3 +74,5 @@ boto3>=1.34,<2.0
 python-multipart>=0.0.9,<1.0
 # defusedxml: proteção contra xml-bomb (billion-laughs, quadratic-blowup, etc.)
 defusedxml>=0.7,<1.0
+# pypdf: extração de texto de PDFs fiscais (DANFE, recibos) sem deps pesadas
+pypdf>=4.0,<6.0
