@@ -19,7 +19,14 @@
   com sprint-alvo. Placeholder em código só com marcador `TODO(S-X.Y):` + entrada na
   tabela. Placeholder sem registro = bloqueio de merge.
 - **Disciplina de contagem.** O PR declara quantos testes novos traz; a suíte total nunca
-  regride (baseline atual: **1243 passed / 14 skipped**, master `48760e4`).
+  regride (baseline atual: **local sem DB 1243 passed / 18 skipped**; **CI integração
+  348 passed / 7 skipped** — master `2269f00`).
+- **Branch por sprint.** O dev inicia cada sprint com a branch **resetada em
+  `origin/master`** (`git fetch origin && git reset --hard origin/master`) — branches
+  longevas com histórico próprio do doc geram conflito recorrente (aconteceu em #103 e #105).
+- **Prova por log.** Funcionalidade que depende de infra (DB, broker, storage) só conta
+  como verificada com o teste **rodando no CI** (PASSED no log do job) — skip gracioso
+  local é aceitável, skip silencioso no CI não (lição do DT-09).
 - **Teste fio-de-ouro.** A partir deste sprint existe um teste de integração
   `tests/integration/test_golden_thread.py` que percorre o pipeline inteiro via API. Ele
   **nunca** é removido ou enfraquecido — cada sprint o **estende** (C.3: mais regras;
@@ -34,181 +41,116 @@
 | DT-02 | 5 warnings eslint (unused vars em HitlScreen, TrainingScreen, Invest360Screen, JurisScreen) e CI sem `--max-warnings 0` | Onda 1/PR #83 | **S-C.2** (higiene) | **resolvido** (PR S-C.2) |
 | DT-03 | `src/workers/tasks.py`: `process_sped_file` placeholder com mensagem desatualizada ("parser EFD em S-B.1") | S-0.5 | **S-C.2 Parte A** (vira pipeline real) | **resolvido** (PR S-C.2) |
 | DT-04 | Decisões do Bloco C sem ADR (regras determinísticas sem `weighted_voting`; YAML/UF adiado) | S-C.1 | **S-C.2** (higiene — ADR curto) | **resolvido** (PR S-C.2) |
-| DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** | **parcial** — disparo implementado; integração **não verificada E2E** → DT-07 |
+| DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** + prova E2E no S-C.2.1 | **resolvido** — confirmado por log do CI (run 27362773921): 4 `TestGoldenThreadE2E` PASSED |
 | DT-06 | Regras fiscais hardcoded em Python; carregamento YAML por UF pendente | S-C.1 | **gatilho:** entrada da 1ª regra dependente de UF (provável S-C.3) | registrado |
 | DT-07 | **"Fio-de-ouro" não testa o fio**: `test_golden_thread.py` valida segmentos isolados (chama parser/engine in-process, duplicando `test_apuracao.py`) + smoke `404/503/422`; a cola `upload→persistência→consulta` não tem cobertura de integração. O `202` não prova persistência | S-C.2 (#103) | **S-C.2.1** | **resolvido** (PR S-C.2.1) |
 | DT-08 | ADR duplicado: coexistem `ADR-001-performance-target.md` e `ADR-001-regras-fiscais-deterministas.md` | S-C.2 (#103) | **S-C.2.1** (renumerar p/ `ADR-016`) | **resolvido** (PR S-C.2.1) |
 | DT-09 | `DATABASE_URL` não passada aos steps de `pytest` em `.github/workflows/ci.yml` → testes de banco skippavam silenciosamente desde S-0.1 (inclui 7 `postgres_ledger` e todos os futuros E2E) | S-C.2.1 (exposto) | **S-C.2.1** (fix no mesmo PR) | **resolvido** (PR S-C.2.1) |
 | DT-10 | Workflows `ci-on-pr.yml`/`ci-on-push.yml` duplicados/desatualizados — intenção vs `ci.yml` principal não documentada | S-C.2 | **S-C.3** (decidir/consolidar) | registrado |
+| DT-11 | Sessões async não fecham limpo no caminho inline: log do Postgres no CI com 6× `unexpected EOF on client connection with an open transaction` + 2 warnings `coroutine 'Connection._cancel' was never awaited` (run 27362773921) | S-C.2.1 (exposto) | **S-C.3** (higiene) — critério: log do Postgres do CI sem EOFs com transação aberta | **aberto** |
 
-## 3. DESBLOQUEIO OBRIGATÓRIO — S-C.2.1 (antes do S-C.3)
+## 3. SPRINT ATUAL — S-C.3 "Regras declarativas por UF + Edição em lote + Regressão tributária"
 
-> **S-C.2 está MERGEADO (#103) mas NÃO ENCERRADO.** O código entrou em master, porém o
-> "fio-de-ouro" não exercita o pipeline integrado (DT-07) e há ADR duplicado (DT-08).
-> **Nenhum sprint novo (S-C.3) começa antes deste desbloqueio.** Escopo mínimo, 1 PR
-> pequeno: `Bloco C (S-C.2.1): fio-de-ouro E2E real + renumera ADR`.
+**Objetivo:** ampliar a malha de detecção com regras carregadas de **YAML por UF** (fecha
+DT-06), permitir **corrigir em lote** o que foi detectado, e plantar a **suíte de regressão
+tributária**. O fio-de-ouro ganha o ciclo completo: **detectar → corrigir → reapurar**.
 
-### Diagnóstico
-Em `tests/integration/test_golden_thread.py`, as asserções de parse/regras/apuração chamam
-`get_parser()/get_rules_engine()/get_apuracao_engine()` **direto in-process** (duplicam
-`test_apuracao.py`), e `TestGoldenThreadHTTPEndpoints` só afirma `404/503/422`. O único
-teste que toca o pipeline (`test_upload_..._aceito`) para no `202`. A cola nova do sprint —
-`upload → _execute_processing → Repository → GET status/achados/apuração` — não tem
-**nenhuma** cobertura de integração.
+### Tarefa 1 — RuleLoader YAML por UF (fecha DT-06)
 
-### Tarefa 1 — teste E2E real via HTTP (fecha DT-07 e confirma DT-05)
-Adicionar `class TestGoldenThreadE2E` em `tests/integration/test_golden_thread.py` que
-percorre o fio **via HTTP**, do upload à apuração persistida. Contrato real já em master:
+1. `config/fiscal/rules/base.yaml` + `config/fiscal/rules/uf/SP.yaml` e `uf/RJ.yaml`.
+   Schema declarativo **sem eval** (mini-DSL segura): `id`, `tipo_registro`, `campo`,
+   `severidade`, `descricao`, `dica`, `regimes`, `uf` (opcional) e `check` com operadores
+   enumerados (`negative`, `missing`, `gt_field`, `lt`, `gt`, `eq`, `ne`, `not_in`,
+   `pct_divergence` …). YAML inválido → **falha explícita na carga** (nunca silêncio).
+2. As **15 regras atuais migram** para `base.yaml`; `_build_rules()` passa a delegar ao
+   loader. **Golden test de equivalência**: mesmos `id`s, mesmo comportamento — os testes
+   existentes de `test_fiscal_rules_engine.py` continuam passando sem alteração.
+3. API pública preservada e estendida: `get_rules_engine(regime, uf=None)` — sem `uf`,
+   só regras base (compat total com S-C.2).
+4. **Primeiras regras UF-dependentes (≥3):** alíquota interna fora da tabela da UF
+   (ex.: SP 18%, RJ 20/22%) em C100/C170 → `AVISO` (interestadual: aceitar 4/7/12 quando
+   CFOP 6xxx; documentar limitações no YAML). Tabela de alíquotas vive no YAML da UF —
+   ajuste de alíquota = editar YAML, **sem redeploy** (DoD original do roadmap).
 
-| Passo | Endpoint | Asserção |
-|---|---|---|
-| 1 | `POST /api/v1/fiscal/upload` (`tipo=efd_icms`, fixture `efd_icms_devedor.txt`) | `202`; `escr_id = resp.json()["db_id"]`; `assert escr_id` |
-| 2 | `GET /api/v1/fiscal/escrituracoes/{escr_id}` | `200`; `status == "processado"`; `total_registros > 0` (C100 == 3) |
-| 3 | `GET /api/v1/fiscal/escrituracoes/{escr_id}/achados` | `200`; estrutura presente; devedor → lista de **erros vazia** (não ausência do recurso) |
-| 4 | `POST /api/v1/fiscal/escrituracoes/{escr_id}/apuracao` | `200`; item ICMS `saldo_apurado == "120"`, `situacao == "devedor"` |
-| 5 | `GET /api/v1/fiscal/apuracoes?tributo=ICMS` | `200`; a apuração recém-criada aparece |
+### Tarefa 2 — Bateria ampla de inconsistências (≥15 regras novas; total ≥30)
 
-- **Guard de DB (honesto, não-vacuoso):** no topo do módulo, detectar banco (`DATABASE_URL`
-  setada + sessão abre). Ausente → `pytest.skip(...)` **explícito** (aparece como *skipped*,
-  nunca passa de graça). O job Python do CI sobe Postgres + `alembic upgrade head`, então
-  **roda de verdade lá**. Forçar caminho **inline** (sem `CELERY_BROKER_URL`): o
-  processamento completa antes do `202`, sem precisar de polling.
-- **Divergência E2E:** upload `efd_icms_divergencia.txt` → `POST /apuracao` → `200` com
-  `divergencias` contendo `campo == "vl_tot_debitos"`, `severidade == ERRO`.
-- **Espelho EFD-Contrib:** upload `efd_contrib_devedor.txt` → `POST /apuracao` → itens PIS
-  (`saldo_apurado == "99"`) e COFINS (`"456"`), ambos `devedor`.
-- **Idempotência E2E:** repetir `POST /apuracao` → `200`, sem duplicar (segue 1 apuração por
-  tributo/período).
-- **Não enfraquecer os existentes:** os testes atuais permanecem; estes E2E são adição.
+Zerados indevidos (CST tributada com `vl_icms=0`), coerência CFOP×`ind_oper` (CFOP 1xxx/2xxx
+em saída e 5xxx/6xxx em entrada), `dt_doc` fora do período 0000, duplicidade de documento
+(num+série+participante), contadores do bloco 9 vs contados, consistência base×alíquota do
+M210/M610 (espelho PIS/COFINS). Cada regra com ≥2 testes (viola / não-viola).
 
-### Tarefa 2 — renumerar ADR (fecha DT-08)
-`git mv docs/ADRs/ADR-001-regras-fiscais-deterministas.md docs/ADRs/ADR-016-regras-fiscais-deterministas.md`;
-ajustar título/refs internos e o índice de ADRs, se houver.
+### Tarefa 3 — Edição em lote transacional
 
-### DoD do S-C.2.1 (o coordenador roda exatamente isto)
+5. `POST /api/v1/fiscal/escrituracoes/{id}/registros/lote` — body
+   `{operacoes: [{registro_id, campos: {...}}], dry_run: bool}`.
+   - `dry_run=true`: preview com diff + **revalidação simulada** (achados antes/depois),
+     nada persiste.
+   - `dry_run=false`: **transação única** (tudo-ou-nada), `FiscalAudit` + ledger (reuso),
+     revalidação automática pós-commit, resposta com achados antes/depois.
+   - Bloqueia se escrituração em `processando`; RBAC igual às rotas fiscais; identificadores
+     mascarados na resposta (LGPD).
+6. Edição é sobre os **registros canônicos** (não sobre o arquivo); regeneração de arquivo
+   retificado fica no S-D.2 (não antecipar).
+
+### Tarefa 4 — Seed da regressão tributária (meta 200+ até fim do Bloco E)
+
+7. `tests/regression_fiscal/` com runner parametrizado lendo
+   `tests/regression_fiscal/scenarios/*.yaml` — cada cenário: nome, registros inline,
+   `regime`/`uf`, esperado (`regra_ids` violadas e/ou apuração esperada). **≥50 cenários**
+   nesta entrega (30 regras × viola/ok + apurações). Roda na suíte normal, rápido, sem DB.
+
+### Higiene do sprint (fecha DT-10 e DT-11; re-escopa TODOs)
+
+8. **DT-10:** remover `ci-on-pr.yml` e `ci-on-push.yml` (gate único = `ci.yml`) ou
+   documentar no próprio YAML por que ficam; conferir required checks da branch protection
+   antes de remover.
+9. **DT-11:** fechar sessões/transações do caminho inline — critério: log do Postgres no
+   CI **sem** `unexpected EOF ... open transaction` e sem warnings `Connection._cancel`.
+10. Os marcadores `TODO(S-C.3)` em `apuracao.py` (E111/ICMS-ST/IPI/M100/M500/créditos)
+    **não** entram neste sprint: re-marcar como `TODO(S-C.4)` (apuração estendida — ver
+    fila) para manter a tabela coerente com o código.
+
+### Fio-de-ouro estende (obrigatório): ciclo detectar→corrigir→reapurar
+
+11. Novo E2E em `TestGoldenThreadE2E`: upload de fixture **com erro detectável** → achados
+    com `ERRO` → `POST /registros/lote` corrigindo (dry_run e depois real) → revalidação
+    mostra 0 erros → `POST /apuracao` sem divergência E110. Tudo via HTTP, com DB (mesmo
+    guard do S-C.2.1).
+
+### DoD do S-C.3 (o coordenador roda exatamente isto)
 
 ```bash
 black --check src/ tests/
-python -m pytest tests/unit/ tests/integration/ -q              # 0 falhas; baseline 1243 (master) + novos
-python -m pytest tests/integration/test_golden_thread.py -v     # TestGoldenThreadE2E presente
-# Com Postgres (como no CI) os E2E RODAM (não skipped):
-DATABASE_URL=postgresql://... alembic upgrade head && \
-  python -m pytest tests/integration/test_golden_thread.py -k E2E -v   # passam, não skip
-ls docs/ADRs/ | grep -c 'ADR-001'                               # == 1 (só performance-target)
+python -m pytest tests/unit/ tests/integration/ -q     # baseline local 1243/18 + novos, 0 falhas
+python -m pytest tests/regression_fiscal/ -q           # ≥50 cenários verdes
+grep -rn "TODO(S-C.3)" src/                            # 0 ocorrências (re-escopados p/ S-C.4)
+ls .github/workflows/                                  # DT-10 decidido (removidos ou documentados)
+# No CI (prova por log): E2E do ciclo completo PASSED; log do Postgres sem 'open transaction'
 ```
 
-- [ ] E2E percorre upload→status→achados→apuração **via HTTP**, com números reais (120/99/456)
-- [ ] Guard de DB faz *skip* explícito sem banco; **roda no CI** com Postgres (provar no log)
-- [ ] Divergência e idempotência cobertas E2E
-- [ ] ADR renumerado; `ADR-001` só o de performance
-- [ ] DT-05/DT-07/DT-08 → resolvido nesta tabela
-- [ ] Zero regressão; **CI 6/6 verde**
-
-**Só após este PR mergear e o coordenador validar é que S-C.2 é ENCERRADO e o S-C.3 inicia.**
+- [ ] 15 regras migradas p/ YAML com golden test de equivalência; YAML inválido falha startup
+- [ ] ≥3 regras UF (SP+RJ) — alíquota editável sem redeploy
+- [ ] ≥30 regras totais, cada uma com par viola/não-viola
+- [ ] Lote: dry_run + transacional + audit/ledger + revalidação; bloqueio em `processando`
+- [ ] E2E ciclo detectar→corrigir→reapurar PASSED no CI (prova por log)
+- [ ] ≥50 cenários de regressão; DT-06/10/11 fechados na tabela; CI 6/6 verde
+- [ ] Estimativa de testes novos: ~80–110 (PR declara o número exato)
 
 ---
 
-## 3-A. Registro do sprint S-C.2 — "Fio de Ouro + Apuração" (mergeado em #103; pendente DT-05/07/08)
+## 3-A. Sprints encerrados (histórico)
 
-**Objetivo:** tornar o pipeline fiscal real de ponta a ponta (Parte A) e construir sobre
-ele o mapa de apuração ICMS/PIS/COFINS (Parte B). Ao final, um arquivo SPED enviado via
-API resulta em registros canônicos persistidos, achados de regras consultáveis e apuração
-calculada — tudo verificável pelo teste fio-de-ouro.
+| Sprint | PR | Encerramento (prova) |
+|---|---|---|
+| S-0.1..S-0.5, S-A, S-B.1..B.4, S-C.1 | #93–#101 | Validados retroativamente (suítes 821→1188, zero regressão) |
+| S-C.2 "Fio de Ouro + Apuração" | #103 | Mergeado com DT-07/08 carregados; encerrado junto com S-C.2.1 |
+| S-C.2.1 "E2E real + ADR-016" | #105 | **ENCERRADO** — log run 27362773921: 4 `TestGoldenThreadE2E` PASSED, 7 `postgres_ledger` PASSED (1ª vez no CI), integração 348/7. Expôs e corrigiu bug real de transação (`session.begin()` único) e o DT-09 |
 
-### Parte A — Ligar o pipeline (resolve DT-03 e DT-05)
+## 4. Fila após o S-C.3 (deltas sobre o roadmap — não executar ainda)
 
-1. **Task real** em `src/workers/tasks.py::process_sped_file`:
-   baixa o arquivo do MinIO (`file_key`) → detecta tipo (`efd_icms` | `efd_contrib` |
-   xml, pela extensão/conteúdo já validados no upload) → `registry.get_parser(...)` →
-   persiste registros canônicos via Repository (S-B.1) vinculados à `EscrituracaoFiscal`
-   → roda `FiscalRulesEngine` (regime vindo dos metadados do upload) → persiste resumo de
-   achados → atualiza status da escrituração (`recebido → processando → processado |
-   erro`) e `FiscalAudit`.
-2. **Disparo no upload**: `POST /api/v1/fiscal/upload` enfileira a task ao final do fluxo
-   atual. **Fallback síncrono** quando Celery/broker ausentes (mesmo padrão de degradação
-   graciosa do resto do repo — ex.: ledger sem Postgres): executa inline e responde com o
-   mesmo contrato.
-3. **Consulta de status/resultado**:
-   - `GET /api/v1/fiscal/escrituracoes/{id}` → status, contadores (registros por bloco,
-     erros/avisos de regra), `correlation_id`.
-   - `GET /api/v1/fiscal/escrituracoes/{id}/achados` → lista paginada dos `RuleResult`.
-4. **Idempotência e falha**: reprocessar a mesma escrituração não duplica registros
-   (upsert por escrituração+linha ou limpeza transacional antes de regravar); exceção na
-   task marca `erro` com motivo, nunca deixa `processando` eterno.
-5. **Observabilidade**: spans/log estruturado por estágio (download→parse→persist→rules)
-   com `correlation_id`; contadores Prometheus (arquivos processados, falhas, duração).
-
-### Parte B — Mapa de apuração (S-C.2 do roadmap)
-
-6. **Engine** `src/fiscal/apuracao.py`, stateless, espelhando o padrão de
-   `rules_engine.py`/`reconciliation.py`:
-   - **ICMS** (EFD-ICMS/IPI): débitos por saída e créditos por entrada a partir de
-     C100/C170 (e D100), consolidação mensal → saldo (devedor a recolher | credor a
-     transportar), considerando saldo credor anterior. **Confronto computado × declarado**:
-     compara o calculado com o bloco E110 do próprio arquivo e gera divergência
-     (`Severidade` reutilizada) quando não bate.
-   - **PIS/COFINS** (EFD-Contribuições): consolidação a partir de M200/M210 e M600/M610,
-     mesmo confronto computado × declarado.
-   - Modelo **minimalista** (roadmap): sem ajustes/benefícios especiais nesta iteração —
-     o que não for coberto, listar explicitamente no docstring como fora de escopo.
-7. **Persistência**: entidade `ApuracaoFiscal` (migration `0003`): período, tributo,
-   totais (débitos, créditos, saldo anterior, saldo final), situação (devedor/credor),
-   divergências, FK para escrituração. Repository com o mesmo padrão de cache dos demais.
-8. **API**: `POST /api/v1/fiscal/escrituracoes/{id}/apuracao` (calcula e persiste) e
-   `GET /api/v1/fiscal/apuracoes?periodo=&tributo=` (consulta). RBAC consistente com as
-   rotas fiscais existentes.
-9. **Casos-teste oficiais (DoD do roadmap)**: fixtures SPED sintéticas em
-   `tests/fixtures/fiscal/` com valores de apuração **calculados à mão e documentados no
-   próprio fixture** (comentário com a conta), cobrindo: saldo devedor, saldo credor,
-   saldo credor anterior, divergência computado×declarado, arquivo PIS/COFINS. Mínimo 5
-   cenários por tributo.
-
-### Higiene do sprint (resolve DT-01, DT-02, DT-04)
-
-10. DT-01: corrigir o `send_notification` não-awaitado em `hitl_queue.py:322`.
-11. DT-02: zerar os 5 warnings de eslint e adicionar `--max-warnings 0` ao step de lint
-    do frontend no CI.
-12. DT-04: ADR curto em `docs/ADRs/` registrando: (a) regras fiscais determinísticas sem
-    `weighted_voting` (auditabilidade, CJ-001); (b) YAML/UF adiado até a 1ª regra
-    estadual (DT-06).
-
-### Teste fio-de-ouro (novo, obrigatório)
-
-13. `tests/integration/test_golden_thread.py`: via `TestClient`, com fallback síncrono
-    (sem Celery/MinIO/Postgres reais — mesmos skips graciosos do repo quando faltar
-    infra): upload de fixture EFD-ICMS → escrituração `processado` → registros canônicos
-    contados → achados de regra presentes → apuração calculada com saldo esperado →
-    divergência E110 detectada no fixture próprio para isso. Espelho mínimo do fluxo para
-    EFD-Contribuições.
-
-### DoD do S-C.2 (o coordenador roda exatamente isto)
-
-```bash
-black --check src/ tests/
-python -m pytest tests/unit/ tests/integration/ -q          # 0 falhas, baseline 1188 + novos
-python -m pytest tests/integration/test_golden_thread.py -v # pipeline E2E verde
-python -m pytest tests/unit/test_apuracao*.py -q            # casos oficiais conferidos
-grep -rn "pipeline SPED em S-B.1\|parser EFD em S-B.1" src/ # 0 ocorrências (DT-03)
-cd frontend && npx eslint src --ext .js,.jsx --max-warnings 0  # DT-02
-```
-
-- [ ] Upload dispara processamento (async com Celery; inline sem) — evidência: teste
-- [ ] Reprocessamento idempotente — evidência: teste
-- [ ] Falha de parsing marca `erro` com motivo — evidência: teste
-- [ ] Apuração ICMS e PIS/COFINS conferidas contra ≥5 cenários/tributo documentados
-- [ ] Confronto computado × declarado (E110/M200/M600) com divergência sinalizada
-- [ ] Migration 0003 aplica via `alembic upgrade head` no CI
-- [ ] DT-01..DT-05 fechados nesta tabela (status → resolvido) no mesmo PR
-- [ ] Estimativa de testes novos: ~55–70 (PR declara o número exato)
-
-## 4. Fila após o S-C.2 (deltas sobre o roadmap — não executar ainda)
-
-- **S-C.3 — Bateria ampla + Edição em lote + RuleLoader YAML.** Entra a 1ª regra
-  dependente de UF → implementar o `RuleLoader` YAML (DT-06) alimentando o MESMO
-  `FiscalRulesEngine` sem mudar API pública. Edição em lote transacional sobre os
-  registros canônicos (não sobre o arquivo). Seed da **regressão tributária 200+**:
-  estrutura `tests/regression_fiscal/` parametrizada por fixtures YAML (cenário→esperado),
-  começando com ~50 cenários reais derivados das regras existentes.
+- **S-C.4 — Apuração estendida.** Os `TODO(S-C.4)` de `apuracao.py`: ajustes E111/E112/E113,
+  ICMS-ST (E300+), IPI (E520+), regime cumulativo PIS/COFINS (M100/M500), créditos
+  (M400/M405/M800). Mesmo padrão: casos-teste com conta manual + confronto declarado.
 - **S-D.1/S-D.2 — Editor + Retificação.** Reusa HITL/progressive_autonomy existentes para
   aprovação; toda edição vira evento no ledger (UF/período/obrigação); geração do arquivo
   retificado a partir dos registros canônicos editados; fio-de-ouro ganha etapa
