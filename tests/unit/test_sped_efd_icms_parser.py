@@ -357,9 +357,10 @@ def test_registry_unknown_tipo_raises() -> None:
         get_parser("unknown_tipo")
 
 
-def test_registry_efd_contrib_not_yet_available() -> None:
-    with pytest.raises(ValueError):
-        get_parser("efd_contrib")
+def test_registry_efd_contrib_available() -> None:
+    from src.fiscal.parser import SpedEfdContribParser
+
+    assert isinstance(get_parser("efd_contrib"), SpedEfdContribParser)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
