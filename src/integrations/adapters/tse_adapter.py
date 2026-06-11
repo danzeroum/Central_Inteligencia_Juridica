@@ -7,6 +7,7 @@ Endpoint: dadosabertos.tse.jus.br (CKAN API)
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, ClassVar, Dict, List, Optional, Set
 
 import httpx
@@ -24,8 +25,11 @@ from src.integrations.settings import SourceSettings
 logger = logging.getLogger(__name__)
 
 TSE_CKAN_BASE = "https://dadosabertos.tse.jus.br/api/3/action/datastore_search"
-# Resource ID das candidaturas (TSE dados abertos — pode variar por eleição)
-_CANDIDATURAS_RESOURCE = "a0e50aff-1e27-4218-a823-ed3c4b3e0c1a"
+# Resource ID das candidaturas (TSE dados abertos — varia por ciclo eleitoral).
+# Obtenha o ID atual em dadosabertos.tse.jus.br e defina TSE_CKAN_RESOURCE_ID no .env.
+_CANDIDATURAS_RESOURCE = os.getenv(
+    "TSE_CKAN_RESOURCE_ID", "a0e50aff-1e27-4218-a823-ed3c4b3e0c1a"
+)
 
 
 class TseAdapter(LegalDataAdapter):

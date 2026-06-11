@@ -130,15 +130,10 @@ class SupervisorAgent(A2ACapable):
                         intent.reasoning = "Tribunais ajustados por fallback"
             return intent
 
-        self.logger.info("Using keyword-based intent classification")
-        tribunals = self._identify_all_tribunals(sanitized_task)
-        intent = ClassifiedIntent(
-            tribunais=tribunals,
-            operacao="generic",
-            parametros={},
-            confidence=0.8,
-            reasoning="Keyword-based fallback classification",
-        )
+        # Delega para IntentClassifier mesmo sem LLM — ele tem _keyword_classify
+        # com heurísticas melhores que "generic" para todos os casos.
+        self.logger.info("Using keyword-based intent classification via IntentClassifier")
+        intent = await self.intent_classifier.classify(sanitized_task)
         self.ledger.log_decision(
             agent_type="SupervisorAgent",
             decision_type="INTENT_CLASSIFIED",
@@ -347,6 +342,28 @@ class SupervisorAgent(A2ACapable):
                 "timestamp": self._get_timestamp(),
             }
 
+    def _no_llm_response(self, task: str) -> Dict[str, Any]:
+        """Resposta padrão para consultas genéricas/explicativas sem LLM disponível."""
+        return {
+            "status": "success",
+            "supervisor_result": {
+                "response": (
+                    "Este assistente utiliza um modelo de linguagem (LLM) para responder "
+                    "consultas explicativas e analíticas. Sem OPENAI_API_KEY configurada, "
+                    "apenas buscas diretas (por número de processo, jurisprudência por tribunal "
+                    "ou pesquisa legislativa) estão disponíveis. "
+                    "Configure OPENAI_API_KEY no ambiente para habilitar respostas completas."
+                ),
+                "llm_enabled": False,
+            },
+            "tribunals_used": [],
+            "intent": {"operacao": "generic", "confidence": 0.6},
+            "task_id": f"task_nollm_{uuid.uuid4().hex[:8]}",
+            "execution_time": 0.0,
+            "parallel": False,
+            "timestamp": self._get_timestamp(),
+        }
+
     async def process_task(
         self,
         task_description: str,
@@ -483,6 +500,16 @@ class SupervisorAgent(A2ACapable):
                 return await self._delegate_to_intelligence_agent(
                     sanitized_task, intent.operacao
                 )
+
+            # Consultas genéricas/explicativas sem LLM: só intercepta se não há
+            # tribunal explícito (ex. "O que é dano moral?"). Queries com tribunais
+            # mencionados seguem o fluxo normal de delegação.
+            if (
+                intent.operacao == "generic"
+                and not self.intent_classifier.llm_enabled
+                and not intent.tribunais
+            ):
+                return self._no_llm_response(sanitized_task)
 
             if recalled_memories:
                 best_memory = recalled_memories[0]
