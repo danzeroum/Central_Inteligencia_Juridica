@@ -185,6 +185,16 @@ class A2ABroadcastResponse(BaseModel):
     total_sent: int
 
 
+class FrontendSlotResponse(BaseModel):
+    """Slot de navegação que um módulo expõe para a SPA."""
+
+    label: str
+    icon: str
+    route: str
+    order: int = 0
+    enabled: bool = True
+
+
 class ModuleResponse(BaseModel):
     """Manifesto de um módulo registrado na plataforma."""
 
@@ -196,6 +206,7 @@ class ModuleResponse(BaseModel):
     agent_types: List[str] = Field(default_factory=list)
     endpoints: List[str] = Field(default_factory=list)
     is_active: bool
+    slot: Optional[FrontendSlotResponse] = None
 
 
 class ModuleListResponse(BaseModel):
@@ -203,6 +214,13 @@ class ModuleListResponse(BaseModel):
 
     total: int
     modules: List[ModuleResponse]
+
+
+class SlotsResponse(BaseModel):
+    """Slots de navegação ativos — consumido pela SPA no startup."""
+
+    total: int
+    slots: List[FrontendSlotResponse]
 
 
 class HistoryRecord(BaseModel):

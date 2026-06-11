@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.modules.manifest import ModuleManifest
+from src.modules.slots import FrontendSlot
 
 JURIDICO_CORE = ModuleManifest(
     module_id="juridico_core",
@@ -16,6 +17,12 @@ JURIDICO_CORE = ModuleManifest(
     agent_types=["SupervisorAgent", "TribunalAgent"],
     endpoints=["/api/v1/tasks", "/api/v1/history"],
     is_active=True,
+    slot=FrontendSlot(
+        label="Consultas Jurídicas",
+        icon="gavel",
+        route="/app/juridico",
+        order=1,
+    ),
 )
 
 LEGISLATIVO = ModuleManifest(
@@ -27,6 +34,12 @@ LEGISLATIVO = ModuleManifest(
     agent_types=["FunctionalService"],
     endpoints=["/api/v1/proposicoes-legislativas", "/api/v1/analises-legislativas"],
     is_active=True,
+    slot=FrontendSlot(
+        label="Análise Legislativa",
+        icon="balance",
+        route="/app/legislativo",
+        order=2,
+    ),
 )
 
 JURISPRUDENCIA = ModuleManifest(
@@ -38,6 +51,12 @@ JURISPRUDENCIA = ModuleManifest(
     agent_types=["QueueWorker"],
     endpoints=["/api/v1/jurisprudencia"],
     is_active=True,
+    slot=FrontendSlot(
+        label="Jurisprudência",
+        icon="library_books",
+        route="/app/jurisprudencia",
+        order=3,
+    ),
 )
 
 BUILTIN_MODULES = [JURIDICO_CORE, LEGISLATIVO, JURISPRUDENCIA]
