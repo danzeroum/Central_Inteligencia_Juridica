@@ -60,6 +60,10 @@ function detectItemKind(item) {
   if (!item || typeof item !== 'object') return item;
   if (item.kind) return item;
   if (item.numero && item.classe)               return { ...item, kind: 'processo'   };
+  // DJEN Publicacao: detecta por campos exclusivos (data_disponibilizacao / destinatario)
+  // pois texto pode ser null na API pública
+  if ('data_disponibilizacao' in item || item.destinatario != null)
+                                                return { ...item, kind: 'publicacao' };
   if (item.texto  && item.tribunal && !item.classe) return { ...item, kind: 'publicacao' };
   if (item.cartorio && (item.cedente || item.credor)) return { ...item, kind: 'protesto'   };
   if (item.orgao  && item.tipo_divida)          return { ...item, kind: 'cadin'      };
@@ -219,7 +223,7 @@ function FactorChips({ factors }) {
 function itemTitle(it) {
   switch (it.kind) {
     case 'processo':   return it.numero;
-    case 'publicacao': return `${it.tipo || 'Publicação'} · ${it.data || ''}`;
+    case 'publicacao': return `${it.tipo || 'Publicação'} · ${it.data_disponibilizacao || it.data || ''}`;
     case 'protesto':   return `${it.valor || ''} · ${it.tipo || 'Protesto'}`;
     case 'cadin':      return `${it.valor || ''} · ${it.tipo_divida || it.tipo || 'CADIN'}`;
     case 'imovel':     return `Matrícula ${it.matricula}`;
@@ -230,7 +234,7 @@ function itemTitle(it) {
 function itemMeta(it) {
   switch (it.kind) {
     case 'processo':   return `${it.classe || ''} · ${it.tribunal || ''} ${it.grau || ''} · ${it.ultima || ''}`;
-    case 'publicacao': return `${it.tribunal || ''} · ${(it.texto || '').slice(0, 80)}`;
+    case 'publicacao': return `${it.tribunal || ''} · ${(it.texto || it.destinatario || '').slice(0, 80)}`;
     case 'protesto':   return `${it.credor || it.cedente || ''} · ${it.cartorio || ''}`;
     case 'cadin':      return it.orgao || '';
     case 'imovel':     return `${it.tipo || ''} · ${it.municipio || ''} · ${it.area || ''}`;
@@ -242,7 +246,7 @@ function itemMeta(it) {
 function drawerRows(it) {
   switch (it.kind) {
     case 'processo':   return [['Número',      it.numero], ['Tribunal',    `${it.tribunal || ''} · ${it.grau || ''}`], ['Órgão',       it.orgao], ['Classe',      it.classe], ['Ajuizamento', it.data], ['Movimentações', it.movs != null ? String(it.movs) : null], ['Última',      it.ultima]];
-    case 'publicacao': return [['Tribunal',    it.tribunal], ['Data',        it.data], ['Tipo',        it.tipo], ['Teor',        it.texto]];
+    case 'publicacao': return [['Tribunal',    it.tribunal], ['Data',        it.data_disponibilizacao || it.data], ['Tipo',        it.tipo], ['Destinatário', it.destinatario], ['Teor',        it.texto]];
     case 'protesto':   return [['Situação',    it.situacao], ['Valor',       it.valor], ['Título',      it.tipo], ['Credor',      it.credor || it.cedente], ['Cartório',    it.cartorio], ['Data',        it.data]];
     case 'cadin':      return [['Situação',    it.situacao], ['Órgão credor', it.orgao], ['Tipo',        it.tipo_divida || it.tipo], ['Valor',       it.valor], ['Inscrição',   it.data_inscricao || it.data]];
     case 'imovel':     return [['Matrícula',   it.matricula], ['Cartório',    it.cartorio], ['Tipo',        it.tipo], ['Município',   it.municipio], ['Área',        it.area], ['Registro',    it.data]];
@@ -257,7 +261,7 @@ function ItemDrawer({ item, dataMode, onClose }) {
     : item.kind === 'cadin'    ? 'Pendência CADIN'
     : item.kind === 'imovel'   ? item.tipo || 'Imóvel'
     : item.kind === 'empresa'  ? item.razao_social
-    : item.kind === 'publicacao' ? `${item.tipo || 'Publicação'} · DJEN`
+    : item.kind === 'publicacao' ? `${item.tipo || 'Publicação'} · DJEN / Comunica PJe`
     : 'Detalhe';
   const sub = item.kind === 'processo' ? item.numero
     : item.kind === 'imovel' ? `Matrícula ${item.matricula}`
