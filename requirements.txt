@@ -68,3 +68,9 @@ strawberry-graphql[fastapi]>=0.236.0,<0.240.0
 # Async jobs (Onda 2 — S-0.5)
 celery[redis]>=5.3,<6.0
 boto3>=1.34,<2.0
+
+# Upload seguro (Bloco B — S-B.1)
+# python-multipart: suporte a Form + UploadFile no FastAPI
+python-multipart>=0.0.9,<1.0
+# defusedxml: proteção contra xml-bomb (billion-laughs, quadratic-blowup, etc.)
+defusedxml>=0.7,<1.0
