@@ -45,7 +45,7 @@ function detectIdentifier(q) {
   const s = q.trim();
   if (!s) return null;
   const digits = s.replace(/\D/g, '');
-  const numericish = /^[\d.\-\/\s]+$/.test(s);
+  const numericish = /^[\d.\-/\s]+$/.test(s);
   if (numericish) {
     if (digits.length === 11) return { type: 'CPF',             label: 'CPF detectado',                       ok: true  };
     if (digits.length === 14) return { type: 'CNPJ',            label: 'CNPJ detectado',                      ok: true  };

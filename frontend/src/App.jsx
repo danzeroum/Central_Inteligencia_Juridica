@@ -170,7 +170,7 @@ export default function App() {
     ledger:       <LedgerScreen />,
     dmn:          <DmnScreen />,
     monitor:      <MonitorScreen />,
-  }), []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }), []);
 
   if (!authed) return <ToastProvider><Login onAuthenticated={onAuthenticated} /></ToastProvider>;
 
