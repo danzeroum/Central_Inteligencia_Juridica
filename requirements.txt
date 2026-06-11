@@ -76,3 +76,9 @@ python-multipart>=0.0.9,<1.0
 defusedxml>=0.7,<1.0
 # pypdf: extração de texto de PDFs fiscais (DANFE, recibos) sem deps pesadas
 pypdf>=4.0,<6.0
+
+# SAUDE-01 Sentinela Respiratória (SIH-RD analytics)
+# polars: lazy/streaming DataFrames para pipeline SIH-RD (arquivos SP são grandes)
+polars>=1.0,<2.0
+# dbfread: leitura de arquivos .dbf extraídos dos .dbc do DATASUS
+dbfread>=2.0,<3.0
