@@ -19,7 +19,7 @@
   com sprint-alvo. Placeholder em código só com marcador `TODO(S-X.Y):` + entrada na
   tabela. Placeholder sem registro = bloqueio de merge.
 - **Disciplina de contagem.** O PR declara quantos testes novos traz; a suíte total nunca
-  regride (baseline atual: **1188 passed / 14 skipped**, master `5579082`).
+  regride (baseline atual: **1243 passed / 14 skipped**, master `48760e4`).
 - **Teste fio-de-ouro.** A partir deste sprint existe um teste de integração
   `tests/integration/test_golden_thread.py` que percorre o pipeline inteiro via API. Ele
   **nunca** é removido ou enfraquecido — cada sprint o **estende** (C.3: mais regras;
@@ -34,10 +34,79 @@
 | DT-02 | 5 warnings eslint (unused vars em HitlScreen, TrainingScreen, Invest360Screen, JurisScreen) e CI sem `--max-warnings 0` | Onda 1/PR #83 | **S-C.2** (higiene) | **resolvido** (PR S-C.2) |
 | DT-03 | `src/workers/tasks.py`: `process_sped_file` placeholder com mensagem desatualizada ("parser EFD em S-B.1") | S-0.5 | **S-C.2 Parte A** (vira pipeline real) | **resolvido** (PR S-C.2) |
 | DT-04 | Decisões do Bloco C sem ADR (regras determinísticas sem `weighted_voting`; YAML/UF adiado) | S-C.1 | **S-C.2** (higiene — ADR curto) | **resolvido** (PR S-C.2) |
-| DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** | **resolvido** (PR S-C.2) |
+| DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** | **parcial** — disparo implementado; integração **não verificada E2E** → DT-07 |
 | DT-06 | Regras fiscais hardcoded em Python; carregamento YAML por UF pendente | S-C.1 | **gatilho:** entrada da 1ª regra dependente de UF (provável S-C.3) | registrado |
+| DT-07 | **"Fio-de-ouro" não testa o fio**: `test_golden_thread.py` valida segmentos isolados (chama parser/engine in-process, duplicando `test_apuracao.py`) + smoke `404/503/422`; a cola `upload→persistência→consulta` não tem cobertura de integração. O `202` não prova persistência | S-C.2 (#103) | **S-C.2.1 — DESBLOQUEIO (bloqueia encerramento do S-C.2 e início do S-C.3)** | **aberto** |
+| DT-08 | ADR duplicado: coexistem `ADR-001-performance-target.md` e `ADR-001-regras-fiscais-deterministas.md` | S-C.2 (#103) | **S-C.2.1** (renumerar p/ `ADR-016`) | **aberto** |
 
-## 3. SPRINT ATUAL — S-C.2 "Fio de Ouro + Apuração"
+## 3. DESBLOQUEIO OBRIGATÓRIO — S-C.2.1 (antes do S-C.3)
+
+> **S-C.2 está MERGEADO (#103) mas NÃO ENCERRADO.** O código entrou em master, porém o
+> "fio-de-ouro" não exercita o pipeline integrado (DT-07) e há ADR duplicado (DT-08).
+> **Nenhum sprint novo (S-C.3) começa antes deste desbloqueio.** Escopo mínimo, 1 PR
+> pequeno: `Bloco C (S-C.2.1): fio-de-ouro E2E real + renumera ADR`.
+
+### Diagnóstico
+Em `tests/integration/test_golden_thread.py`, as asserções de parse/regras/apuração chamam
+`get_parser()/get_rules_engine()/get_apuracao_engine()` **direto in-process** (duplicam
+`test_apuracao.py`), e `TestGoldenThreadHTTPEndpoints` só afirma `404/503/422`. O único
+teste que toca o pipeline (`test_upload_..._aceito`) para no `202`. A cola nova do sprint —
+`upload → _execute_processing → Repository → GET status/achados/apuração` — não tem
+**nenhuma** cobertura de integração.
+
+### Tarefa 1 — teste E2E real via HTTP (fecha DT-07 e confirma DT-05)
+Adicionar `class TestGoldenThreadE2E` em `tests/integration/test_golden_thread.py` que
+percorre o fio **via HTTP**, do upload à apuração persistida. Contrato real já em master:
+
+| Passo | Endpoint | Asserção |
+|---|---|---|
+| 1 | `POST /api/v1/fiscal/upload` (`tipo=efd_icms`, fixture `efd_icms_devedor.txt`) | `202`; `escr_id = resp.json()["db_id"]`; `assert escr_id` |
+| 2 | `GET /api/v1/fiscal/escrituracoes/{escr_id}` | `200`; `status == "processado"`; `total_registros > 0` (C100 == 3) |
+| 3 | `GET /api/v1/fiscal/escrituracoes/{escr_id}/achados` | `200`; estrutura presente; devedor → lista de **erros vazia** (não ausência do recurso) |
+| 4 | `POST /api/v1/fiscal/escrituracoes/{escr_id}/apuracao` | `200`; item ICMS `saldo_apurado == "120"`, `situacao == "devedor"` |
+| 5 | `GET /api/v1/fiscal/apuracoes?tributo=ICMS` | `200`; a apuração recém-criada aparece |
+
+- **Guard de DB (honesto, não-vacuoso):** no topo do módulo, detectar banco (`DATABASE_URL`
+  setada + sessão abre). Ausente → `pytest.skip(...)` **explícito** (aparece como *skipped*,
+  nunca passa de graça). O job Python do CI sobe Postgres + `alembic upgrade head`, então
+  **roda de verdade lá**. Forçar caminho **inline** (sem `CELERY_BROKER_URL`): o
+  processamento completa antes do `202`, sem precisar de polling.
+- **Divergência E2E:** upload `efd_icms_divergencia.txt` → `POST /apuracao` → `200` com
+  `divergencias` contendo `campo == "vl_tot_debitos"`, `severidade == ERRO`.
+- **Espelho EFD-Contrib:** upload `efd_contrib_devedor.txt` → `POST /apuracao` → itens PIS
+  (`saldo_apurado == "99"`) e COFINS (`"456"`), ambos `devedor`.
+- **Idempotência E2E:** repetir `POST /apuracao` → `200`, sem duplicar (segue 1 apuração por
+  tributo/período).
+- **Não enfraquecer os existentes:** os testes atuais permanecem; estes E2E são adição.
+
+### Tarefa 2 — renumerar ADR (fecha DT-08)
+`git mv docs/ADRs/ADR-001-regras-fiscais-deterministas.md docs/ADRs/ADR-016-regras-fiscais-deterministas.md`;
+ajustar título/refs internos e o índice de ADRs, se houver.
+
+### DoD do S-C.2.1 (o coordenador roda exatamente isto)
+
+```bash
+black --check src/ tests/
+python -m pytest tests/unit/ tests/integration/ -q              # 0 falhas; baseline 1243 (master) + novos
+python -m pytest tests/integration/test_golden_thread.py -v     # TestGoldenThreadE2E presente
+# Com Postgres (como no CI) os E2E RODAM (não skipped):
+DATABASE_URL=postgresql://... alembic upgrade head && \
+  python -m pytest tests/integration/test_golden_thread.py -k E2E -v   # passam, não skip
+ls docs/ADRs/ | grep -c 'ADR-001'                               # == 1 (só performance-target)
+```
+
+- [ ] E2E percorre upload→status→achados→apuração **via HTTP**, com números reais (120/99/456)
+- [ ] Guard de DB faz *skip* explícito sem banco; **roda no CI** com Postgres (provar no log)
+- [ ] Divergência e idempotência cobertas E2E
+- [ ] ADR renumerado; `ADR-001` só o de performance
+- [ ] DT-05/DT-07/DT-08 → resolvido nesta tabela
+- [ ] Zero regressão; **CI 6/6 verde**
+
+**Só após este PR mergear e o coordenador validar é que S-C.2 é ENCERRADO e o S-C.3 inicia.**
+
+---
+
+## 3-A. Registro do sprint S-C.2 — "Fio de Ouro + Apuração" (mergeado em #103; pendente DT-05/07/08)
 
 **Objetivo:** tornar o pipeline fiscal real de ponta a ponta (Parte A) e construir sobre
 ele o mapa de apuração ICMS/PIS/COFINS (Parte B). Ao final, um arquivo SPED enviado via
