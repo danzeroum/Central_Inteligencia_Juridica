@@ -11,6 +11,7 @@ diretamente (parse + regras + apuração) e sinaliza com pytest.mark.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import os
 from decimal import Decimal
@@ -328,3 +329,158 @@ class TestGoldenThreadHTTPEndpoints:
     def test_listar_apuracoes_filtro_periodo_invalido(self, api_client):
         resp = api_client.get("/api/v1/fiscal/apuracoes?periodo=invalido")
         assert resp.status_code == 422
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Guard helper — usado apenas por TestGoldenThreadE2E
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _assert_postgres_available() -> None:
+    """Skip-guard: salta se DATABASE_URL ausente ou Postgres inacessível."""
+    if not os.environ.get("DATABASE_URL"):
+        pytest.skip("DATABASE_URL não configurado — testes E2E requerem Postgres")
+
+    try:
+        from sqlalchemy import text
+
+        from src.db.session import get_async_session
+
+        async def _probe() -> None:
+            async with get_async_session() as s:
+                await s.execute(text("SELECT 1"))
+
+        try:
+            asyncio.run(_probe())
+        except RuntimeError as exc:
+            if "running" in str(exc).lower():
+                return  # loop já ativo — assume DB disponível
+            pytest.skip(f"Postgres inacessível (RuntimeError): {exc}")
+    except Exception as exc:
+        pytest.skip(f"Postgres inacessível: {exc}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Parte D: E2E real via HTTP + Postgres (S-C.2.1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestGoldenThreadE2E:
+    """E2E real com Postgres: upload → inline → status → achados → apuração → listagem.
+
+    Guard: sem DATABASE_URL ou Postgres inacessível → pytest.skip() explícito.
+    Força processamento inline removendo CELERY_BROKER_URL do ambiente para
+    garantir que o pipeline completa antes da resposta 202.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _db_and_inline(self):
+        _assert_postgres_available()
+        saved_broker = os.environ.pop("CELERY_BROKER_URL", None)
+        yield
+        if saved_broker is not None:
+            os.environ["CELERY_BROKER_URL"] = saved_broker
+
+    def _upload(self, client, filename: str, tipo: str = "efd_icms"):
+        data = (_FIXTURES / filename).read_bytes()
+        return client.post(
+            "/api/v1/fiscal/upload",
+            files={"file": (filename, io.BytesIO(data), "text/plain")},
+            data={"tipo": tipo, "ano": 2025, "mes": 1},
+        )
+
+    def test_e2e_icms_upload_status_achados_apuracao_listagem(self, api_client):
+        """Upload EFD-ICMS → processado → sem erros → apuração 120 devedor → lista."""
+        # Upload
+        resp = self._upload(api_client, "efd_icms_devedor.txt", "efd_icms")
+        assert resp.status_code == 202
+        body = resp.json()
+        db_id = body.get("db_id")
+        assert db_id is not None, "db_id ausente — escrituração não foi persistida"
+
+        # Status processado com registros
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}")
+        assert r.status_code == 200
+        st = r.json()
+        assert st["status"] == "processado"
+        assert (st["total_registros"] or 0) > 0
+
+        # Achados: nenhum erro no fixture devedor limpo
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}/achados")
+        assert r.status_code == 200
+        ac = r.json()
+        erros = [a for a in ac["achados"] if a["severidade"] == "erro"]
+        assert len(erros) == 0
+
+        # Apuração ICMS: débitos=180, créditos=60, saldo=120, devedor
+        r = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r.status_code == 200
+        ap = r.json()
+        assert ap["aprovado"] is True
+        by_t = {i["tributo"]: i for i in ap["items"]}
+        assert "ICMS" in by_t
+        icms = by_t["ICMS"]
+        assert Decimal(icms["saldo_apurado"]) == Decimal("120")
+        assert icms["situacao"] == "devedor"
+
+        # Aparece na listagem
+        r = api_client.get("/api/v1/fiscal/apuracoes?tributo=ICMS&periodo=2025-01")
+        assert r.status_code == 200
+        escr_ids = [a["escrituracao_id"] for a in r.json()]
+        assert db_id in escr_ids
+
+    def test_e2e_icms_divergencia_e110_vl_tot_debitos(self, api_client):
+        """Upload fixture divergência → apuração gera ERRO em vl_tot_debitos."""
+        resp = self._upload(api_client, "efd_icms_divergencia.txt", "efd_icms")
+        assert resp.status_code == 202
+        db_id = resp.json().get("db_id")
+        assert db_id is not None
+
+        r = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r.status_code == 200
+        ap = r.json()
+        assert ap["aprovado"] is False
+        icms = next((i for i in ap["items"] if i["tributo"] == "ICMS"), None)
+        assert icms is not None
+        campos_erro = {
+            d["campo"] for d in icms["divergencias"] if d["severidade"] == "erro"
+        }
+        assert "vl_tot_debitos" in campos_erro
+
+    def test_e2e_contrib_pis_cofins_devedor(self, api_client):
+        """Upload EFD-Contrib → PIS=99 devedor, COFINS=456 devedor."""
+        resp = self._upload(api_client, "efd_contrib_devedor.txt", "efd_contrib")
+        assert resp.status_code == 202
+        db_id = resp.json().get("db_id")
+        assert db_id is not None
+
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}")
+        assert r.status_code == 200
+        assert r.json()["status"] == "processado"
+
+        r = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r.status_code == 200
+        ap = r.json()
+        by_t = {i["tributo"]: i for i in ap["items"]}
+        assert Decimal(by_t["PIS"]["saldo_apurado"]) == Decimal("99")
+        assert by_t["PIS"]["situacao"] == "devedor"
+        assert Decimal(by_t["COFINS"]["saldo_apurado"]) == Decimal("456")
+        assert by_t["COFINS"]["situacao"] == "devedor"
+
+    def test_e2e_apuracao_idempotente(self, api_client):
+        """POST apuracao duas vezes → 200 ambas, sem duplicar registros."""
+        resp = self._upload(api_client, "efd_icms_devedor.txt", "efd_icms")
+        assert resp.status_code == 202
+        db_id = resp.json().get("db_id")
+        assert db_id is not None
+
+        r1 = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r1.status_code == 200
+        r2 = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r2.status_code == 200
+
+        # Exatamente 1 ApuracaoFiscal ICMS para esta escrituração — sem duplicatas
+        r = api_client.get(f"/api/v1/fiscal/apuracoes?tributo=ICMS&periodo=2025-01")
+        assert r.status_code == 200
+        icms_desta = [a for a in r.json() if a["escrituracao_id"] == db_id]
+        assert len(icms_desta) == 1

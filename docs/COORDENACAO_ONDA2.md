@@ -36,8 +36,10 @@
 | DT-04 | Decisões do Bloco C sem ADR (regras determinísticas sem `weighted_voting`; YAML/UF adiado) | S-C.1 | **S-C.2** (higiene — ADR curto) | **resolvido** (PR S-C.2) |
 | DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** | **parcial** — disparo implementado; integração **não verificada E2E** → DT-07 |
 | DT-06 | Regras fiscais hardcoded em Python; carregamento YAML por UF pendente | S-C.1 | **gatilho:** entrada da 1ª regra dependente de UF (provável S-C.3) | registrado |
-| DT-07 | **"Fio-de-ouro" não testa o fio**: `test_golden_thread.py` valida segmentos isolados (chama parser/engine in-process, duplicando `test_apuracao.py`) + smoke `404/503/422`; a cola `upload→persistência→consulta` não tem cobertura de integração. O `202` não prova persistência | S-C.2 (#103) | **S-C.2.1 — DESBLOQUEIO (bloqueia encerramento do S-C.2 e início do S-C.3)** | **aberto** |
-| DT-08 | ADR duplicado: coexistem `ADR-001-performance-target.md` e `ADR-001-regras-fiscais-deterministas.md` | S-C.2 (#103) | **S-C.2.1** (renumerar p/ `ADR-016`) | **aberto** |
+| DT-07 | **"Fio-de-ouro" não testa o fio**: `test_golden_thread.py` valida segmentos isolados (chama parser/engine in-process, duplicando `test_apuracao.py`) + smoke `404/503/422`; a cola `upload→persistência→consulta` não tem cobertura de integração. O `202` não prova persistência | S-C.2 (#103) | **S-C.2.1** | **resolvido** (PR S-C.2.1) |
+| DT-08 | ADR duplicado: coexistem `ADR-001-performance-target.md` e `ADR-001-regras-fiscais-deterministas.md` | S-C.2 (#103) | **S-C.2.1** (renumerar p/ `ADR-016`) | **resolvido** (PR S-C.2.1) |
+| DT-09 | `DATABASE_URL` não passada aos steps de `pytest` em `.github/workflows/ci.yml` → testes de banco skippavam silenciosamente desde S-0.1 (inclui 7 `postgres_ledger` e todos os futuros E2E) | S-C.2.1 (exposto) | **S-C.2.1** (fix no mesmo PR) | **resolvido** (PR S-C.2.1) |
+| DT-10 | Workflows `ci-on-pr.yml`/`ci-on-push.yml` duplicados/desatualizados — intenção vs `ci.yml` principal não documentada | S-C.2 | **S-C.3** (decidir/consolidar) | registrado |
 
 ## 3. DESBLOQUEIO OBRIGATÓRIO — S-C.2.1 (antes do S-C.3)
 

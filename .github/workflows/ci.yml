@@ -24,7 +24,7 @@ jobs:
           POSTGRES_USER: cij
           POSTGRES_PASSWORD: ci_test_password
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U cij -d cij_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -83,6 +83,7 @@ jobs:
       - name: Run unit tests with coverage threshold
         env:
           ENVIRONMENT: test
+          DATABASE_URL: postgresql://cij:ci_test_password@localhost:5432/cij_test
         run: |
           # Cobertura mínima imposta no CI (barreira anti-regressão).
           # Sprint 1: 50% | Sprint 2: 65% | Sprint 3: 80%
@@ -93,6 +94,7 @@ jobs:
       - name: Run integration tests
         env:
           ENVIRONMENT: test
+          DATABASE_URL: postgresql://cij:ci_test_password@localhost:5432/cij_test
         run: |
           python -m pytest tests/integration/ -v --tb=short
 
