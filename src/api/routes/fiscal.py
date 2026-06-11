@@ -401,36 +401,36 @@ async def calcular_apuracao(
         from datetime import datetime, timezone
 
         async with get_async_session() as session:
-            escrit_repo = EscrituracaoRepository(session)
-            escrit = await escrit_repo.get(eid)
-            if escrit is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Escrituração {escrituracao_id} não encontrada.",
-                )
-
-            # Reconstrói SpedRecord a partir dos RegistroFiscal persistidos
-            reg_repo = RegistroFiscalRepository(session)
-            registros_db = await reg_repo.list_by_escrituracao(eid, limit=5000)
-
-            records = [
-                SpedRecord(
-                    bloco=r.bloco,
-                    tipo_registro=r.tipo_registro,
-                    campos=r.dados or {},
-                    numero_linha=r.numero_linha,
-                )
-                for r in registros_db
-            ]
-
-            # Calcula apuração
-            engine = get_apuracao_engine()
-            resultado = engine.calcular(records, tipo=escrit.tipo)
-
-            # Persiste (deleta anteriores para idempotência)
             async with session.begin():
                 from sqlalchemy import delete as sa_delete
 
+                escrit_repo = EscrituracaoRepository(session)
+                escrit = await escrit_repo.get(eid)
+                if escrit is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Escrituração {escrituracao_id} não encontrada.",
+                    )
+
+                # Reconstrói SpedRecord a partir dos RegistroFiscal persistidos
+                reg_repo = RegistroFiscalRepository(session)
+                registros_db = await reg_repo.list_by_escrituracao(eid, limit=5000)
+
+                records = [
+                    SpedRecord(
+                        bloco=r.bloco,
+                        tipo_registro=r.tipo_registro,
+                        campos=r.dados or {},
+                        numero_linha=r.numero_linha,
+                    )
+                    for r in registros_db
+                ]
+
+                # Calcula apuração (puro Python — sem acesso a DB)
+                engine = get_apuracao_engine()
+                resultado = engine.calcular(records, tipo=escrit.tipo)
+
+                # Idempotência: apaga e regrava no mesmo session.begin()
                 await session.execute(
                     sa_delete(ApuracaoFiscal).where(
                         ApuracaoFiscal.escrituracao_id == eid
