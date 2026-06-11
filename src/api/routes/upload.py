@@ -200,6 +200,60 @@ async def upload_fiscal(
         storage_key,
     )
 
+    # ── Disparo do processamento (DT-05) ──────────────────────────────────────
+    # Celery disponível → enfileira task; caso contrário → executa inline.
+    competencia = f"{ano}-{mes:02d}" if mes else str(ano)
+    _regime = "lucro_real"  # TODO(S-C.3): extrair regime dos metadados do upload
+
+    try:
+        from src.workers.celery_app import celery_app as _celery
+        from src.workers.tasks import _execute_processing, process_sped_file
+
+        if _celery is not None and storage_key:
+            process_sped_file.delay(
+                file_key=storage_key,
+                tenant_id=(
+                    str(_principal.user_id)
+                    if hasattr(_principal, "user_id")
+                    else "anon"
+                ),
+                cnpj_masked=cnpj_masked or "",
+                competencia=competencia,
+                escrituracao_id=db_id,
+                tipo=tipo,
+                regime=_regime,
+            )
+            logger.info(
+                "process_sped_file enfileirado via Celery (correlation_id=%s)",
+                correlation_id,
+            )
+        else:
+            # Inline: executa no mesmo loop assíncrono (sem Celery/MinIO)
+            await _execute_processing(
+                file_key=storage_key or "",
+                tenant_id=(
+                    str(_principal.user_id)
+                    if hasattr(_principal, "user_id")
+                    else "anon"
+                ),
+                cnpj_masked=cnpj_masked or "",
+                competencia=competencia,
+                escrituracao_id=db_id,
+                tipo=tipo,
+                regime=_regime,
+                correlation_id=correlation_id,
+                raw_data=result.data,
+            )
+            logger.info(
+                "process_sped_file executado inline (correlation_id=%s)", correlation_id
+            )
+    except Exception as exc:
+        logger.warning(
+            "Falha ao disparar processamento (correlation_id=%s): %s",
+            correlation_id,
+            exc,
+        )
+
     return UploadResponse(
         correlation_id=correlation_id,
         filename=filename,
@@ -208,5 +262,5 @@ async def upload_fiscal(
         sha256=result.sha256,
         storage_key=storage_key,
         db_id=db_id,
-        message="Arquivo recebido e enfileirado para processamento.",
+        message="Arquivo recebido e processamento iniciado.",
     )

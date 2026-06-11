@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Icon, Badge, Stat, Spark } from '../../components/primitives.jsx';
+import { Icon, Badge, Stat } from '../../components/primitives.jsx';
 import { useToast } from '../../components/toast.jsx';
 import { api } from '../../api/client.js';
 
@@ -47,7 +47,7 @@ export default function TrainingScreen() {
     try {
       const res = await api.trainingTrain(agent.name, true);
       setProg(100); setPhase('done');
-      const imp = res.improvements || res.improvement;
+      const _imp = res.improvements || res.improvement;
       toast.success(`Sessão de treino concluída para ${agent.label}.`);
       await Promise.all([loadGlobal(), loadStats(agent.name)]);
     } catch (e) {

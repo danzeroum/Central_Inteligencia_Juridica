@@ -1,13 +1,13 @@
-"""Rotas do módulo Fiscal — Bloco A (S-A.1 Due Diligência 360° e S-A.2 Consultoria)."""
+"""Rotas do módulo Fiscal — Bloco A + C (S-A.1/A.2 + S-C.2)."""
 
 from __future__ import annotations
 
 import logging
 import re
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 
 from src.api.auth import AuthManager
@@ -175,3 +175,382 @@ async def consultoria_tributaria(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro interno. Referência: {correlation_id}",
         ) from exc
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S-C.2 Parte A — status e achados de escrituração
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class EscrituracaoStatusResponse(BaseModel):
+    id: str
+    status: str
+    tipo: str
+    origem: str
+    correlation_id: Optional[str] = None
+    total_registros: Optional[int] = None
+    registros_por_bloco: Optional[Dict[str, int]] = None
+    total_erros: Optional[int] = None
+    total_avisos: Optional[int] = None
+    created_at: str
+    updated_at: str
+
+
+class AchadoItem(BaseModel):
+    regra_id: str
+    severidade: str
+    campo: str
+    descricao: str
+    tipo_registro: str
+    numero_linha: int
+    valor_encontrado: Optional[Any] = None
+    dica: str = ""
+
+
+class AchadosResponse(BaseModel):
+    escrituracao_id: str
+    total: int
+    offset: int
+    limit: int
+    achados: List[AchadoItem]
+
+
+@router.get(
+    "/escrituracoes/{escrituracao_id}",
+    response_model=EscrituracaoStatusResponse,
+    summary="Status da escrituração fiscal",
+    description="Retorna status, contadores e correlation_id de uma escrituração.",
+)
+async def get_escrituracao_status(
+    escrituracao_id: str,
+    user_id: str = Depends(AuthManager.verify_token),
+) -> EscrituracaoStatusResponse:
+    """Consulta status de processamento de uma escrituração fiscal."""
+    try:
+        eid = uuid.UUID(escrituracao_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ID de escrituração inválido.",
+        )
+
+    try:
+        from src.db.session import get_async_session
+        from src.fiscal.repository import EscrituracaoRepository
+
+        async with get_async_session() as session:
+            repo = EscrituracaoRepository(session)
+            escrit = await repo.get(eid)
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("get_escrituracao_status [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )
+
+    if escrit is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Escrituração {escrituracao_id} não encontrada.",
+        )
+
+    details = escrit.details or {}
+    achados = details.get("achados", [])
+    erros = sum(1 for a in achados if a.get("severidade") == "erro")
+    avisos = sum(1 for a in achados if a.get("severidade") == "aviso")
+
+    return EscrituracaoStatusResponse(
+        id=str(escrit.id),
+        status=escrit.status,
+        tipo=escrit.tipo,
+        origem=escrit.origem,
+        correlation_id=details.get("correlation_id"),
+        total_registros=details.get("total_registros"),
+        registros_por_bloco=details.get("registros_por_bloco"),
+        total_erros=erros,
+        total_avisos=avisos,
+        created_at=escrit.created_at.isoformat(),
+        updated_at=escrit.updated_at.isoformat(),
+    )
+
+
+@router.get(
+    "/escrituracoes/{escrituracao_id}/achados",
+    response_model=AchadosResponse,
+    summary="Achados de regras fiscais",
+    description="Lista paginada de achados do motor de regras para uma escrituração.",
+)
+async def get_escrituracao_achados(
+    escrituracao_id: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    user_id: str = Depends(AuthManager.verify_token),
+) -> AchadosResponse:
+    """Retorna achados (violações de regras fiscais) de uma escrituração."""
+    try:
+        eid = uuid.UUID(escrituracao_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ID de escrituração inválido.",
+        )
+
+    try:
+        from src.db.session import get_async_session
+        from src.fiscal.repository import EscrituracaoRepository
+
+        async with get_async_session() as session:
+            repo = EscrituracaoRepository(session)
+            escrit = await repo.get(eid)
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("get_escrituracao_achados [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )
+
+    if escrit is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Escrituração {escrituracao_id} não encontrada.",
+        )
+
+    all_achados = (escrit.details or {}).get("achados", [])
+    page = all_achados[offset : offset + limit]
+
+    return AchadosResponse(
+        escrituracao_id=escrituracao_id,
+        total=len(all_achados),
+        offset=offset,
+        limit=limit,
+        achados=[AchadoItem(**a) for a in page],
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S-C.2 Parte B — apuração ICMS/PIS/COFINS
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ApuracaoTriggerResponse(BaseModel):
+    escrituracao_id: str
+    aprovado: bool
+    resumo: str
+    items: List[Dict[str, Any]]
+
+
+class ApuracaoListItem(BaseModel):
+    id: str
+    escrituracao_id: str
+    tributo: str
+    periodo_competencia: Optional[str]
+    total_debitos: str
+    total_creditos: str
+    saldo_apurado: str
+    situacao: str
+    total_divergencias: int
+    created_at: str
+
+
+@router.post(
+    "/escrituracoes/{escrituracao_id}/apuracao",
+    response_model=ApuracaoTriggerResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Calcular apuração fiscal",
+    description=(
+        "Calcula e persiste apuração ICMS/PIS/COFINS a partir dos registros "
+        "canônicos da escrituração. Pode ser chamado múltiplas vezes (idempotente)."
+    ),
+)
+async def calcular_apuracao(
+    escrituracao_id: str,
+    user_id: str = Depends(AuthManager.verify_token),
+) -> ApuracaoTriggerResponse:
+    """Calcula apuração para a escrituração fiscal indicada."""
+    try:
+        eid = uuid.UUID(escrituracao_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ID de escrituração inválido.",
+        )
+
+    try:
+        from src.db.models import ApuracaoFiscal
+        from src.db.session import get_async_session
+        from src.fiscal.apuracao import get_apuracao_engine
+        from src.fiscal.parser.base import SpedRecord
+        from src.fiscal.repository import (
+            ApuracaoFiscalRepository,
+            EscrituracaoRepository,
+            PeriodoFiscalRepository,
+            RegistroFiscalRepository,
+        )
+        from datetime import datetime, timezone
+
+        async with get_async_session() as session:
+            escrit_repo = EscrituracaoRepository(session)
+            escrit = await escrit_repo.get(eid)
+            if escrit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Escrituração {escrituracao_id} não encontrada.",
+                )
+
+            # Reconstrói SpedRecord a partir dos RegistroFiscal persistidos
+            reg_repo = RegistroFiscalRepository(session)
+            registros_db = await reg_repo.list_by_escrituracao(eid, limit=5000)
+
+            records = [
+                SpedRecord(
+                    bloco=r.bloco,
+                    tipo_registro=r.tipo_registro,
+                    campos=r.dados or {},
+                    numero_linha=r.numero_linha,
+                )
+                for r in registros_db
+            ]
+
+            # Calcula apuração
+            engine = get_apuracao_engine()
+            resultado = engine.calcular(records, tipo=escrit.tipo)
+
+            # Persiste (deleta anteriores para idempotência)
+            async with session.begin():
+                from sqlalchemy import delete as sa_delete
+
+                await session.execute(
+                    sa_delete(ApuracaoFiscal).where(
+                        ApuracaoFiscal.escrituracao_id == eid
+                    )
+                )
+                apuracao_repo = ApuracaoFiscalRepository(session)
+                periodo_repo = PeriodoFiscalRepository(session)
+
+                for item in resultado.items:
+                    periodo_str = item.periodo or ""
+                    try:
+                        ano_str, mes_str = periodo_str.split("-")
+                        ano = int(ano_str)
+                        mes: Optional[int] = int(mes_str)
+                    except (ValueError, AttributeError):
+                        ano = datetime.now(timezone.utc).year
+                        mes = None
+
+                    periodo = await periodo_repo.get_or_create(ano=ano, mes=mes)
+                    apuracao_obj = ApuracaoFiscal(
+                        escrituracao_id=eid,
+                        periodo_id=periodo.id,
+                        tributo=item.tributo,
+                        periodo_competencia=item.periodo or None,
+                        total_debitos=str(item.total_debitos),
+                        total_creditos=str(item.total_creditos),
+                        saldo_credor_anterior=str(item.saldo_credor_anterior),
+                        saldo_apurado=str(item.saldo_apurado),
+                        situacao=item.situacao,
+                        divergencias=[d.to_dict() for d in item.divergencias],
+                        detalhes=item.detalhes,
+                    )
+                    await apuracao_repo.save(apuracao_obj)
+
+        return ApuracaoTriggerResponse(
+            escrituracao_id=escrituracao_id,
+            aprovado=resultado.aprovado,
+            resumo=resultado.resumo,
+            items=[i.to_dict() for i in resultado.items],
+        )
+
+    except HTTPException:
+        raise
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("calcular_apuracao [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )
+
+
+@router.get(
+    "/apuracoes",
+    response_model=List[ApuracaoListItem],
+    summary="Listar apurações fiscais",
+    description="Lista apurações calculadas, opcionalmente filtradas por período e tributo.",
+)
+async def listar_apuracoes(
+    periodo: Optional[str] = Query(
+        None,
+        description="Competência AAAA-MM (ex: 2025-01)",
+        pattern=r"^\d{4}-\d{2}$",
+    ),
+    tributo: Optional[str] = Query(None, description="ICMS | PIS | COFINS"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    user_id: str = Depends(AuthManager.verify_token),
+) -> List[ApuracaoListItem]:
+    """Lista apurações com filtros opcionais."""
+    try:
+        from src.db.models import ApuracaoFiscal, PeriodoFiscal
+        from src.db.session import get_async_session
+        from sqlalchemy import select
+
+        async with get_async_session() as session:
+            stmt = (
+                select(ApuracaoFiscal)
+                .order_by(ApuracaoFiscal.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            if tributo:
+                stmt = stmt.where(ApuracaoFiscal.tributo == tributo.upper())
+            if periodo:
+                stmt = stmt.where(ApuracaoFiscal.periodo_competencia == periodo)
+
+            result = await session.execute(stmt)
+            items = list(result.scalars().all())
+
+        return [
+            ApuracaoListItem(
+                id=str(a.id),
+                escrituracao_id=str(a.escrituracao_id),
+                tributo=a.tributo,
+                periodo_competencia=a.periodo_competencia,
+                total_debitos=a.total_debitos,
+                total_creditos=a.total_creditos,
+                saldo_apurado=a.saldo_apurado,
+                situacao=a.situacao,
+                total_divergencias=len(a.divergencias or []),
+                created_at=a.created_at.isoformat(),
+            )
+            for a in items
+        ]
+
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("listar_apuracoes [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )

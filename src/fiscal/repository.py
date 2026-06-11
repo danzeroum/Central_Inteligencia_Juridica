@@ -23,6 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import (
+    ApuracaoFiscal,
     DocumentoFiscal,
     EscrituracaoFiscal,
     PeriodoFiscal,
@@ -206,3 +207,100 @@ class PeriodoFiscalRepository:
             self._session.add(obj)
             await self._session.flush()
         return obj
+
+
+class RegistroFiscalRepository:
+    """Repositório para RegistroFiscal — escrita em lote e leitura por escrituração."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_by_escrituracao(
+        self,
+        escrituracao_id: uuid.UUID,
+        *,
+        tipo_registro: Optional[str] = None,
+        limit: int = 500,
+        offset: int = 0,
+    ) -> List[RegistroFiscal]:
+        stmt = (
+            select(RegistroFiscal)
+            .where(RegistroFiscal.escrituracao_id == escrituracao_id)
+            .order_by(RegistroFiscal.numero_linha)
+            .limit(limit)
+            .offset(offset)
+        )
+        if tipo_registro:
+            stmt = stmt.where(RegistroFiscal.tipo_registro == tipo_registro)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_by_escrituracao(self, escrituracao_id: uuid.UUID) -> int:
+        from sqlalchemy import func
+
+        stmt = select(func.count()).where(
+            RegistroFiscal.escrituracao_id == escrituracao_id
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
+    async def save_batch(self, registros: List[RegistroFiscal]) -> None:
+        for reg in registros:
+            self._session.add(reg)
+        await self._session.flush()
+
+    async def delete_by_escrituracao(self, escrituracao_id: uuid.UUID) -> int:
+        from sqlalchemy import delete as sa_delete
+
+        stmt = sa_delete(RegistroFiscal).where(
+            RegistroFiscal.escrituracao_id == escrituracao_id
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount
+
+
+class ApuracaoFiscalRepository:
+    """Repositório para ApuracaoFiscal com cache de leitura."""
+
+    _NS = "apuracao"
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, apuracao_id: uuid.UUID) -> Optional[ApuracaoFiscal]:
+        stmt = select(ApuracaoFiscal).where(ApuracaoFiscal.id == apuracao_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_by_escrituracao(
+        self, escrituracao_id: uuid.UUID
+    ) -> List[ApuracaoFiscal]:
+        stmt = (
+            select(ApuracaoFiscal)
+            .where(ApuracaoFiscal.escrituracao_id == escrituracao_id)
+            .order_by(ApuracaoFiscal.created_at)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_by_periodo(
+        self,
+        periodo_id: uuid.UUID,
+        *,
+        tributo: Optional[str] = None,
+    ) -> List[ApuracaoFiscal]:
+        stmt = (
+            select(ApuracaoFiscal)
+            .where(ApuracaoFiscal.periodo_id == periodo_id)
+            .order_by(ApuracaoFiscal.created_at.desc())
+        )
+        if tributo:
+            stmt = stmt.where(ApuracaoFiscal.tributo == tributo)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def save(self, apuracao: ApuracaoFiscal) -> ApuracaoFiscal:
+        self._session.add(apuracao)
+        await self._session.flush()
+        _try_delete_cache(_cache_key(self._NS, apuracao.id))
+        return apuracao
