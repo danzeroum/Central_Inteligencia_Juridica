@@ -14,6 +14,7 @@ Uso:
 """
 
 from .base import ParseResult, SpedParser, SpedRecord
+from .pdf_fiscal import DactParser, DanfeParser, PdfFiscalParser, PdfParseResult, get_pdf_parser
 from .registry import get_parser
 from .sped_efd_contrib import SpedEfdContribParser
 from .sped_efd_icms import SpedEfdIcmsParser
@@ -21,14 +22,19 @@ from .xml_fiscal import CTeParser, NFeParser, NFSeParser, XmlParseResult, get_xm
 
 __all__ = [
     "CTeParser",
+    "DactParser",
+    "DanfeParser",
     "NFeParser",
     "NFSeParser",
     "ParseResult",
+    "PdfFiscalParser",
+    "PdfParseResult",
     "SpedEfdContribParser",
     "SpedEfdIcmsParser",
     "SpedParser",
     "SpedRecord",
     "XmlParseResult",
     "get_parser",
+    "get_pdf_parser",
     "get_xml_parser",
 ]
