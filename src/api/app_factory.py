@@ -92,6 +92,11 @@ def create_app() -> FastAPI:
 
     app.include_router(fiscal_router)
 
+    # Bloco B — Ingestão & Normalização
+    from src.api.routes.upload import router as upload_router
+
+    app.include_router(upload_router)
+
     @app.exception_handler(Exception)
     async def _unhandled_exception_handler(
         request: Request, exc: Exception
