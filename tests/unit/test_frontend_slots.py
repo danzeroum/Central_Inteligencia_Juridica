@@ -103,11 +103,15 @@ def test_slots_endpoint_returns_200(api_client):
     assert resp.status_code == 200
 
 
-def test_slots_endpoint_returns_3_builtin_slots(api_client):
+def test_slots_endpoint_returns_builtin_slots(api_client):
+    """Verifica que o endpoint retorna pelo menos os slots dos módulos built-in."""
+    from src.modules.core import BUILTIN_MODULES
+
+    expected = sum(1 for m in BUILTIN_MODULES if m.is_active and m.slot is not None)
     resp = api_client.get("/api/v1/slots")
     body = resp.json()
-    assert body["total"] == 3
-    assert len(body["slots"]) == 3
+    assert body["total"] == expected
+    assert len(body["slots"]) == expected
 
 
 def test_slots_are_ordered_by_order_field(api_client):

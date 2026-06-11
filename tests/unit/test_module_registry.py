@@ -99,11 +99,14 @@ def test_registry_overwrite_on_re_register():
 def test_builtin_modules_count():
     from src.modules.core import BUILTIN_MODULES
 
-    assert len(BUILTIN_MODULES) == 3
+    assert len(BUILTIN_MODULES) >= 3
     ids = {m.module_id for m in BUILTIN_MODULES}
     assert "juridico_core" in ids
     assert "legislativo" in ids
     assert "jurisprudencia" in ids
+    # Bloco A (Onda 2)
+    assert "cadastro_risco" in ids
+    assert "consultoria_tributaria" in ids
 
 
 def test_get_module_registry_singleton_has_builtins():

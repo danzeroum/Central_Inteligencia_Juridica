@@ -87,6 +87,11 @@ def create_app() -> FastAPI:
     app.include_router(slots_router)
     app.include_router(jobs_router)
 
+    # Bloco A — Quick Wins Fiscais
+    from src.api.routes.fiscal import router as fiscal_router
+
+    app.include_router(fiscal_router)
+
     @app.exception_handler(Exception)
     async def _unhandled_exception_handler(
         request: Request, exc: Exception
