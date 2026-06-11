@@ -14,7 +14,13 @@ Uso:
 """
 
 from .base import ParseResult, SpedParser, SpedRecord
-from .pdf_fiscal import DactParser, DanfeParser, PdfFiscalParser, PdfParseResult, get_pdf_parser
+from .pdf_fiscal import (
+    DactParser,
+    DanfeParser,
+    PdfFiscalParser,
+    PdfParseResult,
+    get_pdf_parser,
+)
 from .registry import get_parser
 from .sped_efd_contrib import SpedEfdContribParser
 from .sped_efd_icms import SpedEfdIcmsParser
