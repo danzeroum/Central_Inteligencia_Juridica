@@ -4,7 +4,9 @@ CLOUD-READINESS: a persistência fica atrás de uma interface (``LedgerStore``).
 O backend padrão (``file``) grava um JSONL local — perfeito para Docker
 single-node. Definindo ``LEDGER_BACKEND=redis``, a trilha passa a viver no Redis,
 compartilhada entre todas as réplicas (a réplica que grava uma decisão HITL e a
-que serve a auditoria veem as mesmas entradas). Os chamadores não mudam.
+que serve a auditoria veem as mesmas entradas). Definindo ``LEDGER_BACKEND=postgres``
+(Onda 2), as entradas são gravadas na tabela ``ledger_entry`` do PostgreSQL —
+durável, indexável e acessível via SQL. Os chamadores não mudam.
 """
 
 from __future__ import annotations
@@ -115,6 +117,102 @@ class RedisLedgerStore:
             logger.error("Error rewriting ledger in Redis: %s", exc)
 
 
+class PostgresLedgerStore:
+    """Trilha persistida em PostgreSQL via psycopg2 síncrono (Onda 2).
+
+    Requer ``DATABASE_URL`` configurada e a migração 0001 aplicada.
+    Compartilhada entre todas as réplicas (shared=True).
+    """
+
+    shared = True
+
+    def __init__(self) -> None:
+        from src.db.engine import get_sync_engine
+        from src.db.models import LedgerEntry
+
+        self._engine = get_sync_engine()
+        self._model = LedgerEntry
+
+    def _row_to_dict(self, row: Any) -> Dict[str, Any]:
+        return {
+            "id": row.id,
+            "agent_type": row.agent_type,
+            "decision_type": row.decision_type,
+            "metadata": row.metadata_ or {},
+            "timestamp": row.timestamp.isoformat() if row.timestamp else "",
+            "timestamp_readable": row.timestamp_readable or "",
+        }
+
+    def _parse_timestamp(self, ts_str: str) -> Any:
+        from datetime import datetime, timezone
+
+        if not ts_str:
+            return datetime.now(timezone.utc)
+        try:
+            dt = datetime.fromisoformat(ts_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            return datetime.now(timezone.utc)
+
+    def append(self, entry: Dict[str, Any]) -> None:
+        from sqlalchemy.orm import Session
+
+        try:
+            with Session(self._engine) as session:
+                row = self._model(
+                    id=entry["id"],
+                    agent_type=entry["agent_type"],
+                    decision_type=entry["decision_type"],
+                    metadata_=entry.get("metadata"),
+                    timestamp=self._parse_timestamp(entry.get("timestamp", "")),
+                    timestamp_readable=entry.get("timestamp_readable"),
+                )
+                session.add(row)
+                session.commit()
+        except Exception as exc:
+            logger.error("Error inserting ledger entry to Postgres: %s", exc)
+
+    def load_all(self) -> List[Dict[str, Any]]:
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+
+        try:
+            with Session(self._engine) as session:
+                rows = (
+                    session.execute(select(self._model).order_by(self._model.timestamp))
+                    .scalars()
+                    .all()
+                )
+                return [self._row_to_dict(r) for r in rows]
+        except Exception as exc:
+            logger.error("Error loading ledger from Postgres: %s", exc)
+            return []
+
+    def replace_all(self, entries: List[Dict[str, Any]]) -> None:
+        from sqlalchemy import delete
+        from sqlalchemy.orm import Session
+
+        try:
+            with Session(self._engine) as session:
+                session.execute(delete(self._model))
+                for entry in entries:
+                    session.add(
+                        self._model(
+                            id=entry["id"],
+                            agent_type=entry["agent_type"],
+                            decision_type=entry["decision_type"],
+                            metadata_=entry.get("metadata"),
+                            timestamp=self._parse_timestamp(entry.get("timestamp", "")),
+                            timestamp_readable=entry.get("timestamp_readable"),
+                        )
+                    )
+                session.commit()
+        except Exception as exc:
+            logger.error("Error replacing ledger in Postgres: %s", exc)
+
+
 def _build_store(log_file: str) -> LedgerStore:
     backend = os.getenv("LEDGER_BACKEND", "file").strip().lower()
     if backend == "redis":
@@ -127,6 +225,20 @@ def _build_store(log_file: str) -> LedgerStore:
             "LEDGER_BACKEND=redis mas nenhum cliente Redis disponível; "
             "usando arquivo local (não compartilhado entre réplicas)."
         )
+    if backend == "postgres":
+        try:
+            from src.db.engine import get_sync_engine
+
+            if get_sync_engine() is not None:
+                return PostgresLedgerStore()
+            logger.warning(
+                "LEDGER_BACKEND=postgres mas DATABASE_URL não configurada; "
+                "usando arquivo local."
+            )
+        except Exception as exc:
+            logger.warning(
+                "LEDGER_BACKEND=postgres falhou (%s); usando arquivo local.", exc
+            )
     return FileLedgerStore(log_file)
 
 
