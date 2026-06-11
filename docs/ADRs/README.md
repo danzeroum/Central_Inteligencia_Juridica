@@ -19,6 +19,10 @@ para novos registros.
 | [010](ADR-010-orquestrador.md) | Orquestrador unificado + Circuit Breaker | Aceito |
 | [011](ADR-011-sandbox-decision.md) | Decisão de sandbox de execução | Aceito |
 | [012](ADR-012-numpy-constraint.md) | Restrição NumPy < 2.0 (compat. ChromaDB) | Aceito |
+| [013](ADR-013-datajud-fonte-judicial.md) | DataJud como fonte primária de dados judiciais | Aceito |
+| [014](ADR-014-geracao-de-pecas.md) | Geração de peças jurídicas | Aceito |
+| [015](ADR-015-analise-de-contratos.md) | Análise de contratos | Aceito |
+| [016](ADR-016-regras-fiscais-deterministas.md) | Regras fiscais determinísticas sem `weighted_voting` | Aceito |
 
 > **Nota sobre numeração:** os números **006** e **009** não possuem ADR emitido —
 > antigos rascunhos genéricos ("Raciocínio" e "Resiliência") foram removidos por

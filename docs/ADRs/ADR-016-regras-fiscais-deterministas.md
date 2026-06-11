@@ -1,4 +1,4 @@
-# ADR-001 — Regras fiscais determinísticas sem `weighted_voting`
+# ADR-016 — Regras fiscais determinísticas sem `weighted_voting`
 
 **Status:** Aceito  
 **Data:** 2026-06-11  
