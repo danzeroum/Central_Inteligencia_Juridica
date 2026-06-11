@@ -34,13 +34,23 @@ function extract(result) {
   const tribunals = result?.tribunals_used || sr.tribunals || intent.tribunais || [];
   const confidence = intent.confidence ?? sr.consensus_strength ?? null;
 
-  // Detectar resultados de jurisprudência (por tribunal)
+  // Detectar resultados de jurisprudência
   const jurisResults = [];
-  const tribunalData = sr.tribunals || {};
+
+  // Caso 1: supervisor_result tem sr.tribunals = { TJSP: { operation, processos, ... } }
+  const tribunalData = typeof sr.tribunals === 'object' && !Array.isArray(sr.tribunals)
+    ? sr.tribunals
+    : {};
   for (const [trib, data] of Object.entries(tribunalData)) {
     if (data?.operation === 'jurisprudencia' && data?.processos) {
       jurisResults.push({ tribunal: trib, ...data });
     }
+  }
+
+  // Caso 2: TribunalAgent devolve resultado flat no próprio supervisor_result
+  // ex.: { tribunal:"TJSP", operation:"jurisprudencia", processos:[...], total:N }
+  if (jurisResults.length === 0 && sr.operation === 'jurisprudencia' && sr.processos) {
+    jurisResults.push({ tribunal: sr.tribunal || 'TJSP', ...sr });
   }
 
   const text =
