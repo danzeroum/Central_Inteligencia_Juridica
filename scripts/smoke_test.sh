@@ -78,24 +78,26 @@ jval() {
 }
 
 # ─── Auto-detecção de credenciais do AUTH_USERS do container ────────────────
-# Só ativa quando SMOKE_MODE=docker e o usuário não passou ADMIN_USER explícito
+# Só ativa quando SMOKE_MODE=docker e o usuário não passou ADMIN_USER explícito.
+# Usa variável de ambiente AUTH_JSON para passar o dado ao Python (evita
+# conflito pipe+heredoc onde heredoc sobrescreve stdin do pipe).
 _CRED_AUTODETECT=0
 if [ "$SMOKE_MODE" = "docker" ] && [ "${ADMIN_USER}" = "admin" ]; then
   _AUTH_USERS_JSON=$(docker exec "$CONTAINER" sh -c 'printf "%s" "$AUTH_USERS"' 2>/dev/null || echo "")
   if [ -n "$_AUTH_USERS_JSON" ] && [ "$_AUTH_USERS_JSON" != "{}" ]; then
-    _DETECTED=$(printf '%s' "$_AUTH_USERS_JSON" | python3 - <<'PYDET'
-import sys, json
+    _DETECTED=$(AUTH_JSON="$_AUTH_USERS_JSON" python3 -c '
+import json, os, sys
 try:
-    users = json.loads(sys.stdin.read())
+    users = json.loads(os.environ.get("AUTH_JSON","{}"))
     admin = next(
-        ((k, v['password']) for k,v in users.items() if 'admin' in v.get('roles',[])),
+        ((k, v["password"]) for k,v in users.items() if "admin" in v.get("roles",[])),
         None
     )
     op = next(
-        ((k, v['password']) for k,v in users.items()
-         if any(r in v.get('roles',[]) for r in ('operator','auditor'))
-         and 'admin' not in v.get('roles',[])),
-        admin  # fallback: usa o admin como operador se não houver outro
+        ((k, v["password"]) for k,v in users.items()
+         if any(r in v.get("roles",[]) for r in ("operator","auditor"))
+         and "admin" not in v.get("roles",[])),
+        admin
     )
     if admin:
         print(f"ADMIN_USER={admin[0]}")
@@ -105,9 +107,8 @@ try:
         print(f"OP_PASS={op[1]}")
     print("AUTODETECT=1")
 except Exception as e:
-    pass
-PYDET
-)
+    sys.stderr.write(f"autodetect error: {e}\n")
+' 2>/dev/null || echo "")
     if echo "$_DETECTED" | grep -q "AUTODETECT=1"; then
       eval "$_DETECTED"
       _CRED_AUTODETECT=1
@@ -119,8 +120,11 @@ echo -e "${BOLD}Central de Inteligência Jurídica — Smoke Test${NC}"
 echo    "Modo     : $info_mode"
 if [ "$_CRED_AUTODETECT" = "1" ]; then
   echo  "Auth     : credenciais detectadas do AUTH_USERS (admin=${ADMIN_USER}, op=${OP_USER})"
+elif [ "$SMOKE_MODE" = "docker" ] && [ -z "$_AUTH_USERS_JSON" ]; then
+  echo  "Auth     : AUTH_USERS vazio no container — usando padrões (admin=${ADMIN_USER})"
+  echo  "           DICA: defina AUTH_USERS no .env ou passe: ADMIN_PASS=suasenha bash smoke_test.sh"
 else
-  echo  "Auth     : ADMIN_USER=${ADMIN_USER} OP_USER=${OP_USER}"
+  echo  "Auth     : ADMIN_USER=${ADMIN_USER} OP_USER=${OP_USER} (passe ADMIN_PASS=xxx se falhar)"
 fi
 echo    "Data/hora: $(date '+%Y-%m-%d %H:%M:%S %Z')"
 
