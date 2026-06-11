@@ -185,6 +185,26 @@ class A2ABroadcastResponse(BaseModel):
     total_sent: int
 
 
+class ModuleResponse(BaseModel):
+    """Manifesto de um módulo registrado na plataforma."""
+
+    module_id: str
+    name: str
+    version: str
+    description: str = ""
+    capabilities: List[str] = Field(default_factory=list)
+    agent_types: List[str] = Field(default_factory=list)
+    endpoints: List[str] = Field(default_factory=list)
+    is_active: bool
+
+
+class ModuleListResponse(BaseModel):
+    """Lista de módulos registrados (``GET /api/v1/modules``)."""
+
+    total: int
+    modules: List[ModuleResponse]
+
+
 class HistoryRecord(BaseModel):
     """Uma consulta processada no histórico do consulente."""
 

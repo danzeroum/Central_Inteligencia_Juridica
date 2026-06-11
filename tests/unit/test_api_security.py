@@ -96,13 +96,13 @@ class TestErrorDisclosure:
     """SEC-004 / CWE-209: detalhes internos não vazam na resposta 500."""
 
     def test_advanced_endpoint_does_not_leak_exception(self, monkeypatch) -> None:
-        from src.api import main as main_module
+        from src.api.state import unified_orchestrator
 
         async def boom(_payload):
             raise RuntimeError("segredo-interno /etc/passwd host=db pass=1234")
 
         monkeypatch.setattr(
-            main_module.unified_orchestrator, "execute_complex_task", boom
+            unified_orchestrator, "execute_complex_task", boom
         )
 
         resp = client.post("/api/v1/tasks/advanced", json={"task_description": "x"})

@@ -86,7 +86,7 @@ def test_supervisor_vector_memory_is_lazy():
 
 # --- H06: API pública do supervisor (sem chamar métodos privados na HTTP) ---
 def test_supervisor_exposes_public_methods():
-    from src.api.main import supervisor_agent
+    from src.api.state import supervisor_agent
 
     assert hasattr(supervisor_agent, "identify_all_tribunals")
     assert hasattr(supervisor_agent, "delegate_to_tribunal_agent")
@@ -99,15 +99,15 @@ class TestAgentIdValidationRegression:
     def test_invalid_agent_ids_rejected(self, bad):
         from fastapi import HTTPException
 
-        from src.api.main import _validate_agent_id
+        from src.api.routes._shared import validate_agent_id
 
         with pytest.raises(HTTPException):
-            _validate_agent_id(bad, "agent_id")
+            validate_agent_id(bad, "agent_id")
 
     def test_valid_agent_id_accepted(self):
-        from src.api.main import _validate_agent_id
+        from src.api.routes._shared import validate_agent_id
 
-        assert _validate_agent_id("tjsp_agent.v1-2", "agent_id") == "tjsp_agent.v1-2"
+        assert validate_agent_id("tjsp_agent.v1-2", "agent_id") == "tjsp_agent.v1-2"
 
 
 # --- Onda 0: D11 — CI/CD existe (PDF afirmava que não) ----------------------
