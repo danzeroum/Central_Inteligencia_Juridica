@@ -353,6 +353,64 @@ def _handle_e520(campos: List[str]) -> Dict[str, Any]:
     return d
 
 
+# Bloco E — ICMS-ST (E300/E310)
+
+_E300_CAMPOS = [
+    "uf_des",
+    "vl_sld_credor_ant",
+    "vl_tot_debitos",
+    "vl_aj_debitos",
+    "vl_tot_debitos_especiais",
+    "vl_aj_creditos",
+    "vl_tot_creditos",
+    "vl_sld_devedor",
+    "vl_sld_credor",
+]
+
+
+def _handle_e300(campos: List[str]) -> Dict[str, Any]:
+    d = _zip_campos(_E300_CAMPOS, campos)
+    _apply_dec(d, *_E300_CAMPOS[1:])  # skip uf_des (string)
+    return d
+
+
+_E310_CAMPOS = [
+    "vl_tot_debitos",
+    "vl_aj_debitos",
+    "vl_tot_debitos_especiais",
+    "vl_aj_creditos",
+    "vl_tot_creditos",
+    "vl_sld_credor_ant",
+    "vl_sld_apurado",
+    "vl_tot_deducoes",
+    "vl_tot_retencoes",
+]
+
+
+def _handle_e310(campos: List[str]) -> Dict[str, Any]:
+    d = _zip_campos(_E310_CAMPOS, campos)
+    _apply_dec(d, *_E310_CAMPOS)
+    return d
+
+
+# Bloco E — IPI ajustes (E530)
+
+_E530_CAMPOS = [
+    "cod_aj",
+    "ind_doc",
+    "num_doc",
+    "cod_item",
+    "vl_aj_ipi",
+    "descr_compl_aj",
+]
+
+
+def _handle_e530(campos: List[str]) -> Dict[str, Any]:
+    d = _zip_campos(_E530_CAMPOS, campos)
+    _apply_dec(d, "vl_aj_ipi")
+    return d
+
+
 _E111_CAMPOS = ["cod_aj_apur", "descr_compl_aj", "vl_aj_apur"]
 
 
@@ -438,7 +496,10 @@ class SpedEfdIcmsParser(SpedParser):
         self.register_handler("E111", _handle_e111)
         self.register_handler("E112", _handle_e112)
         self.register_handler("E113", _handle_e113)
+        self.register_handler("E300", _handle_e300)
+        self.register_handler("E310", _handle_e310)
         self.register_handler("E520", _handle_e520)
+        self.register_handler("E530", _handle_e530)
         self.register_handler("E990", _handle_qt_lin)
         # Bloco 9
         self.register_handler("9001", _handle_ind_mov)

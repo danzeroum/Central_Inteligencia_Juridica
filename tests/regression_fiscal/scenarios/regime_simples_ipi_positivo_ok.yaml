@@ -1,0 +1,16 @@
+name: IPI em simples_nacional com valor positivo — sem violação
+regime: simples_nacional
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_icms: 0,00
+    vl_bc_icms: 0,00
+    vl_bc_ipi: 100,00
+    vl_ipi: 10,00
+esperado:
+  regra_ids_ausentes:
+  - IPI-001
+  - IPI-002
+  aprovado: true

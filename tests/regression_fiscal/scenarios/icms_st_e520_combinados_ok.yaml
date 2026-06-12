@@ -1,0 +1,29 @@
+name: ICMS-ST + E520 declarado correto — sem violações
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_icms: 100,00
+    vl_bc_icms: 833,00
+    vl_bc_icms_st: 200,00
+    vl_icmsst: 24,00
+    vl_ipi: 15,00
+    vl_bc_ipi: 150,00
+- tipo_registro: E520
+  campos:
+    vl_sd_ant_ipi: 0,00
+    vl_tot_deb_ipi: 15,00
+    vl_ot_cred_ipi: 0,00
+    vl_icms_ressarc: 0,00
+    vl_sd_cred_ipi: 0,00
+    vl_ipi_recolher: 15,00
+    vl_sd_cred_ipi_transp: 0,00
+esperado:
+  regra_ids_ausentes:
+  - ST-001
+  - ST-002
+  - IPI-001
+  - E520-001
+  aprovado: true

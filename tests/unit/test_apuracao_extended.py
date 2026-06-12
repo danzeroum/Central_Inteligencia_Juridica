@@ -53,16 +53,16 @@ def _e110(**kwargs) -> SpedRecord:
 
 
 def test_e111_ajuste_debito():
-    """E111 com 3º char='1' → débito → soma ao saldo devedor.
+    """E111 natureza 0 (outros débitos, SP000207) → soma ao saldo devedor.
 
-    Manual: debitos=100, creditos=0, ajustes_debito=50, ajustes_credito=0
-    saldo = 100 - 0 + 50 - 0 - 0 = 150 (devedor)
+    DT-14: 4º char (índice 3) determina natureza. '0' → ajustes_debito.
+    Manual: debitos=100, creditos=0, ajustes_debito=50 → saldo=150 (devedor)
     """
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
         _e110(vl_tot_debitos="100,00", vl_sld_apurado="150,00"),
-        _rec("E111", cod_aj_apur="MG1XXXXX", vl_aj_apur="50,00"),
+        _rec("E111", cod_aj_apur="SP000207", vl_aj_apur="50,00"),
     ]
     item = engine.calcular_icms(records)
     assert item.ajustes_debito == Decimal("50")
@@ -72,16 +72,16 @@ def test_e111_ajuste_debito():
 
 
 def test_e111_ajuste_credito():
-    """E111 com 3º char='2' → crédito → reduz saldo devedor.
+    """E111 natureza 2 (outros créditos, SP020303) → reduz saldo devedor.
 
-    Manual: debitos=200, creditos=0, ajustes_debito=0, ajustes_credito=50
-    saldo = 200 - 0 + 0 - 50 - 0 = 150 (devedor)
+    DT-14: 4º char '2' → ajustes_credito.
+    Manual: debitos=200, ajustes_credito=50 → saldo=150 (devedor)
     """
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="200,00"),
         _e110(vl_tot_debitos="200,00", vl_sld_apurado="150,00"),
-        _rec("E111", cod_aj_apur="MG2XXXXX", vl_aj_apur="50,00"),
+        _rec("E111", cod_aj_apur="SP020303", vl_aj_apur="50,00"),
     ]
     item = engine.calcular_icms(records)
     assert item.ajustes_credito == Decimal("50")
@@ -91,18 +91,19 @@ def test_e111_ajuste_credito():
 
 
 def test_e111_multiplos():
-    """Múltiplos E111 (débito e crédito) → efeito líquido correto.
+    """Múltiplos E111 — naturezas 1 (estorno créditos) e 2 (outros créditos).
 
-    Manual: debitos=100, creditos=0, ajustes_debito=30+20=50, ajustes_credito=10
-    saldo = 100 - 0 + 50 - 10 - 0 = 140 (devedor)
+    DT-14: SP010001/SP010002 → 4º char '1' → ajustes_debito.
+           SP020001 → 4º char '2' → ajustes_credito.
+    Manual: debitos=100, ajustes_debito=50, ajustes_credito=10 → saldo=140
     """
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
         _e110(vl_tot_debitos="100,00", vl_sld_apurado="140,00"),
-        _rec("E111", cod_aj_apur="SP1AAAAA", vl_aj_apur="30,00"),
-        _rec("E111", cod_aj_apur="SP1BBBBB", vl_aj_apur="20,00"),
-        _rec("E111", cod_aj_apur="SP2CCCCC", vl_aj_apur="10,00"),
+        _rec("E111", cod_aj_apur="SP010001", vl_aj_apur="30,00"),
+        _rec("E111", cod_aj_apur="SP010002", vl_aj_apur="20,00"),
+        _rec("E111", cod_aj_apur="SP020001", vl_aj_apur="10,00"),
     ]
     item = engine.calcular_icms(records)
     assert item.ajustes_debito == Decimal("50")
@@ -111,12 +112,12 @@ def test_e111_multiplos():
 
 
 def test_e111_codigo_invalido():
-    """E111 com 3º char ≠ '1' ou '2' → AVISO divergência, não soma a ajustes."""
+    """E111 com 4º char não reconhecido ('6') → AVISO, não soma a ajustes."""
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
         _e110(vl_tot_debitos="100,00", vl_sld_apurado="100,00"),
-        _rec("E111", cod_aj_apur="MG9XXXXX", vl_aj_apur="50,00"),
+        _rec("E111", cod_aj_apur="SP060101", vl_aj_apur="50,00"),
     ]
     item = engine.calcular_icms(records)
     avisos = [d for d in item.divergencias if d.severidade == Severidade.AVISO]
@@ -131,7 +132,7 @@ def test_e111_orfao_sem_e110():
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
-        _rec("E111", cod_aj_apur="MG1XXXXX", vl_aj_apur="50,00"),
+        _rec("E111", cod_aj_apur="SP000207", vl_aj_apur="50,00"),
     ]
     item = engine.calcular_icms(records)
     erros = [d for d in item.divergencias if d.severidade == Severidade.ERRO]
@@ -160,9 +161,9 @@ def test_e112_e113_contagem():
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
         _e110(vl_tot_debitos="100,00", vl_sld_apurado="150,00"),
-        _rec("E111", cod_aj_apur="MG1XXXXX", vl_aj_apur="50,00"),
-        _rec("E112", cod_aj_apur="MG1XXXXX", num_da="12345"),
-        _rec("E113", cod_aj_apur="MG1XXXXX", num_doc="99999"),
+        _rec("E111", cod_aj_apur="SP000207", vl_aj_apur="50,00"),
+        _rec("E112", cod_aj_apur="SP000207", num_da="12345"),
+        _rec("E113", cod_aj_apur="SP000207", num_doc="99999"),
     ]
     item = engine.calcular_icms(records)
     assert item.detalhes["e111_count"] == 1
@@ -413,7 +414,7 @@ def test_item_apuracao_to_dict_inclui_ajustes():
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
         _e110(vl_tot_debitos="100,00", vl_sld_apurado="150,00"),
-        _rec("E111", cod_aj_apur="MG1XXXXX", vl_aj_apur="50,00"),
+        _rec("E111", cod_aj_apur="SP000207", vl_aj_apur="50,00"),
     ]
     item = engine.calcular_icms(records)
     d = item.to_dict()
@@ -424,7 +425,7 @@ def test_item_apuracao_to_dict_inclui_ajustes():
 
 
 def test_e111_cod_curto_aviso():
-    """E111 com cod_aj_apur < 3 chars → aviso com '(vazio)' ou o código curto."""
+    """E111 com cod_aj_apur < 4 chars → aviso (código curto)."""
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
@@ -437,16 +438,124 @@ def test_e111_cod_curto_aviso():
 
 
 def test_e111_ajuste_reduz_para_credor():
-    """Ajuste crédito grande → saldo vira credor.
+    """Ajuste crédito (natureza 3, estorno débitos) grande → saldo credor.
 
-    Manual: debitos=50, creditos=0, ajustes_credito=80 → saldo=50-80=-30 (credor)
+    RJ030101 → 4º char '3' → ajustes_credito.
+    Manual: debitos=50, ajustes_credito=80 → saldo=-30 (credor)
     """
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="50,00"),
         _e110(vl_tot_debitos="50,00", vl_sld_apurado="-30,00"),
-        _rec("E111", cod_aj_apur="MG2YYYYY", vl_aj_apur="80,00"),
+        _rec("E111", cod_aj_apur="RJ030101", vl_aj_apur="80,00"),
     ]
     item = engine.calcular_icms(records)
     assert item.saldo_apurado == Decimal("-30")
     assert item.situacao == "credor"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DT-14: naturezas 0..5 (todas as 6 naturezas do 4º caractere)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_e111_natureza_0_outros_debitos():
+    """SP000207 → 4º char '0' (outros débitos) → ajustes_debito.
+
+    Manual: debitos=100, ajustes_debito=30 → saldo=130 (devedor)
+    """
+    engine = get_apuracao_engine()
+    records = [
+        _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
+        _e110(vl_tot_debitos="100,00", vl_sld_apurado="130,00"),
+        _rec("E111", cod_aj_apur="SP000207", vl_aj_apur="30,00"),
+    ]
+    item = engine.calcular_icms(records)
+    assert item.ajustes_debito == Decimal("30")
+    assert item.ajustes_credito == Decimal("0")
+    assert item.saldo_apurado == Decimal("130")
+
+
+def test_e111_natureza_1_estorno_creditos():
+    """SP010102 → 4º char '1' (estorno de créditos) → ajustes_debito.
+
+    Manual: debitos=100, ajustes_debito=20 → saldo=120 (devedor)
+    """
+    engine = get_apuracao_engine()
+    records = [
+        _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
+        _e110(vl_tot_debitos="100,00", vl_sld_apurado="120,00"),
+        _rec("E111", cod_aj_apur="SP010102", vl_aj_apur="20,00"),
+    ]
+    item = engine.calcular_icms(records)
+    assert item.ajustes_debito == Decimal("20")
+    assert item.saldo_apurado == Decimal("120")
+
+
+def test_e111_natureza_2_outros_creditos():
+    """SP020303 → 4º char '2' (outros créditos) → ajustes_credito.
+
+    Manual: debitos=200, ajustes_credito=40 → saldo=160 (devedor)
+    """
+    engine = get_apuracao_engine()
+    records = [
+        _rec("C100", ind_oper="1", cod_sit="00", vl_icms="200,00"),
+        _e110(vl_tot_debitos="200,00", vl_sld_apurado="160,00"),
+        _rec("E111", cod_aj_apur="SP020303", vl_aj_apur="40,00"),
+    ]
+    item = engine.calcular_icms(records)
+    assert item.ajustes_credito == Decimal("40")
+    assert item.saldo_apurado == Decimal("160")
+
+
+def test_e111_natureza_3_estorno_debitos():
+    """RJ030101 → 4º char '3' (estorno de débitos) → ajustes_credito.
+
+    Manual: debitos=150, ajustes_credito=60 → saldo=90 (devedor)
+    """
+    engine = get_apuracao_engine()
+    records = [
+        _rec("C100", ind_oper="1", cod_sit="00", vl_icms="150,00"),
+        _e110(vl_tot_debitos="150,00", vl_sld_apurado="90,00"),
+        _rec("E111", cod_aj_apur="RJ030101", vl_aj_apur="60,00"),
+    ]
+    item = engine.calcular_icms(records)
+    assert item.ajustes_credito == Decimal("60")
+    assert item.saldo_apurado == Decimal("90")
+
+
+def test_e111_natureza_4_deducoes_pos_saldo():
+    """SP040101 → 4º char '4' (deduções) → abate pós-saldo; em detalhes.
+
+    Manual: debitos=200, creditos=0 → saldo bruto=200; deducoes=50 → saldo=150
+    """
+    engine = get_apuracao_engine()
+    records = [
+        _rec("C100", ind_oper="1", cod_sit="00", vl_icms="200,00"),
+        _e110(vl_tot_debitos="200,00", vl_sld_apurado="150,00"),
+        _rec("E111", cod_aj_apur="SP040101", vl_aj_apur="50,00"),
+    ]
+    item = engine.calcular_icms(records)
+    assert item.saldo_apurado == Decimal("150")
+    assert item.situacao == "devedor"
+    assert Decimal(item.detalhes["deducoes"]) == Decimal("50")
+    assert item.ajustes_debito == Decimal("0")
+    assert item.ajustes_credito == Decimal("0")
+
+
+def test_e111_natureza_5_debitos_especiais_fora_saldo():
+    """SP050101 → 4º char '5' (débitos especiais) → fora do saldo; em detalhes.
+
+    Manual: debitos=100, saldo=100; debitos_especiais=30 → não afeta saldo
+    """
+    engine = get_apuracao_engine()
+    records = [
+        _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
+        _e110(vl_tot_debitos="100,00", vl_sld_apurado="100,00"),
+        _rec("E111", cod_aj_apur="SP050101", vl_aj_apur="30,00"),
+    ]
+    item = engine.calcular_icms(records)
+    assert item.saldo_apurado == Decimal("100")
+    assert Decimal(item.detalhes["debitos_especiais"]) == Decimal("30")
+    assert item.ajustes_debito == Decimal("0")
+    assert item.ajustes_credito == Decimal("0")

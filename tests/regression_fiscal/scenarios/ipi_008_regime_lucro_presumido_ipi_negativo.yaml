@@ -1,0 +1,15 @@
+name: 'IPI: lucro_presumido com vl_ipi negativo — IPI-001 ERRO'
+regime: lucro_presumido
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_icms: 60,00
+    vl_bc_icms: 500,00
+    vl_bc_ipi: 100,00
+    vl_ipi: -10,00
+esperado:
+  regra_ids_violadas:
+  - IPI-001
+  aprovado: false

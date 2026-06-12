@@ -1,0 +1,14 @@
+name: DT-14 código real RJ030101 (estorno débitos) — C100 normal
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_icms: 180,00
+    vl_bc_icms: 1500,00
+esperado:
+  regra_ids_ausentes:
+  - ICMS-001
+  - ICMS-002
+  aprovado: true

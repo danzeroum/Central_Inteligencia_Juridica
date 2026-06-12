@@ -1,0 +1,14 @@
+name: DT-14 E111 natureza 5 (débitos especiais fora saldo) — SP050101
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_icms: 120,00
+    vl_bc_icms: 1000,00
+esperado:
+  regra_ids_ausentes:
+  - ICMS-001
+  - ICMS-002
+  aprovado: true
