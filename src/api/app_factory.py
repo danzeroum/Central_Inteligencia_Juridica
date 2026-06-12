@@ -102,6 +102,11 @@ def create_app() -> FastAPI:
 
     app.include_router(upload_router)
 
+    # Bloco F.1 — Cofre de credenciais (S-F.1)
+    from src.api.routes.vault import router as vault_router
+
+    app.include_router(vault_router)
+
     @app.exception_handler(Exception)
     async def _unhandled_exception_handler(
         request: Request, exc: Exception

@@ -1,7 +1,15 @@
-"""Provider de credenciais para adaptadores (Onda 2 ready).
+"""Provider de credenciais para adaptadores (S-F.1 — Vault integrado).
 
-Onda 1: EnvCredentialProvider lê INTEGRATIONS_{SOURCE}_API_KEY etc.
-Onda 2: implementar vault/DB multi-tenant substituindo EnvCredentialProvider.
+Hierarquia de providers:
+  1. VaultCredentialProvider  — lê do cofre cifrado (Onda 2, produção)
+  2. EnvCredentialProvider    — lê de variáveis de ambiente (Onda 1, legacy)
+
+Uso:
+    from src.integrations.credentials import get_credential_provider
+    creds = get_credential_provider().get_credentials("ecac", tenant_id="abc")
+
+Seleciona VaultCredentialProvider automaticamente quando VAULT_MASTER_KEY está
+definida; caso contrário usa EnvCredentialProvider para compatibilidade.
 """
 
 from __future__ import annotations
@@ -29,7 +37,7 @@ class CredentialProvider(ABC):
 
 
 class EnvCredentialProvider(CredentialProvider):
-    """Lê credenciais de variáveis de ambiente."""
+    """Lê credenciais de variáveis de ambiente (compatibilidade Onda 1)."""
 
     def get_credentials(
         self, source: str, tenant_id: Optional[str] = None
@@ -47,19 +55,66 @@ class EnvCredentialProvider(CredentialProvider):
         )
 
 
+class VaultCredentialProvider(CredentialProvider):
+    """Lê credenciais do cofre cifrado (S-F.1).
+
+    Usa ``src.integrations.vault.get_vault()`` para descifrar o payload e
+    constrói um ``SourceCredentials``. Cai para ``EnvCredentialProvider`` se
+    a credencial não estiver no cofre.
+    """
+
+    def __init__(self) -> None:
+        self._fallback = EnvCredentialProvider()
+
+    def get_credentials(
+        self, source: str, tenant_id: Optional[str] = None
+    ) -> Optional[SourceCredentials]:
+        from src.integrations.vault import get_vault
+
+        tid = tenant_id or "default"
+        vault = get_vault()
+        payload = vault.retrieve(source, tid)
+        if payload:
+            return SourceCredentials(
+                api_key=payload.get("api_key"),
+                client_id=payload.get("client_id"),
+                client_secret=payload.get("client_secret"),
+                token=payload.get("token"),
+                extra={
+                    k: v
+                    for k, v in payload.items()
+                    if k not in ("api_key", "client_id", "client_secret", "token")
+                },
+            )
+        # Fallback a env (compatibilidade com Onda 1)
+        return self._fallback.get_credentials(source, tenant_id)
+
+
 _provider: Optional[CredentialProvider] = None
 
 
 def get_credential_provider() -> CredentialProvider:
+    """Retorna o provider ativo: Vault quando VAULT_MASTER_KEY configurada."""
     global _provider
     if _provider is None:
-        _provider = EnvCredentialProvider()
+        if os.environ.get("VAULT_MASTER_KEY"):
+            _provider = VaultCredentialProvider()
+        else:
+            _provider = EnvCredentialProvider()
     return _provider
+
+
+def reset_provider() -> None:
+    """Força recriação do provider. Útil em testes."""
+    global _provider
+    _provider = None
 
 
 __all__ = [
     "SourceCredentials",
     "CredentialProvider",
     "EnvCredentialProvider",
+    "VaultCredentialProvider",
     "get_credential_provider",
+    "reset_provider",
 ]

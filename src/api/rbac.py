@@ -49,6 +49,10 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         # Inteligência jurídica (Onda 1)
         "intelligence:query",
         "intelligence:zone:credenciada",
+        # S-F.1: cofre de credenciais
+        "vault:read",
+        "vault:write",
+        "vault:rotate",
     },
     Role.OPERATOR: {
         "hitl:write",
@@ -56,7 +60,7 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         "monitoring:read",
         "intelligence:query",
     },
-    Role.AUDITOR: {"ledger:read", "lgpd:read", "monitoring:read"},
+    Role.AUDITOR: {"ledger:read", "lgpd:read", "monitoring:read", "vault:read"},
     Role.READONLY: {"monitoring:read"},
 }
 
