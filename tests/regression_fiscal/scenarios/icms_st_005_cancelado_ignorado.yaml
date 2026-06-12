@@ -1,0 +1,17 @@
+name: 'ICMS-ST: C100 cancelado (cod_sit=5) com vl_icmsst — sem violação'
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '5'
+    vl_icms: 0,00
+    vl_bc_icms: 0,00
+    vl_bc_icms_st: 0,00
+    vl_icmsst: 0,00
+esperado:
+  regra_ids_ausentes:
+  - ST-001
+  - ST-002
+  - ST-003
+  aprovado: true

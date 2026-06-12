@@ -1,0 +1,14 @@
+name: DT-14 E111 natureza 3 (estorno de débitos) — RJ030101 → ajustes_credito
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_icms: 80,00
+    vl_bc_icms: 666,00
+esperado:
+  regra_ids_ausentes:
+  - ICMS-001
+  - ICMS-002
+  aprovado: true

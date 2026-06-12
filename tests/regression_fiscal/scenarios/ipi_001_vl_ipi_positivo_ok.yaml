@@ -1,0 +1,16 @@
+name: 'IPI: vl_ipi positivo — sem violação IPI-001'
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_icms: 120,00
+    vl_bc_icms: 1000,00
+    vl_bc_ipi: 200,00
+    vl_ipi: 20,00
+esperado:
+  regra_ids_ausentes:
+  - IPI-001
+  - IPI-002
+  aprovado: true

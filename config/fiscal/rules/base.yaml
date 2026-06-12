@@ -430,6 +430,108 @@ rules:
       operator: negative
       field: vl_tot_cont_nc_per
 
+  # ── C100: ICMS-ST ─────────────────────────────────────────────────────────
+
+  - id: ST-001
+    tipo_registro: C100
+    campo: vl_icmsst
+    descricao: "Valor ICMS-ST negativo"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_icmsst deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_icmsst
+
+  - id: ST-002
+    tipo_registro: C100
+    campo: vl_bc_icms_st
+    descricao: "Base de cálculo ICMS-ST negativa"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_bc_icms_st deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_bc_icms_st
+
+  - id: ST-003
+    tipo_registro: C100
+    campo: vl_icmsst
+    descricao: "Valor ICMS-ST superior à base de cálculo ST"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_icmsst não pode ser maior que vl_bc_icms_st"
+    check:
+      all:
+        - operator: positive
+          field: vl_bc_icms_st
+        - operator: gt_field
+          field: vl_icmsst
+          ref_field: vl_bc_icms_st
+
+  # ── C100: IPI ─────────────────────────────────────────────────────────────
+
+  - id: IPI-001
+    tipo_registro: C100
+    campo: vl_ipi
+    descricao: "Valor IPI negativo"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_ipi deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_ipi
+
+  - id: IPI-002
+    tipo_registro: C100
+    campo: vl_bc_ipi
+    descricao: "Base de cálculo IPI negativa"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_bc_ipi deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_bc_ipi
+
+  - id: IPI-003
+    tipo_registro: C100
+    campo: vl_ipi
+    descricao: "Valor IPI superior à base de cálculo IPI"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_ipi não pode ser maior que vl_bc_ipi"
+    check:
+      all:
+        - operator: positive
+          field: vl_bc_ipi
+        - operator: gt_field
+          field: vl_ipi
+          ref_field: vl_bc_ipi
+
+  # ── E520: Apuração IPI ────────────────────────────────────────────────────
+
+  - id: E520-001
+    tipo_registro: E520
+    campo: vl_tot_deb_ipi
+    descricao: "Total débitos IPI negativo no E520"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_tot_deb_ipi deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_tot_deb_ipi
+
+  - id: E520-002
+    tipo_registro: E520
+    campo: vl_ipi_recolher
+    descricao: "IPI a recolher negativo no E520"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_ipi_recolher deve ser >= 0; saldo credor usa vl_sd_cred_ipi"
+    check:
+      operator: negative
+      field: vl_ipi_recolher
+
 # ── Configuração de apuração (lida por apuracao.py) ──────────────────────────
 apuracao_config:
   pis_cumulativo_aliq: "0.0065"

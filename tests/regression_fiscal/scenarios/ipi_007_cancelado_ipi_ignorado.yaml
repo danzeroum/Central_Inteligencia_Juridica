@@ -1,0 +1,16 @@
+name: 'IPI: C100 cancelado com IPI — sem violação IPI-001 (valor=0)'
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '5'
+    vl_icms: 0,00
+    vl_bc_icms: 0,00
+    vl_ipi: 0,00
+    vl_bc_ipi: 0,00
+esperado:
+  regra_ids_ausentes:
+  - IPI-001
+  - IPI-002
+  aprovado: true

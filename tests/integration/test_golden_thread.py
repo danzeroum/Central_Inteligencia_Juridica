@@ -486,13 +486,13 @@ class TestGoldenThreadE2E:
         assert len(icms_desta) == 1
 
     def test_e2e_apuracao_com_ajuste_e111_e_regime(self, api_client):
-        """S-C.4: Upload com regime/uf + E111 débito → apuração soma ajuste no saldo.
+        """S-C.4/DT-14: Upload com regime/uf + E111 código real → apuração soma ajuste no saldo.
 
         Fixture efd_icms_ajuste_e111.txt tem:
-          C100 saída vl_icms=100 + E111 ajuste débito vl_aj_apur=50
+          C100 saída vl_icms=100 + E111 SP000207 (natureza 0, outros débitos) vl_aj_apur=50
           E110 declarado saldo=150
         Upload com regime=lucro_real&uf=SP → apuração deve retornar saldo=150 devedor.
-        Manual: debitos=100, creditos=0, ajustes_debito=50, ajustes_credito=0 → saldo=150.
+        Manual: debitos=100, ajustes_debito=50 (4º char '0' → outros débitos) → saldo=150.
         """
         fixture_path = _FIXTURES / "efd_icms_ajuste_e111.txt"
         with fixture_path.open("rb") as f:
@@ -607,3 +607,47 @@ class TestGoldenThreadE2E:
         assert icms is not None
         assert Decimal(icms["saldo_apurado"]) == Decimal("120")
         assert icms["situacao"] == "devedor"
+
+    def test_e2e_apuracao_icms_st(self, api_client):
+        """S-C.5: Upload EFD com ICMS-ST (E300/E310) → apuração retorna item ICMS-ST.
+
+        Fixture efd_icms_st.txt tem:
+          C100 saída  vl_icmsst=200 (ind_oper=1)
+          C100 entrada vl_icmsst=100 (ind_oper=0)
+          E300 uf_des=SP declarado saldo_devedor=100
+          E310 vl_tot_debitos=200, vl_tot_creditos=100, vl_sld_apurado=100
+        Manual: debitos_st=200, creditos_st=100, saldo_st=100 (devedor).
+        """
+        fixture_path = _FIXTURES / "efd_icms_st.txt"
+        with fixture_path.open("rb") as f:
+            resp = api_client.post(
+                "/api/v1/fiscal/upload",
+                files={"file": ("efd_icms_st.txt", f, "text/plain")},
+                data={
+                    "tipo": "efd_icms",
+                    "ano": 2025,
+                    "mes": 1,
+                    "regime": "lucro_real",
+                    "uf": "SP",
+                },
+            )
+        assert resp.status_code == 202
+        db_id = resp.json().get("db_id")
+        assert db_id is not None
+
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}")
+        assert r.status_code == 200
+        assert r.json()["status"] == "processado"
+
+        r = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r.status_code == 200
+        ap = r.json()
+
+        icms_st = next((i for i in ap["items"] if i["tributo"] == "ICMS-ST"), None)
+        assert (
+            icms_st is not None
+        ), f"Item ICMS-ST ausente. Tributos: {[i['tributo'] for i in ap['items']]}"
+        assert Decimal(icms_st["saldo_apurado"]) == Decimal(
+            "100"
+        ), f"Saldo ST esperado 100, got: {icms_st}"
+        assert icms_st["situacao"] == "devedor"
