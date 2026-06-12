@@ -609,13 +609,13 @@ class TestGoldenThreadE2E:
         assert icms["situacao"] == "devedor"
 
     def test_e2e_apuracao_icms_st(self, api_client):
-        """S-C.5: Upload EFD com ICMS-ST (E300/E310) → apuração retorna item ICMS-ST.
+        """S-C.6: Upload EFD com ICMS-ST (E200/E210) → apuração retorna item ICMS-ST.
 
         Fixture efd_icms_st.txt tem:
           C100 saída  vl_icmsst=200 (ind_oper=1)
           C100 entrada vl_icmsst=100 (ind_oper=0)
-          E300 uf_des=SP declarado saldo_devedor=100
-          E310 vl_tot_debitos=200, vl_tot_creditos=100, vl_sld_apurado=100
+          E200 SP 2025-01-01..2025-01-31
+          E210 vl_retencao_st=200, vl_devol_st=100, vl_icms_recol_st=100
         Manual: debitos_st=200, creditos_st=100, saldo_st=100 (devedor).
         """
         fixture_path = _FIXTURES / "efd_icms_st.txt"
@@ -651,3 +651,79 @@ class TestGoldenThreadE2E:
             "100"
         ), f"Saldo ST esperado 100, got: {icms_st}"
         assert icms_st["situacao"] == "devedor"
+
+    def test_e2e_retificacao(self, api_client):
+        """S-D.1: Upload EFD-ICMS → download retificado → 0000.cod_fin='1' + HITL gate.
+
+        Passos:
+          1. Upload efd_icms_devedor.txt → db_id
+          2. GET /retificado → bytes com 0000.cod_fin='1'
+          3. POST /registros/lote com require_approval=True → 200 status=aguardando_aprovacao
+          4. Aprovar via HITLQueue → POST /lote/confirmar → status=aplicado
+        """
+        import uuid as _uuid
+        from src.hitl.hitl_queue import get_hitl_queue
+
+        # 1. Upload
+        resp = self._upload(api_client, "efd_icms_devedor.txt", "efd_icms")
+        assert resp.status_code == 202
+        db_id = resp.json().get("db_id")
+        assert db_id is not None
+
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}")
+        assert r.status_code == 200
+        assert r.json()["status"] == "processado"
+
+        # 2. GET /retificado → arquivo SPED bytes com cod_fin='1'
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}/retificado")
+        assert r.status_code == 200
+        assert "attachment" in r.headers.get("content-disposition", "")
+        txt = r.content.decode("utf-8")
+        # Linha 0000: |0000|cod_ver|cod_fin|...  → campo [3] = cod_fin
+        linha_0000 = txt.split("\r\n")[0]
+        partes = linha_0000.split("|")
+        assert partes[1] == "0000", f"Primeiro registro deveria ser 0000: {partes}"
+        assert partes[3] == "1", f"cod_fin deveria ser '1' (retificação): {partes[3]!r}"
+
+        # 3. POST /registros/lote com require_approval=True
+        # Localiza um C100 para editar
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}/registros")
+        assert r.status_code == 200
+        registros = r.json()["registros"]
+        c100 = next((reg for reg in registros if reg["tipo_registro"] == "C100"), None)
+        assert c100 is not None
+        c100_id = c100["id"]
+
+        lote_payload = {
+            "operacoes": [{"registro_id": c100_id, "campos": {"vl_frt": "10,00"}}],
+            "dry_run": False,
+            "require_approval": True,
+        }
+        r = api_client.post(
+            f"/api/v1/fiscal/escrituracoes/{db_id}/registros/lote",
+            json=lote_payload,
+        )
+        assert r.status_code == 200
+        lote_resp = r.json()
+        assert lote_resp["status"] == "aguardando_aprovacao"
+        hitl_id = lote_resp.get("hitl_request_id")
+        assert hitl_id is not None
+
+        # 4. Aprovar HITL e confirmar
+        hitl_queue = get_hitl_queue()
+        ok = hitl_queue.record_decision(
+            hitl_id,
+            approved=True,
+            feedback="aprovado pelo teste E2E",
+            operator_id="test_operator",
+        )
+        assert ok is True
+
+        r = api_client.post(
+            f"/api/v1/fiscal/escrituracoes/{db_id}/lote/confirmar",
+            json={"hitl_request_id": hitl_id},
+        )
+        assert r.status_code == 200
+        confirmar = r.json()
+        assert confirmar["status"] == "aplicado"
+        assert confirmar["operacoes_aplicadas"] == 1

@@ -1,7 +1,7 @@
 """Motor de apuração ICMS/PIS/COFINS/ICMS-ST/IPI (Bloco C — S-C.2 Parte B).
 
 Stateless: recebe SpedRecords parseados e retorna ItemApuracao por tributo.
-Confronto computado × declarado via E110 (ICMS), E310 (ICMS-ST), E520 (IPI)
+Confronto computado × declarado via E110 (ICMS), E210 (ICMS-ST), E520 (IPI)
 e M200/M600 (PIS/COFINS).
 
 Uso:
@@ -252,8 +252,20 @@ class ApuracaoEngine:
             + ajustes_debito
             - ajustes_credito
             - saldo_credor_anterior
-            - deducoes
         )
+
+        # Deduções abatem só saldo devedor; excedente não converte em credor.
+        deducao_excedente = Decimal("0")
+        if deducoes > 0:
+            if saldo_apurado > 0:
+                if deducoes >= saldo_apurado:
+                    deducao_excedente = deducoes - saldo_apurado
+                    saldo_apurado = Decimal("0")
+                else:
+                    saldo_apurado -= deducoes
+            else:
+                deducao_excedente = deducoes
+
         situacao = (
             "devedor"
             if saldo_apurado > 0
@@ -342,6 +354,17 @@ class ApuracaoEngine:
             det["deducoes"] = str(deducoes)
         if debitos_especiais:
             det["debitos_especiais"] = str(debitos_especiais)
+        if deducao_excedente:
+            det["deducao_excedente"] = str(deducao_excedente)
+            divergencias.append(
+                DivergenciaApuracao(
+                    campo="E111.deducoes",
+                    valor_computado=str(deducao_excedente),
+                    valor_declarado="0",
+                    diferenca=str(deducao_excedente),
+                    severidade=Severidade.AVISO,
+                )
+            )
 
         return ItemApuracao(
             tributo="ICMS",
@@ -362,16 +385,21 @@ class ApuracaoEngine:
         records: List[SpedRecord],
         saldo_credor_anterior: Decimal = Decimal("0"),
     ) -> ItemApuracao:
-        """Apura ICMS-ST a partir de C100/D100 (vl_icmsst) e confronta com E300/E310.
+        """Apura ICMS-ST a partir de C100/D100 (vl_icmsst) e confronta com E200/E210.
 
-        E310 sem E300 → ERRO. Sem dados ST → situacao='ausente'.
-        Detalhes incluem breakdown por UF quando E300 presente.
+        E210 débitos declarados = vl_retencao_st + vl_out_deb_st + vl_aj_debitos_st.
+        E210 créditos declarados = vl_devol_st + vl_ressarc_st + vl_out_cred_st + vl_aj_creditos_st.
+        E210 sem E200 → ERRO estrutural. Sem dados ST → situacao='ausente'.
+        Detalhes incluem breakdown por UF (campo 'uf' do E200 pai).
         """
         debitos_st = Decimal("0")
         creditos_st = Decimal("0")
-        e300_records: List[SpedRecord] = []
-        e310: Optional[Dict[str, Any]] = None
         n_c100 = 0
+
+        # Coleta pares (e200_campos, e210_campos) em ordem sequencial de arquivo.
+        e200_e210_pairs: List[tuple] = []
+        current_e200: Optional[Dict[str, Any]] = None
+        e210_sem_e200 = False
 
         for record in records:
             if record.tipo_registro in ("C100", "D100"):
@@ -386,16 +414,19 @@ class ApuracaoEngine:
                     debitos_st += vl_st
                 elif ind_oper == "0":
                     creditos_st += vl_st
-            elif record.tipo_registro == "E300":
-                e300_records.append(record)
-            elif record.tipo_registro == "E310":
-                e310 = record.campos
+            elif record.tipo_registro == "E200":
+                current_e200 = record.campos
+            elif record.tipo_registro == "E210":
+                if current_e200 is None:
+                    e210_sem_e200 = True
+                else:
+                    e200_e210_pairs.append((current_e200, record.campos))
 
         sem_dados = (
             debitos_st == Decimal("0")
             and creditos_st == Decimal("0")
-            and not e300_records
-            and e310 is None
+            and not e200_e210_pairs
+            and not e210_sem_e200
         )
         if sem_dados:
             return ItemApuracao(
@@ -406,17 +437,17 @@ class ApuracaoEngine:
                 saldo_credor_anterior=Decimal("0"),
                 saldo_apurado=Decimal("0"),
                 situacao="ausente",
-                detalhes={"e300_count": 0, "e310_declarado": False},
+                detalhes={"e200_count": 0, "e210_declarado": False},
             )
 
         divergencias: List[DivergenciaApuracao] = []
 
-        if e310 is not None and not e300_records:
+        if e210_sem_e200:
             divergencias.append(
                 DivergenciaApuracao(
-                    campo="E310",
-                    valor_computado="E310 sem E300 correspondente",
-                    valor_declarado="E300 obrigatório",
+                    campo="E210",
+                    valor_computado="E210 sem E200 correspondente",
+                    valor_declarado="E200 obrigatório",
                     diferenca="estrutura",
                     severidade=Severidade.ERRO,
                 )
@@ -429,17 +460,31 @@ class ApuracaoEngine:
             else "credor" if saldo_apurado < 0 else "equilibrado"
         )
 
-        if e310 is not None:
-            decl_debitos = _to_dec(e310.get("vl_tot_debitos"))
-            decl_creditos = _to_dec(e310.get("vl_tot_creditos"))
-            decl_saldo_ant = _to_dec(e310.get("vl_sld_credor_ant"))
-            decl_saldo = _to_dec(e310.get("vl_sld_apurado"))
+        ufs: Dict[str, Any] = {}
+        for e200_campos, e210_campos in e200_e210_pairs:
+            uf = str(e200_campos.get("uf") or "").strip()
+
+            # Débitos declarados = retenção + outros débitos + ajuste débitos
+            decl_debitos = (
+                _to_dec(e210_campos.get("vl_retencao_st"))
+                + _to_dec(e210_campos.get("vl_out_deb_st"))
+                + _to_dec(e210_campos.get("vl_aj_debitos_st"))
+            )
+            # Créditos declarados = devoluções + ressarcimento + outros créditos + ajuste créditos
+            decl_creditos = (
+                _to_dec(e210_campos.get("vl_devol_st"))
+                + _to_dec(e210_campos.get("vl_ressarc_st"))
+                + _to_dec(e210_campos.get("vl_out_cred_st"))
+                + _to_dec(e210_campos.get("vl_aj_creditos_st"))
+            )
+            decl_saldo_ant = _to_dec(e210_campos.get("vl_sld_cred_ant_st"))
+            decl_recol = _to_dec(e210_campos.get("vl_icms_recol_st"))
 
             diff_d = abs(debitos_st - decl_debitos)
             if diff_d > _TOLERANCIA:
                 divergencias.append(
                     DivergenciaApuracao(
-                        campo="E310.vl_tot_debitos",
+                        campo=f"E210.debitos_st[{uf}]",
                         valor_computado=str(debitos_st),
                         valor_declarado=str(decl_debitos),
                         diferenca=str(diff_d),
@@ -451,7 +496,7 @@ class ApuracaoEngine:
             if diff_c > _TOLERANCIA:
                 divergencias.append(
                     DivergenciaApuracao(
-                        campo="E310.vl_tot_creditos",
+                        campo=f"E210.creditos_st[{uf}]",
                         valor_computado=str(creditos_st),
                         valor_declarado=str(decl_creditos),
                         diferenca=str(diff_c),
@@ -460,25 +505,24 @@ class ApuracaoEngine:
                 )
 
             computed_saldo = debitos_st - creditos_st - decl_saldo_ant
-            diff_s = abs(computed_saldo - decl_saldo)
+            diff_s = abs(computed_saldo - decl_recol)
             if diff_s > _TOLERANCIA:
                 divergencias.append(
                     DivergenciaApuracao(
-                        campo="E310.vl_sld_apurado",
+                        campo=f"E210.vl_icms_recol_st[{uf}]",
                         valor_computado=str(computed_saldo),
-                        valor_declarado=str(decl_saldo),
+                        valor_declarado=str(decl_recol),
                         diferenca=str(diff_s),
                         severidade=Severidade.AVISO,
                     )
                 )
 
-        ufs: Dict[str, Any] = {}
-        for e300 in e300_records:
-            uf = str(e300.campos.get("uf_des") or "").strip()
             if uf:
                 ufs[uf] = {
-                    "vl_sld_devedor": str(_to_dec(e300.campos.get("vl_sld_devedor"))),
-                    "vl_sld_credor": str(_to_dec(e300.campos.get("vl_sld_credor"))),
+                    "vl_icms_recol_st": str(decl_recol),
+                    "vl_sld_cred_st_transportar": str(
+                        _to_dec(e210_campos.get("vl_sld_cred_st_transportar"))
+                    ),
                 }
 
         return ItemApuracao(
@@ -491,8 +535,8 @@ class ApuracaoEngine:
             situacao=situacao,
             divergencias=divergencias,
             detalhes={
-                "e300_count": len(e300_records),
-                "e310_declarado": e310 is not None,
+                "e200_count": len(e200_e210_pairs),
+                "e210_declarado": bool(e200_e210_pairs) or e210_sem_e200,
                 "ufs": ufs,
             },
         )
@@ -500,7 +544,8 @@ class ApuracaoEngine:
     def calcular_ipi(self, records: List[SpedRecord]) -> ItemApuracao:
         """Apura IPI a partir de C100/D100 (vl_ipi) e confronta com E520.
 
-        E530 ajustes seguem mesma disciplina de 4º caractere (tab.5.1.1).
+        E520 usa leiaute real: vl_deb_ipi, vl_cred_ipi, vl_od_ipi, vl_oc_ipi, vl_sd_ipi.
+        E530 usa ind_aj diretamente: '0'=débito, '1'=crédito (não usa _decode_aj_apur).
         Sem dados IPI → situacao='ausente'.
         """
         debitos = Decimal("0")
@@ -508,7 +553,7 @@ class ApuracaoEngine:
         e520: Optional[Dict[str, Any]] = None
         ajustes_debito = Decimal("0")
         ajustes_credito = Decimal("0")
-        avisos_ajuste: List[str] = []
+        e530_details: List[Dict[str, Any]] = []
         n_c100 = 0
 
         for record in records:
@@ -527,15 +572,14 @@ class ApuracaoEngine:
             elif record.tipo_registro == "E520":
                 e520 = record.campos
             elif record.tipo_registro == "E530":
-                cod = str(record.campos.get("cod_aj") or "")
+                ind_aj = str(record.campos.get("ind_aj") or "").strip()
                 vl = _to_dec(record.campos.get("vl_aj_ipi"))
-                nat, aviso = _decode_aj_apur(cod)
-                if nat in ("0", "1"):
+                cod = str(record.campos.get("cod_aj") or "")
+                if ind_aj == "0":
                     ajustes_debito += vl
-                elif nat in ("2", "3"):
+                elif ind_aj == "1":
                     ajustes_credito += vl
-                else:
-                    avisos_ajuste.append(aviso)
+                e530_details.append({"cod_aj": cod, "ind_aj": ind_aj, "vl": str(vl)})
 
         sem_dados = (
             debitos == Decimal("0") and creditos == Decimal("0") and e520 is None
@@ -561,28 +605,19 @@ class ApuracaoEngine:
 
         divergencias: List[DivergenciaApuracao] = []
 
-        for cod_inv in avisos_ajuste:
-            divergencias.append(
-                DivergenciaApuracao(
-                    campo="E530.cod_aj",
-                    valor_computado=cod_inv,
-                    valor_declarado="código real ≥4 chars, 4º char in '0'-'5' (tab.5.1.1)",
-                    diferenca="código de ajuste não reconhecido",
-                    severidade=Severidade.AVISO,
-                )
-            )
-
         if e520 is not None:
-            decl_debitos = _to_dec(e520.get("vl_tot_deb_ipi"))
-            decl_creditos = _to_dec(e520.get("vl_ot_cred_ipi"))
-            decl_saldo_recolher = _to_dec(e520.get("vl_ipi_recolher"))
-            decl_saldo_credor = _to_dec(e520.get("vl_sd_cred_ipi"))
+            # E520 real: vl_deb_ipi, vl_cred_ipi, vl_od_ipi (outros deb), vl_oc_ipi (outros cred)
+            decl_debitos = _to_dec(e520.get("vl_deb_ipi"))
+            decl_creditos = _to_dec(e520.get("vl_cred_ipi"))
+            decl_od = _to_dec(e520.get("vl_od_ipi"))
+            decl_oc = _to_dec(e520.get("vl_oc_ipi"))
+            decl_sd_ipi = _to_dec(e520.get("vl_sd_ipi"))
 
             diff_d = abs(debitos - decl_debitos)
             if diff_d > _TOLERANCIA:
                 divergencias.append(
                     DivergenciaApuracao(
-                        campo="E520.vl_tot_deb_ipi",
+                        campo="E520.vl_deb_ipi",
                         valor_computado=str(debitos),
                         valor_declarado=str(decl_debitos),
                         diferenca=str(diff_d),
@@ -594,7 +629,7 @@ class ApuracaoEngine:
             if diff_c > _TOLERANCIA:
                 divergencias.append(
                     DivergenciaApuracao(
-                        campo="E520.vl_ot_cred_ipi",
+                        campo="E520.vl_cred_ipi",
                         valor_computado=str(creditos),
                         valor_declarado=str(decl_creditos),
                         diferenca=str(diff_c),
@@ -603,25 +638,13 @@ class ApuracaoEngine:
                 )
 
             if saldo_apurado > 0:
-                diff_s = abs(saldo_apurado - decl_saldo_recolher)
+                diff_s = abs(saldo_apurado - decl_sd_ipi)
                 if diff_s > _TOLERANCIA:
                     divergencias.append(
                         DivergenciaApuracao(
-                            campo="E520.vl_ipi_recolher",
+                            campo="E520.vl_sd_ipi",
                             valor_computado=str(saldo_apurado),
-                            valor_declarado=str(decl_saldo_recolher),
-                            diferenca=str(diff_s),
-                            severidade=Severidade.AVISO,
-                        )
-                    )
-            else:
-                diff_s = abs(abs(saldo_apurado) - decl_saldo_credor)
-                if diff_s > _TOLERANCIA:
-                    divergencias.append(
-                        DivergenciaApuracao(
-                            campo="E520.vl_sd_cred_ipi",
-                            valor_computado=str(abs(saldo_apurado)),
-                            valor_declarado=str(decl_saldo_credor),
+                            valor_declarado=str(decl_sd_ipi),
                             diferenca=str(diff_s),
                             severidade=Severidade.AVISO,
                         )
@@ -642,6 +665,7 @@ class ApuracaoEngine:
                 "e520_declarado": e520 is not None,
                 "ajustes_debito": str(ajustes_debito),
                 "ajustes_credito": str(ajustes_credito),
+                "e530_ajustes": e530_details,
             },
         )
 

@@ -7,7 +7,7 @@ import re
 import uuid
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, field_validator
 
 from src.api.auth import AuthManager
@@ -690,6 +690,14 @@ class OperacaoLote(BaseModel):
 class LoteRequest(BaseModel):
     operacoes: List[OperacaoLote] = Field(..., min_length=1, max_length=500)
     dry_run: bool = Field(False, description="Se true, simula sem persistir")
+    require_approval: bool = Field(
+        False,
+        description=(
+            "Se true e dry_run=false, enfileira aprovação HITL em vez de aplicar "
+            "imediatamente. Retorna 202 com hitl_request_id para confirmar via "
+            "POST /lote/confirmar."
+        ),
+    )
 
 
 class DiffRegistro(BaseModel):
@@ -706,6 +714,8 @@ class LoteResponse(BaseModel):
     diff: List[DiffRegistro]
     achados_antes: List[AchadoItem]
     achados_depois: List[AchadoItem]
+    status: str = "aplicado"  # "aplicado" | "aguardando_aprovacao"
+    hitl_request_id: Optional[str] = None
 
 
 @router.post(
@@ -867,6 +877,40 @@ async def editar_registros_lote(
                     for r in result_depois.resultados
                 ]
 
+                # ── HITL gate ────────────────────────────────────────────────
+                if request.require_approval and not request.dry_run:
+                    from src.hitl.hitl_queue import get_hitl_queue
+
+                    hitl_queue = get_hitl_queue()
+                    hitl_req = hitl_queue.add_request(
+                        agent="editar_registros_lote",
+                        action={
+                            "escrituracao_id": escrituracao_id,
+                            "operacoes": [
+                                {
+                                    "registro_id": op.registro_id,
+                                    "campos": op.campos,
+                                }
+                                for op in request.operacoes
+                            ],
+                        },
+                        context={
+                            "user_id": user_id,
+                            "achados_antes": len(achados_antes),
+                            "achados_depois": len(achados_depois),
+                        },
+                    )
+                    return LoteResponse(
+                        escrituracao_id=escrituracao_id,
+                        dry_run=False,
+                        operacoes_aplicadas=0,
+                        diff=diff,
+                        achados_antes=achados_antes,
+                        achados_depois=achados_depois,
+                        status="aguardando_aprovacao",
+                        hitl_request_id=hitl_req.request_id,
+                    )
+
                 if not request.dry_run:
                     # ── Persiste mudanças ──────────────────────────────────────
                     from datetime import datetime, timezone
@@ -928,6 +972,349 @@ async def editar_registros_lote(
     except Exception as exc:
         cid = uuid.uuid4().hex
         logger.error("editar_registros_lote [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S-D.1: Download SPED retificado
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/escrituracoes/{escrituracao_id}/retificado",
+    summary="Download SPED TXT retificado (S-D.1)",
+    description=(
+        "Gera arquivo SPED EFD-ICMS/IPI com 0000.cod_fin='1' a partir dos "
+        "registros canônicos armazenados. Registra FiscalAudit."
+    ),
+    response_class=Response,
+)
+async def download_retificado(
+    escrituracao_id: str,
+    user_id: str = Depends(AuthManager.verify_token),
+) -> Response:
+    """Gera e retorna SPED TXT retificado como download."""
+    try:
+        eid = uuid.UUID(escrituracao_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ID de escrituração inválido.",
+        )
+
+    try:
+        from src.db.models import EscrituracaoFiscal, FiscalAudit, RegistroFiscal
+        from src.db.session import get_async_session
+        from src.fiscal.repository import (
+            EscrituracaoRepository,
+            RegistroFiscalRepository,
+        )
+        from src.fiscal.writer import SpedWriter
+
+        async with get_async_session() as session:
+            async with session.begin():
+                escrit_repo = EscrituracaoRepository(session)
+                escrit = await escrit_repo.get(eid)
+                if escrit is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Escrituração {escrituracao_id} não encontrada.",
+                    )
+
+                reg_repo = RegistroFiscalRepository(session)
+                registros = await reg_repo.list_by_escrituracao(eid, limit=50000)
+
+                records = [
+                    {
+                        "tipo_registro": r.tipo_registro,
+                        "dados": dict(r.dados or {}),
+                    }
+                    for r in registros
+                ]
+
+                writer = SpedWriter()
+                sped_bytes = writer.gerar(records, ind_ret=True)
+
+                audit = FiscalAudit(
+                    operation="gerar_retificado",
+                    entity_type=escrit.tipo,
+                    entity_ref=str(eid),
+                    status="completed",
+                    details={
+                        "user_id": user_id,
+                        "total_registros": len(registros),
+                        "total_bytes": len(sped_bytes),
+                    },
+                )
+                session.add(audit)
+
+        filename = f"EFD_ICMS_IPI_{escrituracao_id}_ret.txt"
+        return Response(
+            content=sped_bytes,
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    except HTTPException:
+        raise
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("download_retificado [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S-D.1: Confirmar lote aprovado por HITL
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ConfirmarLoteRequest(BaseModel):
+    hitl_request_id: str = Field(..., description="ID da solicitação HITL aprovada")
+
+
+@router.post(
+    "/escrituracoes/{escrituracao_id}/lote/confirmar",
+    response_model=LoteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Confirma lote aprovado por HITL (S-D.1)",
+    description=(
+        "Aplica as operações de um lote previamente enfileirado para aprovação HITL. "
+        "Rejeita se status não for 'approved'. Registra FiscalAudit."
+    ),
+)
+async def confirmar_lote_hitl(
+    escrituracao_id: str,
+    request: ConfirmarLoteRequest,
+    user_id: str = Depends(AuthManager.verify_token),
+) -> LoteResponse:
+    """Aplica lote cujo HITL foi aprovado."""
+    try:
+        eid = uuid.UUID(escrituracao_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ID de escrituração inválido.",
+        )
+
+    try:
+        from sqlalchemy import select
+        from src.db.models import EscrituracaoFiscal, FiscalAudit, RegistroFiscal
+        from src.db.session import get_async_session
+        from src.fiscal.parser.base import SpedRecord
+        from src.fiscal.repository import (
+            EscrituracaoRepository,
+            RegistroFiscalRepository,
+        )
+        from src.fiscal.rules_engine import get_rules_engine
+        from src.hitl.hitl_queue import get_hitl_queue
+
+        hitl_queue = get_hitl_queue()
+        hitl_req = hitl_queue.get_request(request.hitl_request_id)
+
+        if hitl_req is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Solicitação HITL {request.hitl_request_id!r} não encontrada.",
+            )
+        if hitl_req.status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Solicitação HITL status={hitl_req.status!r}; esperado 'approved'.",
+            )
+
+        action = hitl_req.action or {}
+        if action.get("escrituracao_id") != escrituracao_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Solicitação HITL pertence a outra escrituração.",
+            )
+
+        operacoes_raw = action.get("operacoes", [])
+
+        async with get_async_session() as session:
+            async with session.begin():
+                escrit_repo = EscrituracaoRepository(session)
+                escrit = await escrit_repo.get(eid)
+                if escrit is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Escrituração {escrituracao_id} não encontrada.",
+                    )
+
+                reg_ids_req = []
+                for op in operacoes_raw:
+                    try:
+                        reg_ids_req.append(uuid.UUID(op["registro_id"]))
+                    except (ValueError, KeyError):
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"registro_id inválido na solicitação HITL: {op!r}",
+                        )
+
+                stmt = select(RegistroFiscal).where(
+                    RegistroFiscal.escrituracao_id == eid,
+                    RegistroFiscal.id.in_(reg_ids_req),
+                )
+                result = await session.execute(stmt)
+                regs_db = {r.id: r for r in result.scalars().all()}
+
+                missing = [str(rid) for rid in reg_ids_req if rid not in regs_db]
+                if missing:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Registros não encontrados: {missing}",
+                    )
+
+                diff: List[DiffRegistro] = []
+                regs_modificados: Dict[uuid.UUID, Dict[str, Any]] = {}
+
+                for op in operacoes_raw:
+                    rid = uuid.UUID(op["registro_id"])
+                    reg = regs_db[rid]
+                    campos_antes = dict(reg.dados or {})
+                    campos_depois = {**campos_antes, **op.get("campos", {})}
+                    diff.append(
+                        DiffRegistro(
+                            registro_id=str(rid),
+                            tipo_registro=reg.tipo_registro,
+                            campos_antes=_mask_campos(campos_antes),
+                            campos_depois=_mask_campos(campos_depois),
+                        )
+                    )
+                    regs_modificados[rid] = campos_depois
+
+                reg_repo = RegistroFiscalRepository(session)
+                todos_registros_db = await reg_repo.list_by_escrituracao(
+                    eid, limit=5000
+                )
+
+                def _build_records(
+                    registros: list, overrides: Dict[uuid.UUID, Dict[str, Any]]
+                ) -> List[SpedRecord]:
+                    return [
+                        SpedRecord(
+                            bloco=r.bloco,
+                            tipo_registro=r.tipo_registro,
+                            campos=overrides.get(r.id, r.dados or {}),
+                            numero_linha=r.numero_linha,
+                        )
+                        for r in registros
+                    ]
+
+                rules_engine = get_rules_engine(
+                    (
+                        escrit.details.get("regime", "lucro_real")
+                        if escrit.details
+                        else "lucro_real"
+                    ),
+                    uf=escrit.details.get("uf") if escrit.details else None,
+                )
+
+                records_antes = _build_records(todos_registros_db, {})
+                result_antes = rules_engine.validate(records_antes)
+
+                records_depois = _build_records(todos_registros_db, regs_modificados)
+                result_depois = rules_engine.validate(records_depois)
+
+                achados_antes = [
+                    AchadoItem(
+                        regra_id=r.regra_id,
+                        severidade=r.severidade.value,
+                        campo=r.campo,
+                        descricao=r.descricao,
+                        tipo_registro=r.tipo_registro,
+                        numero_linha=r.numero_linha,
+                        valor_encontrado=r.valor_encontrado,
+                        dica=r.dica,
+                    )
+                    for r in result_antes.resultados
+                ]
+                achados_depois = [
+                    AchadoItem(
+                        regra_id=r.regra_id,
+                        severidade=r.severidade.value,
+                        campo=r.campo,
+                        descricao=r.descricao,
+                        tipo_registro=r.tipo_registro,
+                        numero_linha=r.numero_linha,
+                        valor_encontrado=r.valor_encontrado,
+                        dica=r.dica,
+                    )
+                    for r in result_depois.resultados
+                ]
+
+                from datetime import datetime, timezone
+
+                for op in operacoes_raw:
+                    rid = uuid.UUID(op["registro_id"])
+                    reg = regs_db[rid]
+                    reg.dados = regs_modificados[rid]
+
+                details = dict(escrit.details or {})
+                details["achados"] = [
+                    {
+                        "regra_id": a.regra_id,
+                        "severidade": a.severidade,
+                        "campo": a.campo,
+                        "descricao": a.descricao,
+                        "tipo_registro": a.tipo_registro,
+                        "numero_linha": a.numero_linha,
+                        "valor_encontrado": a.valor_encontrado,
+                        "dica": a.dica,
+                    }
+                    for a in achados_depois
+                ]
+                escrit.details = details
+                escrit.updated_at = datetime.now(timezone.utc)
+
+                audit = FiscalAudit(
+                    operation="lote_aprovado",
+                    entity_type=escrit.tipo,
+                    entity_ref=str(eid),
+                    status="completed",
+                    details={
+                        "user_id": user_id,
+                        "hitl_request_id": request.hitl_request_id,
+                        "decided_by": hitl_req.decided_by,
+                        "operacoes": len(operacoes_raw),
+                        "achados_antes": len(achados_antes),
+                        "achados_depois": len(achados_depois),
+                    },
+                )
+                session.add(audit)
+
+        return LoteResponse(
+            escrituracao_id=escrituracao_id,
+            dry_run=False,
+            operacoes_aplicadas=len(operacoes_raw),
+            diff=diff,
+            achados_antes=achados_antes,
+            achados_depois=achados_depois,
+            status="aplicado",
+            hitl_request_id=request.hitl_request_id,
+        )
+
+    except HTTPException:
+        raise
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("confirmar_lote_hitl [%s]: %s", cid, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro interno. Referência: {cid}",

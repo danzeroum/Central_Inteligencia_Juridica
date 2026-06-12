@@ -508,29 +508,29 @@ rules:
           field: vl_ipi
           ref_field: vl_bc_ipi
 
-  # ── E520: Apuração IPI ────────────────────────────────────────────────────
+  # ── E520: Apuração IPI (Guia Prático EFD ICMS/IPI v3.1.5) ──────────────────
 
   - id: E520-001
     tipo_registro: E520
-    campo: vl_tot_deb_ipi
+    campo: vl_deb_ipi
     descricao: "Total débitos IPI negativo no E520"
     severidade: erro
     regimes: [lucro_real, lucro_presumido, simples_nacional]
-    dica: "vl_tot_deb_ipi deve ser >= 0"
+    dica: "vl_deb_ipi deve ser >= 0"
     check:
       operator: negative
-      field: vl_tot_deb_ipi
+      field: vl_deb_ipi
 
   - id: E520-002
     tipo_registro: E520
-    campo: vl_ipi_recolher
-    descricao: "IPI a recolher negativo no E520"
+    campo: vl_sd_ipi
+    descricao: "Saldo devedor IPI (IPI a recolher) negativo no E520"
     severidade: aviso
     regimes: [lucro_real, lucro_presumido, simples_nacional]
-    dica: "vl_ipi_recolher deve ser >= 0; saldo credor usa vl_sd_cred_ipi"
+    dica: "vl_sd_ipi deve ser >= 0; saldo credor vai para vl_sc_ipi"
     check:
       operator: negative
-      field: vl_ipi_recolher
+      field: vl_sd_ipi
 
 # ── Configuração de apuração (lida por apuracao.py) ──────────────────────────
 apuracao_config:

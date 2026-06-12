@@ -1,0 +1,14 @@
+name: 'E210: C100 entrada com ICMS-ST — sem violação (ST em entrada é crédito)'
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '0'
+    cod_sit: '00'
+    vl_bc_icms_st: 300,00
+    vl_icmsst: 30,00
+esperado:
+  regra_ids_ausentes:
+  - ST-001
+  - ST-002
+  aprovado: true
