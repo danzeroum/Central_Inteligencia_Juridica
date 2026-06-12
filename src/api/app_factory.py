@@ -119,6 +119,11 @@ def create_app() -> FastAPI:
     app.include_router(reports_router)
     app.include_router(workbench_router)
 
+    # Bloco F — Transmissão e-CAC (S-F.3)
+    from src.api.routes.transmissao import router as transmissao_router
+
+    app.include_router(transmissao_router)
+
     @app.exception_handler(Exception)
     async def _unhandled_exception_handler(
         request: Request, exc: Exception
