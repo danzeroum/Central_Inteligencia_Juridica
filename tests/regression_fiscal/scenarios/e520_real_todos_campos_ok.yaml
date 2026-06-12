@@ -1,0 +1,23 @@
+name: 'E520 real: todos os campos presentes com valores válidos — sem violações'
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_ipi: 50,00
+- tipo_registro: E520
+  campos:
+    vl_sd_ant_ipi: 10,00
+    vl_deb_ipi: 50,00
+    vl_cred_ipi: 5,00
+    vl_od_ipi: 0,00
+    vl_oc_ipi: 0,00
+    vl_sc_ipi: 0,00
+    vl_sd_ipi: 55,00
+esperado:
+  regra_ids_ausentes:
+  - E520-001
+  - E520-002
+  - IPI-001
+  aprovado: true

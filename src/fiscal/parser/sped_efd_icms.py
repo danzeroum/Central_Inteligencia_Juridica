@@ -10,6 +10,8 @@ Formato de linha SPED:
 Datas SPED: DDMMAAAA  →  convertidas para ISO YYYY-MM-DD
 Decimais SPED: vírgula como separador decimal ("1234,56") — mantidos
                como string para preservar precisão.
+
+Leiaute conferido contra: Guia Prático EFD ICMS/IPI v3.1.5 (jan/2025).
 """
 
 from __future__ import annotations
@@ -312,6 +314,7 @@ def _handle_d100(campos: List[str]) -> Dict[str, Any]:
 # Bloco E — Apuração do ICMS e do IPI
 # ─────────────────────────────────────────────────────────────────────────────
 
+# E110 — Apuração ICMS (Guia Prático EFD ICMS/IPI v3.1.5)
 _E110_CAMPOS = [
     "vl_tot_debitos",
     "vl_aj_debitos",
@@ -336,14 +339,66 @@ def _handle_e110(campos: List[str]) -> Dict[str, Any]:
     return d
 
 
+# E200 — Período de apuração ICMS-ST por UF (Guia Prático EFD ICMS/IPI v3.1.5)
+_E200_CAMPOS = ["uf", "dt_ini", "dt_fin"]
+
+
+def _handle_e200(campos: List[str]) -> Dict[str, Any]:
+    d = _zip_campos(_E200_CAMPOS, campos)
+    _apply_dates(d, "dt_ini", "dt_fin")
+    return d
+
+
+# E210 — Apuração ICMS-ST (Guia Prático EFD ICMS/IPI v3.1.5)
+_E210_CAMPOS = [
+    "ind_mov_st",
+    "vl_sld_cred_ant_st",
+    "vl_devol_st",
+    "vl_ressarc_st",
+    "vl_out_cred_st",
+    "vl_aj_creditos_st",
+    "vl_retencao_st",
+    "vl_out_deb_st",
+    "vl_aj_debitos_st",
+    "vl_sld_dev_ant_st",
+    "vl_deducoes_st",
+    "vl_icms_recol_st",
+    "vl_sld_cred_st_transportar",
+    "deb_esp_st",
+]
+
+_E210_DECIMAL_CAMPOS = [
+    "vl_sld_cred_ant_st",
+    "vl_devol_st",
+    "vl_ressarc_st",
+    "vl_out_cred_st",
+    "vl_aj_creditos_st",
+    "vl_retencao_st",
+    "vl_out_deb_st",
+    "vl_aj_debitos_st",
+    "vl_sld_dev_ant_st",
+    "vl_deducoes_st",
+    "vl_icms_recol_st",
+    "vl_sld_cred_st_transportar",
+    "deb_esp_st",
+]
+
+
+def _handle_e210(campos: List[str]) -> Dict[str, Any]:
+    d = _zip_campos(_E210_CAMPOS, campos)
+    _apply_dec(d, *_E210_DECIMAL_CAMPOS)
+    return d
+
+
+# E520 — Apuração IPI (Guia Prático EFD ICMS/IPI v3.1.5)
 _E520_CAMPOS = [
     "vl_sd_ant_ipi",
-    "vl_tot_deb_ipi",
-    "vl_ot_cred_ipi",
-    "vl_icms_ressarc",
-    "vl_sd_cred_ipi",
-    "vl_ipi_recolher",
-    "vl_sd_cred_ipi_transp",
+    "vl_deb_ipi",
+    "vl_cred_ipi",
+    "vl_od_ipi",
+    "vl_oc_ipi",
+    "vl_sc_ipi",
+    "vl_sd_ipi",
 ]
 
 
@@ -353,55 +408,18 @@ def _handle_e520(campos: List[str]) -> Dict[str, Any]:
     return d
 
 
-# Bloco E — ICMS-ST (E300/E310)
-
-_E300_CAMPOS = [
-    "uf_des",
-    "vl_sld_credor_ant",
-    "vl_tot_debitos",
-    "vl_aj_debitos",
-    "vl_tot_debitos_especiais",
-    "vl_aj_creditos",
-    "vl_tot_creditos",
-    "vl_sld_devedor",
-    "vl_sld_credor",
-]
-
-
-def _handle_e300(campos: List[str]) -> Dict[str, Any]:
-    d = _zip_campos(_E300_CAMPOS, campos)
-    _apply_dec(d, *_E300_CAMPOS[1:])  # skip uf_des (string)
-    return d
-
-
-_E310_CAMPOS = [
-    "vl_tot_debitos",
-    "vl_aj_debitos",
-    "vl_tot_debitos_especiais",
-    "vl_aj_creditos",
-    "vl_tot_creditos",
-    "vl_sld_credor_ant",
-    "vl_sld_apurado",
-    "vl_tot_deducoes",
-    "vl_tot_retencoes",
-]
-
-
-def _handle_e310(campos: List[str]) -> Dict[str, Any]:
-    d = _zip_campos(_E310_CAMPOS, campos)
-    _apply_dec(d, *_E310_CAMPOS)
-    return d
-
-
-# Bloco E — IPI ajustes (E530)
-
+# E530 — Ajustes IPI (Guia Prático EFD ICMS/IPI v3.1.5)
+# IND_AJ: 0=débito, 1=crédito (natureza direta — não usar _decode_aj_apur)
 _E530_CAMPOS = [
     "cod_aj",
-    "ind_doc",
-    "num_doc",
-    "cod_item",
+    "ind_aj",
     "vl_aj_ipi",
+    "cod_item",
+    "num_da",
+    "num_proc",
+    "ind_proc",
     "descr_compl_aj",
+    "cod_cta",
 ]
 
 
@@ -496,8 +514,8 @@ class SpedEfdIcmsParser(SpedParser):
         self.register_handler("E111", _handle_e111)
         self.register_handler("E112", _handle_e112)
         self.register_handler("E113", _handle_e113)
-        self.register_handler("E300", _handle_e300)
-        self.register_handler("E310", _handle_e310)
+        self.register_handler("E200", _handle_e200)
+        self.register_handler("E210", _handle_e210)
         self.register_handler("E520", _handle_e520)
         self.register_handler("E530", _handle_e530)
         self.register_handler("E990", _handle_qt_lin)

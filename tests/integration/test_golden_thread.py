@@ -609,13 +609,13 @@ class TestGoldenThreadE2E:
         assert icms["situacao"] == "devedor"
 
     def test_e2e_apuracao_icms_st(self, api_client):
-        """S-C.5: Upload EFD com ICMS-ST (E300/E310) → apuração retorna item ICMS-ST.
+        """S-C.6: Upload EFD com ICMS-ST (E200/E210) → apuração retorna item ICMS-ST.
 
         Fixture efd_icms_st.txt tem:
           C100 saída  vl_icmsst=200 (ind_oper=1)
           C100 entrada vl_icmsst=100 (ind_oper=0)
-          E300 uf_des=SP declarado saldo_devedor=100
-          E310 vl_tot_debitos=200, vl_tot_creditos=100, vl_sld_apurado=100
+          E200 SP 2025-01-01..2025-01-31
+          E210 vl_retencao_st=200, vl_devol_st=100, vl_icms_recol_st=100
         Manual: debitos_st=200, creditos_st=100, saldo_st=100 (devedor).
         """
         fixture_path = _FIXTURES / "efd_icms_st.txt"

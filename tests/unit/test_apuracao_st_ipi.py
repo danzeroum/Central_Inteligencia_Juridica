@@ -1,4 +1,7 @@
-"""Testes unitários — ICMS-ST (E300/E310) e IPI (E520/E530) — S-C.5."""
+"""Testes unitários — ICMS-ST (E200/E210) e IPI (E520/E530) — S-C.6.
+
+Leiaute conferido contra Guia Prático EFD ICMS/IPI v3.1.5 (jan/2025).
+"""
 
 from __future__ import annotations
 
@@ -19,7 +22,7 @@ def _rec(tipo: str, **campos) -> SpedRecord:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ICMS-ST (E300 / E310)
+# ICMS-ST (E200 / E210)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -55,76 +58,82 @@ def test_icms_st_credor():
     assert item.situacao == "credor"
 
 
-def test_icms_st_divergencia_e310():
-    """E310 declarado difere do computado → ERRO divergência.
+def test_icms_st_divergencia_e210():
+    """E210 declarado difere do computado → ERRO divergência.
 
-    Manual: debitos_st=200 (C100), E310 declarado vl_tot_debitos=300 → diff=100 → ERRO
+    Manual: debitos_st=200 (C100), E210 vl_retencao_st=300 → diff=100 → ERRO
     """
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icmsst="200,00"),
+        _rec("E200", uf="SP", dt_ini="2025-01-01", dt_fin="2025-01-31"),
         _rec(
-            "E300",
-            uf_des="SP",
-            vl_sld_credor_ant="0,00",
-            vl_tot_debitos="200,00",
-            vl_aj_debitos="0,00",
-            vl_tot_debitos_especiais="0,00",
-            vl_aj_creditos="0,00",
-            vl_tot_creditos="0,00",
-            vl_sld_devedor="200,00",
-            vl_sld_credor="0,00",
-        ),
-        _rec(
-            "E310",
-            vl_tot_debitos="300,00",
-            vl_aj_debitos="0,00",
-            vl_tot_debitos_especiais="0,00",
-            vl_aj_creditos="0,00",
-            vl_tot_creditos="0,00",
-            vl_sld_credor_ant="0,00",
-            vl_sld_apurado="300,00",
-            vl_tot_deducoes="0,00",
-            vl_tot_retencoes="0,00",
+            "E210",
+            ind_mov_st="0",
+            vl_sld_cred_ant_st="0,00",
+            vl_devol_st="0,00",
+            vl_ressarc_st="0,00",
+            vl_out_cred_st="0,00",
+            vl_aj_creditos_st="0,00",
+            vl_retencao_st="300,00",  # diverge: declarado 300, computado 200
+            vl_out_deb_st="0,00",
+            vl_aj_debitos_st="0,00",
+            vl_sld_dev_ant_st="0,00",
+            vl_deducoes_st="0,00",
+            vl_icms_recol_st="300,00",
+            vl_sld_cred_st_transportar="0,00",
+            deb_esp_st="0,00",
         ),
     ]
     item = engine.calcular_icms_st(records)
     erros = [d for d in item.divergencias if d.severidade == Severidade.ERRO]
-    assert any("E310.vl_tot_debitos" in d.campo for d in erros)
+    assert any("E210.debitos_st" in d.campo for d in erros)
 
 
 def test_icms_st_multiplas_ufs():
-    """Dois E300 (SP e RJ) → detalhes.ufs com ambas as UFs.
+    """Dois E200 (SP e RJ) com E210 correspondentes → detalhes.ufs com ambas as UFs.
 
-    Manual: debitos_st=200+100=300 → saldo=300 (devedor)
+    Manual: debitos_st=300 (200+100 acumulados) → saldo=300 (devedor)
     """
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icmsst="200,00"),
         _rec("C100", ind_oper="1", cod_sit="00", vl_icmsst="100,00"),
+        _rec("E200", uf="SP", dt_ini="2025-01-01", dt_fin="2025-01-31"),
         _rec(
-            "E300",
-            uf_des="SP",
-            vl_sld_credor_ant="0,00",
-            vl_tot_debitos="200,00",
-            vl_aj_debitos="0,00",
-            vl_tot_debitos_especiais="0,00",
-            vl_aj_creditos="0,00",
-            vl_tot_creditos="0,00",
-            vl_sld_devedor="200,00",
-            vl_sld_credor="0,00",
+            "E210",
+            ind_mov_st="0",
+            vl_sld_cred_ant_st="0,00",
+            vl_devol_st="0,00",
+            vl_ressarc_st="0,00",
+            vl_out_cred_st="0,00",
+            vl_aj_creditos_st="0,00",
+            vl_retencao_st="200,00",
+            vl_out_deb_st="0,00",
+            vl_aj_debitos_st="0,00",
+            vl_sld_dev_ant_st="0,00",
+            vl_deducoes_st="0,00",
+            vl_icms_recol_st="200,00",
+            vl_sld_cred_st_transportar="0,00",
+            deb_esp_st="0,00",
         ),
+        _rec("E200", uf="RJ", dt_ini="2025-01-01", dt_fin="2025-01-31"),
         _rec(
-            "E300",
-            uf_des="RJ",
-            vl_sld_credor_ant="0,00",
-            vl_tot_debitos="100,00",
-            vl_aj_debitos="0,00",
-            vl_tot_debitos_especiais="0,00",
-            vl_aj_creditos="0,00",
-            vl_tot_creditos="0,00",
-            vl_sld_devedor="100,00",
-            vl_sld_credor="0,00",
+            "E210",
+            ind_mov_st="0",
+            vl_sld_cred_ant_st="0,00",
+            vl_devol_st="0,00",
+            vl_ressarc_st="0,00",
+            vl_out_cred_st="0,00",
+            vl_aj_creditos_st="0,00",
+            vl_retencao_st="100,00",
+            vl_out_deb_st="0,00",
+            vl_aj_debitos_st="0,00",
+            vl_sld_dev_ant_st="0,00",
+            vl_deducoes_st="0,00",
+            vl_icms_recol_st="100,00",
+            vl_sld_cred_st_transportar="0,00",
+            deb_esp_st="0,00",
         ),
     ]
     item = engine.calcular_icms_st(records)
@@ -133,8 +142,8 @@ def test_icms_st_multiplas_ufs():
     assert "RJ" in item.detalhes["ufs"]
 
 
-def test_icms_st_sem_e300_ausente():
-    """Sem E300 e sem ST em C100 → situacao='ausente'."""
+def test_icms_st_sem_e200_ausente():
+    """Sem E200 e sem ST em C100 → situacao='ausente'."""
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icms="100,00"),
@@ -144,28 +153,33 @@ def test_icms_st_sem_e300_ausente():
     assert item.tributo == "ICMS-ST"
 
 
-def test_icms_st_e310_sem_e300_erro():
-    """E310 sem E300 → ERRO estrutural."""
+def test_icms_st_e210_sem_e200_erro():
+    """E210 sem E200 → ERRO estrutural."""
     engine = get_apuracao_engine()
     records = [
         _rec("C100", ind_oper="1", cod_sit="00", vl_icmsst="100,00"),
         _rec(
-            "E310",
-            vl_tot_debitos="100,00",
-            vl_aj_debitos="0,00",
-            vl_tot_debitos_especiais="0,00",
-            vl_aj_creditos="0,00",
-            vl_tot_creditos="0,00",
-            vl_sld_credor_ant="0,00",
-            vl_sld_apurado="100,00",
-            vl_tot_deducoes="0,00",
-            vl_tot_retencoes="0,00",
+            "E210",
+            ind_mov_st="0",
+            vl_sld_cred_ant_st="0,00",
+            vl_devol_st="0,00",
+            vl_ressarc_st="0,00",
+            vl_out_cred_st="0,00",
+            vl_aj_creditos_st="0,00",
+            vl_retencao_st="100,00",
+            vl_out_deb_st="0,00",
+            vl_aj_debitos_st="0,00",
+            vl_sld_dev_ant_st="0,00",
+            vl_deducoes_st="0,00",
+            vl_icms_recol_st="100,00",
+            vl_sld_cred_st_transportar="0,00",
+            deb_esp_st="0,00",
         ),
     ]
     item = engine.calcular_icms_st(records)
     erros = [d for d in item.divergencias if d.severidade == Severidade.ERRO]
-    assert any(d.campo == "E310" for d in erros)
-    assert any("sem E300" in d.valor_computado for d in erros)
+    assert any(d.campo == "E210" for d in erros)
+    assert any("sem E200" in d.valor_computado for d in erros)
 
 
 def test_icms_st_nao_incluido_em_calcular_sem_dados():
@@ -228,7 +242,7 @@ def test_ipi_credito_entrada():
 
 
 def test_ipi_confronto_e520():
-    """E520 declarado compatível → zero divergências.
+    """E520 real declarado compatível → zero divergências.
 
     Manual: debitos=80, creditos=30 → saldo=50 (devedor); E520 confirma.
     """
@@ -239,12 +253,12 @@ def test_ipi_confronto_e520():
         _rec(
             "E520",
             vl_sd_ant_ipi="0,00",
-            vl_tot_deb_ipi="80,00",
-            vl_ot_cred_ipi="30,00",
-            vl_icms_ressarc="0,00",
-            vl_sd_cred_ipi="0,00",
-            vl_ipi_recolher="50,00",
-            vl_sd_cred_ipi_transp="0,00",
+            vl_deb_ipi="80,00",
+            vl_cred_ipi="30,00",
+            vl_od_ipi="0,00",
+            vl_oc_ipi="0,00",
+            vl_sc_ipi="0,00",
+            vl_sd_ipi="50,00",
         ),
     ]
     item = engine.calcular_ipi(records)
@@ -256,7 +270,7 @@ def test_ipi_confronto_e520():
 def test_ipi_divergencia_e520():
     """E520 diverge dos C100 → ERRO divergência.
 
-    Manual: debitos=80 (C100), E520 declarado vl_tot_deb_ipi=100 → diff=20 → ERRO
+    Manual: debitos=80 (C100), E520 declarado vl_deb_ipi=100 → diff=20 → ERRO
     """
     engine = get_apuracao_engine()
     records = [
@@ -264,21 +278,21 @@ def test_ipi_divergencia_e520():
         _rec(
             "E520",
             vl_sd_ant_ipi="0,00",
-            vl_tot_deb_ipi="100,00",
-            vl_ot_cred_ipi="0,00",
-            vl_icms_ressarc="0,00",
-            vl_sd_cred_ipi="0,00",
-            vl_ipi_recolher="100,00",
-            vl_sd_cred_ipi_transp="0,00",
+            vl_deb_ipi="100,00",
+            vl_cred_ipi="0,00",
+            vl_od_ipi="0,00",
+            vl_oc_ipi="0,00",
+            vl_sc_ipi="0,00",
+            vl_sd_ipi="100,00",
         ),
     ]
     item = engine.calcular_ipi(records)
     erros = [d for d in item.divergencias if d.severidade == Severidade.ERRO]
-    assert any("E520.vl_tot_deb_ipi" in d.campo for d in erros)
+    assert any("E520.vl_deb_ipi" in d.campo for d in erros)
 
 
 def test_ipi_ajuste_e530_debito():
-    """E530 com natureza 0 (outros débitos) → ajustes_debito.
+    """E530 com ind_aj='0' (débito) → ajustes_debito.
 
     Manual: debitos=100, ajustes_debito=20 → saldo=120 (devedor)
     """
@@ -288,11 +302,14 @@ def test_ipi_ajuste_e530_debito():
         _rec(
             "E530",
             cod_aj="SP000101",
-            ind_doc="0",
-            num_doc="",
-            cod_item="",
+            ind_aj="0",
             vl_aj_ipi="20,00",
+            cod_item="",
+            num_da="",
+            num_proc="",
+            ind_proc="",
             descr_compl_aj="ajuste débito",
+            cod_cta="",
         ),
     ]
     item = engine.calcular_ipi(records)
@@ -301,7 +318,7 @@ def test_ipi_ajuste_e530_debito():
 
 
 def test_ipi_ajuste_e530_credito():
-    """E530 com natureza 2 (outros créditos) → ajustes_credito.
+    """E530 com ind_aj='1' (crédito) → ajustes_credito.
 
     Manual: debitos=100, ajustes_credito=15 → saldo=85 (devedor)
     """
@@ -311,11 +328,14 @@ def test_ipi_ajuste_e530_credito():
         _rec(
             "E530",
             cod_aj="SP020101",
-            ind_doc="0",
-            num_doc="",
-            cod_item="",
+            ind_aj="1",
             vl_aj_ipi="15,00",
+            cod_item="",
+            num_da="",
+            num_proc="",
+            ind_proc="",
             descr_compl_aj="ajuste crédito",
+            cod_cta="",
         ),
     ]
     item = engine.calcular_ipi(records)
@@ -353,12 +373,12 @@ def test_ipi_incluido_em_calcular_com_e520():
         _rec(
             "E520",
             vl_sd_ant_ipi="0,00",
-            vl_tot_deb_ipi="20,00",
-            vl_ot_cred_ipi="0,00",
-            vl_icms_ressarc="0,00",
-            vl_sd_cred_ipi="0,00",
-            vl_ipi_recolher="20,00",
-            vl_sd_cred_ipi_transp="0,00",
+            vl_deb_ipi="20,00",
+            vl_cred_ipi="0,00",
+            vl_od_ipi="0,00",
+            vl_oc_ipi="0,00",
+            vl_sc_ipi="0,00",
+            vl_sd_ipi="20,00",
         ),
     ]
     resultado = engine.calcular(records, tipo="efd_icms")

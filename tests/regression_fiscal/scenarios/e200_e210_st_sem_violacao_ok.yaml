@@ -1,0 +1,15 @@
+name: 'E200/E210: ICMS-ST declarado correto — sem violações ST'
+regime: lucro_real
+registros:
+- tipo_registro: C100
+  campos:
+    ind_oper: '1'
+    cod_sit: '00'
+    vl_bc_icms_st: 500,00
+    vl_icmsst: 50,00
+esperado:
+  regra_ids_ausentes:
+  - ST-001
+  - ST-002
+  - ST-003
+  aprovado: true

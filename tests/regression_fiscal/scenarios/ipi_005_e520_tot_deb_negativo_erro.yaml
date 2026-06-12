@@ -1,4 +1,4 @@
-name: 'IPI: E520 vl_tot_deb_ipi negativo — E520-001 ERRO'
+name: 'IPI: E520 vl_deb_ipi negativo — E520-001 ERRO'
 regime: lucro_real
 registros:
 - tipo_registro: C100
@@ -9,12 +9,12 @@ registros:
 - tipo_registro: E520
   campos:
     vl_sd_ant_ipi: 0,00
-    vl_tot_deb_ipi: -20,00
-    vl_ot_cred_ipi: 0,00
-    vl_icms_ressarc: 0,00
-    vl_sd_cred_ipi: 0,00
-    vl_ipi_recolher: 20,00
-    vl_sd_cred_ipi_transp: 0,00
+    vl_deb_ipi: -20,00
+    vl_cred_ipi: 0,00
+    vl_od_ipi: 0,00
+    vl_oc_ipi: 0,00
+    vl_sc_ipi: 0,00
+    vl_sd_ipi: 20,00
 esperado:
   regra_ids_violadas:
   - E520-001
