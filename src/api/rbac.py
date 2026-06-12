@@ -53,14 +53,28 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         "vault:read",
         "vault:write",
         "vault:rotate",
+        # S-F.2: PER/DCOMP
+        "per_dcomp:generate",
+        "per_dcomp:validate",
     },
     Role.OPERATOR: {
         "hitl:write",
         "agents:read",
         "monitoring:read",
         "intelligence:query",
+        # S-F.2: PER/DCOMP
+        "per_dcomp:generate",
+        "per_dcomp:validate",
     },
-    Role.AUDITOR: {"ledger:read", "lgpd:read", "monitoring:read", "vault:read"},
+    Role.AUDITOR: {
+        "ledger:read",
+        "lgpd:read",
+        "monitoring:read",
+        # S-F.1: cofre de credenciais (somente leitura)
+        "vault:read",
+        # S-F.2: auditor pode validar (somente leitura)
+        "per_dcomp:validate",
+    },
     Role.READONLY: {"monitoring:read"},
 }
 

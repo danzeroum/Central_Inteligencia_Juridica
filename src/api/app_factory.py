@@ -97,6 +97,11 @@ def create_app() -> FastAPI:
 
     app.include_router(analytics_router)
 
+    # Bloco F — Geração PER/DCOMP (S-F.2)
+    from src.api.routes.per_dcomp import router as per_dcomp_router
+
+    app.include_router(per_dcomp_router)
+
     # Bloco B — Ingestão & Normalização
     from src.api.routes.upload import router as upload_router
 
