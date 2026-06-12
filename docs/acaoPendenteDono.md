@@ -137,7 +137,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:test@localhost:5432/cij_test \
 | S-G.1 | Painel operacional Escriturações SPED (upload, achados, registros, apuração) | #123 | ✅ merged |
 | S-G.2 | Frontend: RetificacaoScreen + PERDCOMPScreen + TransmissaoScreen | #124 | ✅ merged |
 | S-G.3 | Frontend: VaultScreen + DueDiligenceScreen + ConsultoriaScreen | #125 | ✅ merged |
-| S-0.4 | Slots dinâmicos no frontend + PATCH toggle de módulos + SSE stream | #126 | 🔄 CI |
+| S-0.4 | Slots dinâmicos no frontend + PATCH toggle de módulos + SSE stream | #126 | ✅ merged |
 
 ---
 
