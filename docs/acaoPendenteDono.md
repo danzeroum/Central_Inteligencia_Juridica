@@ -136,8 +136,8 @@ DATABASE_URL=postgresql+asyncpg://postgres:test@localhost:5432/cij_test \
 | S-D.2 | Retificação SPED ponta-a-ponta (comparador, layout validator, nota de correção) | #121 | ✅ merged |
 | S-G.1 | Painel operacional Escriturações SPED (upload, achados, registros, apuração) | #123 | ✅ merged |
 | S-G.2 | Frontend: RetificacaoScreen + PERDCOMPScreen + TransmissaoScreen | #124 | ✅ merged |
-| S-G.3 | Frontend: VaultScreen + DueDiligenceScreen + ConsultoriaScreen | #125 | 🔄 CI |
+| S-G.3 | Frontend: VaultScreen + DueDiligenceScreen + ConsultoriaScreen | #125 | ✅ merged |
 
 ---
 
-*Documento mantido automaticamente pelo agente. Última atualização: S-G.2 (2026-06-12).*
+*Documento mantido automaticamente pelo agente. Última atualização: S-G.3 (2026-06-12) — vistoria S-G concluída, 25 endpoints cobertos.*
