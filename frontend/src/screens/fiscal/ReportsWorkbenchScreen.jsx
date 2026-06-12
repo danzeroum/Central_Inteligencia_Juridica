@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/toast.jsx';
+import { api } from '../../api/client.js';
+import { getToken } from '../../api/auth.js';
 
-const BASE = '/api/v1/fiscal';
+const BASE_FISCAL = import.meta.env.VITE_API_BASE
+  ? `${import.meta.env.VITE_API_BASE}/api/v1/fiscal`
+  : '/api/v1/fiscal';
 
-async function apiFetch(path, opts = {}) {
-  const token = localStorage.getItem('token');
+async function fetchBlob(path) {
+  const token = getToken();
   const res = await fetch(path, {
-    ...opts,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
   return res;
@@ -28,10 +31,7 @@ function ReportsTab() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    apiFetch(`${BASE}/reports/tipos`)
-      .then((r) => r.json())
-      .then(setTipos)
-      .catch(() => {});
+    api.get('/api/v1/fiscal/reports/tipos').then(setTipos).catch(() => {});
   }, []);
 
   const gerar = async (formato = 'json') => {
@@ -44,8 +44,8 @@ function ReportsTab() {
     if (periodoInicio) params.set('periodo_inicio', periodoInicio);
     if (periodoFim) params.set('periodo_fim', periodoFim);
     try {
-      const res = await apiFetch(`${BASE}/reports/gerar?${params}`);
       if (formato === 'csv') {
+        const res = await fetchBlob(`${BASE_FISCAL}/reports/gerar?${params}`);
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -55,7 +55,7 @@ function ReportsTab() {
         URL.revokeObjectURL(url);
         showToast('CSV baixado com sucesso.', 'success');
       } else {
-        const data = await res.json();
+        const data = await api.get(`/api/v1/fiscal/reports/gerar?${params}`);
         setResultado(data);
       }
     } catch (e) {
@@ -177,10 +177,7 @@ function WorkbenchTab() {
   const [validarBusy, setValidarBusy] = useState(false);
 
   useEffect(() => {
-    apiFetch(`${BASE}/workbench/queries`)
-      .then((r) => r.json())
-      .then(setQueries)
-      .catch(() => {});
+    api.get('/api/v1/fiscal/workbench/queries').then(setQueries).catch(() => {});
   }, []);
 
   const executar = async () => {
@@ -192,8 +189,8 @@ function WorkbenchTab() {
     if (tributo) params.set('tributo', tributo);
     if (operation) params.set('operation', operation);
     try {
-      const res = await apiFetch(`${BASE}/workbench/executar?${params}`, { method: 'POST' });
-      setResultado(await res.json());
+      const data = await api.post(`/api/v1/fiscal/workbench/executar?${params}`);
+      setResultado(data);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -206,11 +203,8 @@ function WorkbenchTab() {
     setValidarBusy(true);
     setValidacaoResult(null);
     try {
-      const res = await apiFetch(`${BASE}/workbench/validar`, {
-        method: 'POST',
-        body: JSON.stringify({ sql: sqlValidar }),
-      });
-      setValidacaoResult(await res.json());
+      const data = await api.post('/api/v1/fiscal/workbench/validar', { sql: sqlValidar });
+      setValidacaoResult(data);
     } catch (e) {
       setValidacaoResult({ seguro: false, mensagem: e.message });
     } finally {
