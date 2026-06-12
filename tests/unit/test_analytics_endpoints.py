@@ -18,7 +18,6 @@ from src.api.routes.analytics import (
     _safe_int,
 )
 
-
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
 
