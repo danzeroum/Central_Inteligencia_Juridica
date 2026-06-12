@@ -645,13 +645,7 @@ async def listar_registros(
                 offset=offset,
             )
             total = await reg_repo.count_by_escrituracao(eid)
-
-        return RegistrosResponse(
-            escrituracao_id=escrituracao_id,
-            total=total,
-            offset=offset,
-            limit=limit,
-            registros=[
+            registros_items = [
                 RegistroFiscalItem(
                     id=str(r.id),
                     tipo_registro=r.tipo_registro,
@@ -660,7 +654,14 @@ async def listar_registros(
                     campos=_mask_campos(r.dados or {}),
                 )
                 for r in registros_db
-            ],
+            ]
+
+        return RegistrosResponse(
+            escrituracao_id=escrituracao_id,
+            total=total,
+            offset=offset,
+            limit=limit,
+            registros=registros_items,
         )
 
     except HTTPException:
