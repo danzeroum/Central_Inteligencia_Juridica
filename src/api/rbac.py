@@ -63,6 +63,9 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         # S-F.3: transmissão e-CAC
         "transmissao:enviar",
         "transmissao:consultar",
+        # S-D.2: Retificação SPED
+        "retificacao:read",
+        "retificacao:write",
     },
     Role.OPERATOR: {
         "hitl:write",
@@ -78,6 +81,9 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         # S-F.3: transmissão e-CAC
         "transmissao:enviar",
         "transmissao:consultar",
+        # S-D.2: Retificação SPED
+        "retificacao:read",
+        "retificacao:write",
     },
     Role.AUDITOR: {
         "ledger:read",
@@ -91,6 +97,8 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         "reports:read",
         # S-F.3: auditor pode consultar (somente leitura)
         "transmissao:consultar",
+        # S-D.2: auditor pode ler comparações e notas de correção
+        "retificacao:read",
     },
     Role.READONLY: {"monitoring:read"},
 }
