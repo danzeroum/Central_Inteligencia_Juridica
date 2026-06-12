@@ -10,7 +10,6 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # QuerySafetyValidator — núcleo de segurança do workbench
 # ─────────────────────────────────────────────────────────────────────────────
@@ -190,7 +189,9 @@ class TestCsvHelper:
 
 
 def _make_client():
-    from src.api.main import app  # side-effect: AuthManager.configure(required=False) via config
+    from src.api.main import (
+        app,
+    )  # side-effect: AuthManager.configure(required=False) via config
 
     return TestClient(app, raise_server_exceptions=False)
 
