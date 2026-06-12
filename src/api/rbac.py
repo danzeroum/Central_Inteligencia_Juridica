@@ -60,6 +60,9 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         "reports:read",
         "workbench:execute",
         "workbench:admin",
+        # S-F.3: transmissão e-CAC
+        "transmissao:enviar",
+        "transmissao:consultar",
     },
     Role.OPERATOR: {
         "hitl:write",
@@ -72,6 +75,9 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         # S-E.2: relatórios + workbench (leitura/execução, não admin)
         "reports:read",
         "workbench:execute",
+        # S-F.3: transmissão e-CAC
+        "transmissao:enviar",
+        "transmissao:consultar",
     },
     Role.AUDITOR: {
         "ledger:read",
@@ -83,6 +89,8 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         "per_dcomp:validate",
         # S-E.2: relatórios (somente leitura)
         "reports:read",
+        # S-F.3: auditor pode consultar (somente leitura)
+        "transmissao:consultar",
     },
     Role.READONLY: {"monitoring:read"},
 }
