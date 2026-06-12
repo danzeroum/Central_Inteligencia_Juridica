@@ -14,6 +14,7 @@ import Invest360Screen   from './screens/user/Invest360Screen.jsx';
 import PrivacyScreen     from './screens/user/PrivacyScreen.jsx';
 
 import FiscalDashboardScreen    from './screens/fiscal/FiscalDashboardScreen.jsx';
+import EscrituracaoScreen       from './screens/fiscal/EscrituracaoScreen.jsx';
 import ReportsWorkbenchScreen   from './screens/fiscal/ReportsWorkbenchScreen.jsx';
 
 import HitlScreen        from './screens/admin/HitlScreen.jsx';
@@ -45,6 +46,7 @@ const NAV = {
   admin: [
     { group: 'Fiscal', items: [
       { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law',    isNew: true },
+      { id: 'escrituracoes',    label: 'Escriturações',    icon: 'doc',    isNew: true },
       { id: 'reports',          label: 'Relatórios',        icon: 'ledger', isNew: true },
       { id: 'workbench',        label: 'Workbench SQL',     icon: 'flow',   isNew: true },
     ]},
@@ -73,6 +75,7 @@ const TITLES = {
   perfil:      ['Conta',       'Meu Perfil'],
   privacidade:        ['Conta',       'Privacidade (LGPD)'],
   'fiscal-dashboard': ['Fiscal',      'Analytics Fiscal'],
+  escrituracoes:      ['Fiscal',      'Escriturações SPED'],
   reports:            ['Fiscal',      'Relatórios Premium'],
   workbench:          ['Fiscal',      'Workbench SQL'],
   hitl:               ['Operação',    'Aprovações'],
@@ -175,6 +178,7 @@ export default function App() {
     invest360:    <Invest360Screen go={go} />,
     privacidade:  <PrivacyScreen />,
     'fiscal-dashboard': <FiscalDashboardScreen />,
+    escrituracoes: <EscrituracaoScreen />,
     reports:      <ReportsWorkbenchScreen />,
     workbench:    <ReportsWorkbenchScreen />,
     hitl:         <HitlScreen go={go} onPendingChange={setPendingCount} />,
