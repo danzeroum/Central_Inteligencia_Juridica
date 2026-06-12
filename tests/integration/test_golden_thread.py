@@ -484,3 +484,86 @@ class TestGoldenThreadE2E:
         assert r.status_code == 200
         icms_desta = [a for a in r.json() if a["escrituracao_id"] == db_id]
         assert len(icms_desta) == 1
+
+    def test_e2e_ciclo_detectar_corrigir_reapurar(self, api_client):
+        """Ciclo completo S-C.3: upload com ERRO → corrigir via lote → revalidação 0 erros → apuração ok.
+
+        Fixture efd_icms_erro_detectavel.txt tem C100 com vl_icms=-120 (ICMS-002 ERRO).
+        Corrige via POST /registros/lote → vl_icms=120,00.
+        Resultado final: achados 0 erros, apuracao devedor=120 aprovado.
+        """
+        # 1. Upload fixture com erro detectável
+        resp = self._upload(api_client, "efd_icms_erro_detectavel.txt", "efd_icms")
+        assert resp.status_code == 202
+        body = resp.json()
+        db_id = body.get("db_id")
+        assert db_id is not None, "db_id ausente — escrituração não foi persistida"
+
+        # 2. Status processado
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}")
+        assert r.status_code == 200
+        assert r.json()["status"] == "processado"
+
+        # 3. Achados: ICMS-002 ERRO presente
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}/achados")
+        assert r.status_code == 200
+        achados = r.json()["achados"]
+        erros = [a for a in achados if a["severidade"] == "erro"]
+        assert len(erros) >= 1, f"Esperado ao menos 1 ERRO, achados: {achados}"
+        regra_ids = {a["regra_id"] for a in erros}
+        assert (
+            "ICMS-002" in regra_ids
+        ), f"ICMS-002 deveria ter disparado, ids: {regra_ids}"
+
+        # 4. GET /registros → localizar C100 registro_id
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}/registros")
+        assert r.status_code == 200
+        registros = r.json()["registros"]
+        c100 = next((reg for reg in registros if reg["tipo_registro"] == "C100"), None)
+        assert c100 is not None, "Nenhum registro C100 encontrado"
+        c100_id = c100["id"]
+
+        # 5. POST /registros/lote dry_run=True → diff + achados_depois sem erros
+        fix_payload = {
+            "operacoes": [{"registro_id": c100_id, "campos": {"vl_icms": "120,00"}}],
+            "dry_run": True,
+        }
+        r = api_client.post(
+            f"/api/v1/fiscal/escrituracoes/{db_id}/registros/lote",
+            json=fix_payload,
+        )
+        assert r.status_code == 200
+        lote = r.json()
+        assert lote["dry_run"] is True
+        erros_depois = [a for a in lote["achados_depois"] if a["severidade"] == "erro"]
+        assert (
+            len(erros_depois) == 0
+        ), f"dry_run: esperado 0 erros depois, achados: {lote['achados_depois']}"
+
+        # 6. POST /registros/lote dry_run=False → persiste correção
+        fix_payload["dry_run"] = False
+        r = api_client.post(
+            f"/api/v1/fiscal/escrituracoes/{db_id}/registros/lote",
+            json=fix_payload,
+        )
+        assert r.status_code == 200
+        assert r.json()["dry_run"] is False
+
+        # 7. GET /achados → 0 erros após correção
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}/achados")
+        assert r.status_code == 200
+        achados_pos = r.json()["achados"]
+        erros_pos = [a for a in achados_pos if a["severidade"] == "erro"]
+        assert (
+            len(erros_pos) == 0
+        ), f"Esperado 0 erros após correção, achados: {achados_pos}"
+
+        # 8. POST /apuracao → aprovado (E110=120 = vl_icms fixado=120)
+        r = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r.status_code == 200
+        ap = r.json()
+        assert ap["aprovado"] is True, f"Apuração deveria ser aprovada: {ap}"
+        icms = next((i for i in ap["items"] if i["tributo"] == "ICMS"), None)
+        assert icms is not None
+        assert Decimal(icms["saldo_apurado"]) == Decimal("120")
+        assert icms["situacao"] == "devedor"

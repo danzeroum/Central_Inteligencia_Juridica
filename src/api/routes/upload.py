@@ -203,7 +203,7 @@ async def upload_fiscal(
     # ── Disparo do processamento (DT-05) ──────────────────────────────────────
     # Celery disponível → enfileira task; caso contrário → executa inline.
     competencia = f"{ano}-{mes:02d}" if mes else str(ano)
-    _regime = "lucro_real"  # TODO(S-C.3): extrair regime dos metadados do upload
+    _regime = "lucro_real"  # TODO(S-C.4): extrair regime dos metadados do upload
 
     try:
         from src.workers.celery_app import celery_app as _celery

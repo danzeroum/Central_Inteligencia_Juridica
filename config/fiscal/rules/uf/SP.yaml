@@ -1,0 +1,67 @@
+version: "1.0"
+uf: SP
+# Regras específicas para São Paulo.
+# Alíquota interna padrão SP: 18%.
+# Interestaduais: 4% (importados/industrializados), 7% (SP→AL/BA/CE/MA/PA/PB/PE/PI/RN/SE),
+#                 12% (demais interestaduais).
+# Limitações: alíquotas especiais por produto (energia elétrica, combustíveis,
+# telecomunicações) e regimes especiais não são verificados aqui.
+# Ajuste de alíquota = editar este arquivo, SEM redeploy de código.
+
+rules:
+  - id: ICMS-SP-001
+    tipo_registro: C100
+    campo: aliq_icms
+    uf: SP
+    descricao: "Alíquota ICMS interna fora da tabela SP (esperado: 18% para operações internas)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: >
+      Operações internas em SP: alíquota padrão 18%.
+      Interestaduais (CFOP 6xxx): 4%, 7% ou 12%.
+      Limitação: alíquotas especiais por produto (energia, combustível, telecom) não verificadas.
+    check:
+      all:
+        - operator: positive
+          field: aliq_icms
+        - operator: not_in_numeric_list
+          field: aliq_icms
+          values: [18.0, 4.0, 7.0, 12.0]
+          tolerance: 0.1
+
+  - id: ICMS-SP-002
+    tipo_registro: C170
+    campo: aliq_icms
+    uf: SP
+    descricao: "Alíquota ICMS em item fora da tabela SP (esperado: 18% interno ou 4/7/12% interestadual)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: >
+      Itens de NF em SP: alíquota interna padrão 18%.
+      CFOPs interestaduais (6xxx): 4%, 7% ou 12%.
+      Alíquotas especiais por produto (Decreto 45.490/2000 e atualizações) não verificadas.
+    check:
+      all:
+        - operator: positive
+          field: aliq_icms
+        - operator: not_in_numeric_list
+          field: aliq_icms
+          values: [18.0, 4.0, 7.0, 12.0, 0.0]
+          tolerance: 0.1
+
+  - id: ICMS-SP-003
+    tipo_registro: C100
+    campo: aliq_icms
+    uf: SP
+    descricao: "NF-e SP com alíquota ICMS zero e base de cálculo positiva"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido]
+    dica: >
+      Alíquota zero com base positiva pode indicar isenção não declarada,
+      uso de CST incorreto ou omissão de alíquota. Verifique o CST aplicado.
+    check:
+      all:
+        - operator: positive
+          field: vl_bc_icms
+        - operator: zero_not_none
+          field: aliq_icms

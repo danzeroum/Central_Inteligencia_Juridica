@@ -42,12 +42,12 @@
 | DT-03 | `src/workers/tasks.py`: `process_sped_file` placeholder com mensagem desatualizada ("parser EFD em S-B.1") | S-0.5 | **S-C.2 Parte A** (vira pipeline real) | **resolvido** (PR S-C.2) |
 | DT-04 | Decisões do Bloco C sem ADR (regras determinísticas sem `weighted_voting`; YAML/UF adiado) | S-C.1 | **S-C.2** (higiene — ADR curto) | **resolvido** (PR S-C.2) |
 | DT-05 | **Pipeline desconectado**: upload (S-B.1) não dispara parsing; parsers B.2–B.4 e rules engine C.1 não são alcançáveis via API | S-B.1..C.1 | **S-C.2 Parte A** + prova E2E no S-C.2.1 | **resolvido** — confirmado por log do CI (run 27362773921): 4 `TestGoldenThreadE2E` PASSED |
-| DT-06 | Regras fiscais hardcoded em Python; carregamento YAML por UF pendente | S-C.1 | **gatilho:** entrada da 1ª regra dependente de UF (provável S-C.3) | registrado |
+| DT-06 | Regras fiscais hardcoded em Python; carregamento YAML por UF pendente | S-C.1 | **S-C.3** (RuleLoader YAML + uf/SP.yaml + uf/RJ.yaml) | **resolvido** (PR S-C.3) |
 | DT-07 | **"Fio-de-ouro" não testa o fio**: `test_golden_thread.py` valida segmentos isolados (chama parser/engine in-process, duplicando `test_apuracao.py`) + smoke `404/503/422`; a cola `upload→persistência→consulta` não tem cobertura de integração. O `202` não prova persistência | S-C.2 (#103) | **S-C.2.1** | **resolvido** (PR S-C.2.1) |
 | DT-08 | ADR duplicado: coexistem `ADR-001-performance-target.md` e `ADR-001-regras-fiscais-deterministas.md` | S-C.2 (#103) | **S-C.2.1** (renumerar p/ `ADR-016`) | **resolvido** (PR S-C.2.1) |
 | DT-09 | `DATABASE_URL` não passada aos steps de `pytest` em `.github/workflows/ci.yml` → testes de banco skippavam silenciosamente desde S-0.1 (inclui 7 `postgres_ledger` e todos os futuros E2E) | S-C.2.1 (exposto) | **S-C.2.1** (fix no mesmo PR) | **resolvido** (PR S-C.2.1) |
-| DT-10 | Workflows `ci-on-pr.yml`/`ci-on-push.yml` duplicados/desatualizados — intenção vs `ci.yml` principal não documentada | S-C.2 | **S-C.3** (decidir/consolidar) | registrado |
-| DT-11 | Sessões async não fecham limpo no caminho inline: log do Postgres no CI com 6× `unexpected EOF on client connection with an open transaction` + 2 warnings `coroutine 'Connection._cancel' was never awaited` (run 27362773921) | S-C.2.1 (exposto) | **S-C.3** (higiene) — critério: log do Postgres do CI sem EOFs com transação aberta | **aberto** |
+| DT-10 | Workflows `ci-on-pr.yml`/`ci-on-push.yml` duplicados/desatualizados — intenção vs `ci.yml` principal não documentada | S-C.2 | **S-C.3** (documentados com cabeçalho explicando papel de cada workflow) | **resolvido** (PR S-C.3) |
+| DT-11 | Sessões async não fecham limpo no caminho inline: log do Postgres no CI com 6× `unexpected EOF on client connection with an open transaction` + 2 warnings `coroutine 'Connection._cancel' was never awaited` (run 27362773921) | S-C.2.1 (exposto) | **S-C.3** — rollback explícito em `get_async_session()` quando `session.in_transaction()` | **resolvido** (PR S-C.3) |
 
 ## 3. SPRINT ATUAL — S-C.3 "Regras declarativas por UF + Edição em lote + Regressão tributária"
 

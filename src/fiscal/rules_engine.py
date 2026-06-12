@@ -1,13 +1,17 @@
-"""Motor de regras fiscais declarativo — Bloco C (S-C.1).
+"""Motor de regras fiscais declarativo — Bloco C (S-C.1/S-C.3).
 
 Valida registros SPED EFD-ICMS/IPI e EFD-Contribuições contra regras
-declarativas de apuração de ICMS, PIS e COFINS.
+declarativas de apuração de ICMS, PIS e COFINS. A partir do S-C.3 as
+regras são carregadas de YAML (config/fiscal/rules/) em vez de hardcoded.
 
 Uso:
     engine = get_rules_engine("lucro_real")
     resultado = engine.validate(parse_result.records)
     for r in resultado.erros:
         print(r.regra_id, r.descricao)
+
+    # Com regras por UF:
+    engine = get_rules_engine("lucro_real", uf="SP")
 
 Regimes suportados: lucro_real, lucro_presumido, simples_nacional.
 """
@@ -82,6 +86,7 @@ class FiscalRule:
     check: Callable[[Dict[str, Any]], bool]  # True → violação detectada
     dica: str = ""
     regimes: FrozenSet[str] = field(default_factory=lambda: _ALL_REGIMES)
+    uf: Optional[str] = None  # None = regra geral; "SP", "RJ" etc. = UF específica
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,245 +96,6 @@ class FiscalRule:
 
 def _v(campos: Dict[str, Any], campo: str) -> Optional[float]:
     return _normaliza_valor(str(campos.get(campo) or ""))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Catálogo de regras
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-def _build_rules() -> List[FiscalRule]:
-    rules: List[FiscalRule] = []
-
-    # ── C100: Nota Fiscal ────────────────────────────────────────────────────
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-001",
-            tipo_registro="C100",
-            campo="vl_bc_icms",
-            descricao="Base de cálculo ICMS negativa",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_bc_icms")) is not None and v < 0,
-            dica="vl_bc_icms deve ser >= 0",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-002",
-            tipo_registro="C100",
-            campo="vl_icms",
-            descricao="Valor ICMS negativo",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_icms")) is not None and v < 0,
-            dica="vl_icms deve ser >= 0",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-003",
-            tipo_registro="C100",
-            campo="vl_icms",
-            descricao="Valor ICMS superior à base de cálculo",
-            severidade=Severidade.ERRO,
-            check=lambda c: (
-                (vb := _v(c, "vl_bc_icms")) is not None
-                and (vi := _v(c, "vl_icms")) is not None
-                and vb > 0
-                and vi > vb
-            ),
-            dica="vl_icms não pode ser maior que vl_bc_icms",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-004",
-            tipo_registro="C100",
-            campo="vl_bc_icms",
-            descricao="Base ICMS excede valor total do documento",
-            severidade=Severidade.AVISO,
-            check=lambda c: (
-                (vd := _v(c, "vl_doc")) is not None
-                and (vb := _v(c, "vl_bc_icms")) is not None
-                and vd > 0
-                and vb > vd
-            ),
-            dica="vl_bc_icms deve ser <= vl_doc",
-        )
-    )
-
-    def _icms_aliq_check(c: Dict[str, Any]) -> bool:
-        vb = _v(c, "vl_bc_icms")
-        vi = _v(c, "vl_icms")
-        al = _v(c, "aliq_icms")
-        if vb is None or vi is None or al is None or al <= 0 or vb <= 0:
-            return False
-        esperado = vb * al / 100.0
-        return abs(vi - esperado) / esperado > 0.01
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-005",
-            tipo_registro="C100",
-            campo="aliq_icms",
-            descricao="Valor ICMS inconsistente com base × alíquota (divergência > 1%)",
-            severidade=Severidade.AVISO,
-            check=_icms_aliq_check,
-            dica="Verifique se vl_icms = vl_bc_icms × aliq_icms / 100",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="PIS-001",
-            tipo_registro="C100",
-            campo="vl_pis",
-            descricao="Valor PIS negativo",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_pis")) is not None and v < 0,
-            dica="vl_pis deve ser >= 0",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="COFINS-001",
-            tipo_registro="C100",
-            campo="vl_cofins",
-            descricao="Valor COFINS negativo",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_cofins")) is not None and v < 0,
-            dica="vl_cofins deve ser >= 0",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="PIS-002",
-            tipo_registro="C100",
-            campo="vl_pis",
-            descricao="Valor PIS excede valor total do documento",
-            severidade=Severidade.ERRO,
-            check=lambda c: (
-                (vd := _v(c, "vl_doc")) is not None
-                and (vp := _v(c, "vl_pis")) is not None
-                and vd > 0
-                and vp > vd
-            ),
-            dica="vl_pis não pode ser maior que vl_doc",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="COFINS-002",
-            tipo_registro="C100",
-            campo="vl_cofins",
-            descricao="Valor COFINS excede valor total do documento",
-            severidade=Severidade.ERRO,
-            check=lambda c: (
-                (vd := _v(c, "vl_doc")) is not None
-                and (vc := _v(c, "vl_cofins")) is not None
-                and vd > 0
-                and vc > vd
-            ),
-            dica="vl_cofins não pode ser maior que vl_doc",
-        )
-    )
-
-    _SITUS_CANCELADOS = {"5", "6", "7", "8", "02", "05", "06", "07", "08"}
-
-    rules.append(
-        FiscalRule(
-            id="COD-SIT-001",
-            tipo_registro="C100",
-            campo="cod_sit",
-            descricao="Documento cancelado/denegado com valor total > 0",
-            severidade=Severidade.AVISO,
-            check=lambda c: (
-                str(c.get("cod_sit") or "").strip() in _SITUS_CANCELADOS
-                and (vd := _v(c, "vl_doc")) is not None
-                and vd > 0
-            ),
-            dica="Documentos cancelados (cod_sit 5-8) devem ter vl_doc = 0",
-        )
-    )
-
-    # ── D100: Conhecimento de Transporte ────────────────────────────────────
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-D-001",
-            tipo_registro="D100",
-            campo="vl_icms",
-            descricao="Valor ICMS negativo no CT-e (D100)",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_icms")) is not None and v < 0,
-            dica="vl_icms deve ser >= 0",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-D-002",
-            tipo_registro="D100",
-            campo="vl_bc_icms",
-            descricao="Base de cálculo ICMS negativa no CT-e (D100)",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_bc_icms")) is not None and v < 0,
-            dica="vl_bc_icms deve ser >= 0",
-        )
-    )
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-D-003",
-            tipo_registro="D100",
-            campo="vl_icms",
-            descricao="Valor ICMS superior à base de cálculo no CT-e",
-            severidade=Severidade.ERRO,
-            check=lambda c: (
-                (vb := _v(c, "vl_bc_icms")) is not None
-                and (vi := _v(c, "vl_icms")) is not None
-                and vb > 0
-                and vi > vb
-            ),
-            dica="vl_icms não pode ser maior que vl_bc_icms",
-        )
-    )
-
-    # ── M200: Apuração PIS ───────────────────────────────────────────────────
-
-    rules.append(
-        FiscalRule(
-            id="PIS-M-001",
-            tipo_registro="M200",
-            campo="vl_tot_cont_nc_per",
-            descricao="Total PIS apurado negativo no M200",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_tot_cont_nc_per")) is not None and v < 0,
-            dica="vl_tot_cont_nc_per deve ser >= 0",
-        )
-    )
-
-    # ── E110: Apuração ICMS ──────────────────────────────────────────────────
-
-    rules.append(
-        FiscalRule(
-            id="ICMS-E-001",
-            tipo_registro="E110",
-            campo="vl_tot_debitos",
-            descricao="Total de débitos ICMS negativo no E110",
-            severidade=Severidade.ERRO,
-            check=lambda c: (v := _v(c, "vl_tot_debitos")) is not None and v < 0,
-            dica="vl_tot_debitos deve ser >= 0",
-        )
-    )
-
-    return rules
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -347,16 +113,25 @@ class FiscalRulesEngine:
     Args:
         regime: Regime tributário — ``"lucro_real"`` (padrão),
                 ``"lucro_presumido"``, ou ``"simples_nacional"``.
+        uf: UF do contribuinte (dois caracteres, ex.: ``"SP"``). Carrega
+            regras adicionais específicas da UF além das regras base.
     """
 
-    def __init__(self, regime: str = "lucro_real") -> None:
+    def __init__(self, regime: str = "lucro_real", uf: Optional[str] = None) -> None:
         if regime not in _REGIMES_VALIDOS:
             raise ValueError(
                 f"Regime inválido: {regime!r}. "
                 f"Regimes suportados: {sorted(_REGIMES_VALIDOS)}"
             )
         self.regime = regime
-        self._rules: List[FiscalRule] = _build_rules()
+        self.uf = uf.upper() if uf else None
+        self._rules: List[FiscalRule] = self._load_rules()
+
+    def _load_rules(self) -> List[FiscalRule]:
+        """Carrega regras do YAML. Falha explicitamente em caso de YAML inválido."""
+        from .rule_loader import load_all_rules
+
+        return load_all_rules(uf=self.uf)
 
     def apply_rules(self, record: SpedRecord) -> List[RuleResult]:
         """Aplica as regras ao SpedRecord e retorna as violações encontradas."""
@@ -365,6 +140,9 @@ class FiscalRulesEngine:
             if rule.tipo_registro not in (record.tipo_registro, "*"):
                 continue
             if self.regime not in rule.regimes:
+                continue
+            # Regras UF-específicas só se aplicam se a engine foi criada com essa UF
+            if rule.uf is not None and rule.uf != self.uf:
                 continue
             try:
                 if rule.check(record.campos):
@@ -416,14 +194,19 @@ class FiscalRulesEngine:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def get_rules_engine(regime: str = "lucro_real") -> FiscalRulesEngine:
+def get_rules_engine(
+    regime: str = "lucro_real", uf: Optional[str] = None
+) -> FiscalRulesEngine:
     """Retorna um FiscalRulesEngine configurado para o regime tributário.
 
     Args:
         regime: ``"lucro_real"`` (padrão), ``"lucro_presumido"``,
                 ou ``"simples_nacional"``.
+        uf: UF do contribuinte (ex.: ``"SP"``, ``"RJ"``). Quando informada,
+            carrega regras adicionais específicas da UF.
 
     Raises:
         ValueError: Se o regime não for suportado.
+        RuleCompileError: Se o YAML de regras for inválido.
     """
-    return FiscalRulesEngine(regime)
+    return FiscalRulesEngine(regime, uf=uf)

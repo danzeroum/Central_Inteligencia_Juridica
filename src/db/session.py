@@ -40,7 +40,14 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     if factory is None:
         raise RuntimeError("DATABASE_URL não configurada — sessão async indisponível.")
     async with factory() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            # DT-11: SQLAlchemy 2 autobegin abre transação implícita mesmo em leituras.
+            # Sem rollback explícito, o Postgres loga "unexpected EOF on client connection
+            # with an open transaction" ao fechar a conexão de pool.
+            if session.in_transaction():
+                await session.rollback()
 
 
 @contextmanager

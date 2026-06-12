@@ -1,0 +1,66 @@
+version: "1.0"
+uf: RJ
+# Regras específicas para Rio de Janeiro.
+# Alíquotas internas padrão RJ: 20% (operações gerais) e 22% (artigos de luxo,
+# conforme Lei 2657/96 e alterações).
+# Interestaduais: 4% (importados), 7% (RJ→estados do Norte/Nordeste/Centro-Oeste
+# exceto DF), 12% (demais interestaduais).
+# Ajuste de alíquota = editar este arquivo, SEM redeploy de código.
+
+rules:
+  - id: ICMS-RJ-001
+    tipo_registro: C100
+    campo: aliq_icms
+    uf: RJ
+    descricao: "Alíquota ICMS interna fora da tabela RJ (esperado: 20% ou 22% para operações internas)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: >
+      Operações internas no RJ: alíquota padrão 20% (geral) ou 22% (artigos de luxo).
+      Interestaduais (CFOP 6xxx): 4%, 7% ou 12%.
+      Limitação: alíquotas especiais por produto (energia, combustível, telecom) não verificadas.
+    check:
+      all:
+        - operator: positive
+          field: aliq_icms
+        - operator: not_in_numeric_list
+          field: aliq_icms
+          values: [20.0, 22.0, 4.0, 7.0, 12.0]
+          tolerance: 0.1
+
+  - id: ICMS-RJ-002
+    tipo_registro: C170
+    campo: aliq_icms
+    uf: RJ
+    descricao: "Alíquota ICMS em item fora da tabela RJ (esperado: 20/22% interno ou 4/7/12% interestadual)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: >
+      Itens de NF no RJ: alíquota interna 20% ou 22% (artigos de luxo).
+      Interestaduais (CFOP 6xxx): 4%, 7% ou 12%.
+      Alíquotas especiais por produto não verificadas.
+    check:
+      all:
+        - operator: positive
+          field: aliq_icms
+        - operator: not_in_numeric_list
+          field: aliq_icms
+          values: [20.0, 22.0, 4.0, 7.0, 12.0, 0.0]
+          tolerance: 0.1
+
+  - id: ICMS-RJ-003
+    tipo_registro: C100
+    campo: aliq_icms
+    uf: RJ
+    descricao: "NF-e RJ com alíquota ICMS zero e base de cálculo positiva"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido]
+    dica: >
+      Alíquota zero com base positiva pode indicar isenção não declarada,
+      uso de CST incorreto ou omissão de alíquota. Verifique CST e benefício fiscal.
+    check:
+      all:
+        - operator: positive
+          field: vl_bc_icms
+        - operator: zero_not_none
+          field: aliq_icms

@@ -9,7 +9,7 @@ Uso:
     for item in resultado.items:
         print(item.tributo, item.situacao, item.saldo_apurado)
 
-Fora de escopo nesta iteração (TODO(S-C.3)):
+Fora de escopo nesta iteração (TODO(S-C.4)):
 - Ajustes de apuração (E111, E112, E113)
 - ICMS-ST (E300..E316)
 - IPI (E520..E530)

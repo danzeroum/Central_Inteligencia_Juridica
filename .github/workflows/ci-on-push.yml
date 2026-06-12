@@ -1,3 +1,7 @@
+# DT-10 (S-C.3): este workflow fornece feedback rápido (lint + testes unitários) em
+# pushes para branches de feature (não main/master). Não usa Postgres nem ChromaDB,
+# por isso é significativamente mais rápido que ci.yml. ci.yml cobre pushes protegidos
+# e PRs com suíte completa + DB. ci-on-pr.yml adiciona docker smoke + frontend pré-merge.
 name: CI — Push (lint + unit tests)
 
 on:

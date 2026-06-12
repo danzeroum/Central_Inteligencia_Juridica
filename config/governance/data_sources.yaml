@@ -115,3 +115,25 @@ data_types:
     critico: true
     cache_ttl: "24h"
     zone: credenciada
+
+  # ===== SAUDE-01: Sentinela Respiratória (SIH-RD DATASUS) =====
+
+  internacoes_respiratorias:
+    fonte: "DATASUS / SIH-RD (ftp.datasus.gov.br)"
+    llm: nao                  # contagem de AIH é determinística — LLM não participa
+    critico: false            # dado público; não é credencial nem dado pessoal
+    cache_ttl: "30d"          # competências fechadas mudam raramente após 2 meses
+    zone: publica
+    protocolo: ftp-anonimo    # ver ADR-017; DATASUS não oferece SFTP/HTTPS
+    colunas_produto:          # colunas selecionadas (sem PII — LGPD)
+      - MUNIC_RES
+      - MUNIC_MOV
+      - DIAG_PRINC
+      - DT_INTER
+      - ANO_CMPT
+      - MES_CMPT
+    colunas_excluidas:        # quasi-identificadores — NUNCA versionar
+      - CPF_AUT
+      - GESTOR_CPF
+      - NASC
+    supressao_k_anonimato: 5  # CNS 510/2016; células < 5 → None + suprimido=True

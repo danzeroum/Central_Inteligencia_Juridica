@@ -1,0 +1,11 @@
+name: "M600-001: total COFINS apurado negativo (M600)"
+regime: lucro_real
+registros:
+  - tipo_registro: M600
+    bloco: M
+    numero_linha: 1
+    campos:
+      vl_tot_cont_nc_per: "-100,00"
+esperado:
+  regra_ids_violadas: ["M600-001"]
+  aprovado: false

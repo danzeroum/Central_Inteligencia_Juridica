@@ -1,4 +1,4 @@
-"""Rotas do módulo Fiscal — Bloco A + C (S-A.1/A.2 + S-C.2)."""
+"""Rotas do módulo Fiscal — Bloco A + C (S-A.1/A.2 + S-C.2/S-C.3)."""
 
 from __future__ import annotations
 
@@ -241,6 +241,30 @@ async def get_escrituracao_status(
         async with get_async_session() as session:
             repo = EscrituracaoRepository(session)
             escrit = await repo.get(eid)
+            if escrit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Escrituração {escrituracao_id} não encontrada.",
+                )
+            details = escrit.details or {}
+            achados = details.get("achados", [])
+            erros = sum(1 for a in achados if a.get("severidade") == "erro")
+            avisos = sum(1 for a in achados if a.get("severidade") == "aviso")
+            response = EscrituracaoStatusResponse(
+                id=str(escrit.id),
+                status=escrit.status,
+                tipo=escrit.tipo,
+                origem=escrit.origem,
+                correlation_id=details.get("correlation_id"),
+                total_registros=details.get("total_registros"),
+                registros_por_bloco=details.get("registros_por_bloco"),
+                total_erros=erros,
+                total_avisos=avisos,
+                created_at=escrit.created_at.isoformat(),
+                updated_at=escrit.updated_at.isoformat(),
+            )
+    except HTTPException:
+        raise
     except RuntimeError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -254,30 +278,7 @@ async def get_escrituracao_status(
             detail=f"Erro interno. Referência: {cid}",
         )
 
-    if escrit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Escrituração {escrituracao_id} não encontrada.",
-        )
-
-    details = escrit.details or {}
-    achados = details.get("achados", [])
-    erros = sum(1 for a in achados if a.get("severidade") == "erro")
-    avisos = sum(1 for a in achados if a.get("severidade") == "aviso")
-
-    return EscrituracaoStatusResponse(
-        id=str(escrit.id),
-        status=escrit.status,
-        tipo=escrit.tipo,
-        origem=escrit.origem,
-        correlation_id=details.get("correlation_id"),
-        total_registros=details.get("total_registros"),
-        registros_por_bloco=details.get("registros_por_bloco"),
-        total_erros=erros,
-        total_avisos=avisos,
-        created_at=escrit.created_at.isoformat(),
-        updated_at=escrit.updated_at.isoformat(),
-    )
+    return response
 
 
 @router.get(
@@ -308,6 +309,22 @@ async def get_escrituracao_achados(
         async with get_async_session() as session:
             repo = EscrituracaoRepository(session)
             escrit = await repo.get(eid)
+            if escrit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Escrituração {escrituracao_id} não encontrada.",
+                )
+            all_achados = (escrit.details or {}).get("achados", [])
+            page = all_achados[offset : offset + limit]
+            response = AchadosResponse(
+                escrituracao_id=escrituracao_id,
+                total=len(all_achados),
+                offset=offset,
+                limit=limit,
+                achados=[AchadoItem(**a) for a in page],
+            )
+    except HTTPException:
+        raise
     except RuntimeError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -321,22 +338,7 @@ async def get_escrituracao_achados(
             detail=f"Erro interno. Referência: {cid}",
         )
 
-    if escrit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Escrituração {escrituracao_id} não encontrada.",
-        )
-
-    all_achados = (escrit.details or {}).get("achados", [])
-    page = all_achados[offset : offset + limit]
-
-    return AchadosResponse(
-        escrituracao_id=escrituracao_id,
-        total=len(all_achados),
-        offset=offset,
-        limit=limit,
-        achados=[AchadoItem(**a) for a in page],
-    )
+    return response
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -524,23 +526,23 @@ async def listar_apuracoes(
                 stmt = stmt.where(ApuracaoFiscal.periodo_competencia == periodo)
 
             result = await session.execute(stmt)
-            items = list(result.scalars().all())
+            items = [
+                ApuracaoListItem(
+                    id=str(a.id),
+                    escrituracao_id=str(a.escrituracao_id),
+                    tributo=a.tributo,
+                    periodo_competencia=a.periodo_competencia,
+                    total_debitos=a.total_debitos,
+                    total_creditos=a.total_creditos,
+                    saldo_apurado=a.saldo_apurado,
+                    situacao=a.situacao,
+                    total_divergencias=len(a.divergencias or []),
+                    created_at=a.created_at.isoformat(),
+                )
+                for a in result.scalars().all()
+            ]
 
-        return [
-            ApuracaoListItem(
-                id=str(a.id),
-                escrituracao_id=str(a.escrituracao_id),
-                tributo=a.tributo,
-                periodo_competencia=a.periodo_competencia,
-                total_debitos=a.total_debitos,
-                total_creditos=a.total_creditos,
-                saldo_apurado=a.saldo_apurado,
-                situacao=a.situacao,
-                total_divergencias=len(a.divergencias or []),
-                created_at=a.created_at.isoformat(),
-            )
-            for a in items
-        ]
+        return items
 
     except RuntimeError:
         raise HTTPException(
@@ -550,6 +552,379 @@ async def listar_apuracoes(
     except Exception as exc:
         cid = uuid.uuid4().hex
         logger.error("listar_apuracoes [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S-C.3 — Registros da escrituração + Edição em lote transacional
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CAMPOS_PII = frozenset({"cnpj", "cpf", "cod_part", "nome"})
+
+
+def _mask_campos(campos: Dict[str, Any]) -> Dict[str, Any]:
+    """Mascara campos PII (LGPD) em dados de registros fiscais."""
+    result: Dict[str, Any] = {}
+    for k, v in campos.items():
+        if k.lower() in _CAMPOS_PII and v:
+            s = str(v)
+            result[k] = (
+                s[:2] + "*" * max(0, len(s) - 4) + s[-2:] if len(s) > 4 else "****"
+            )
+        else:
+            result[k] = v
+    return result
+
+
+class RegistroFiscalItem(BaseModel):
+    id: str
+    tipo_registro: str
+    bloco: str
+    numero_linha: int
+    campos: Dict[str, Any]
+
+
+class RegistrosResponse(BaseModel):
+    escrituracao_id: str
+    total: int
+    offset: int
+    limit: int
+    registros: List[RegistroFiscalItem]
+
+
+@router.get(
+    "/escrituracoes/{escrituracao_id}/registros",
+    response_model=RegistrosResponse,
+    summary="Listar registros fiscais de uma escrituração",
+    description=(
+        "Retorna registros canônicos parseados de uma escrituração. "
+        "Campos PII mascarados (LGPD)."
+    ),
+)
+async def listar_registros(
+    escrituracao_id: str,
+    tipo_registro: Optional[str] = Query(
+        None, description="Filtrar por tipo (ex: C100)"
+    ),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    user_id: str = Depends(AuthManager.verify_token),
+) -> RegistrosResponse:
+    """Lista registros canônicos de uma escrituração com campos PII mascarados."""
+    try:
+        eid = uuid.UUID(escrituracao_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ID de escrituração inválido.",
+        )
+
+    try:
+        from src.db.session import get_async_session
+        from src.fiscal.repository import (
+            EscrituracaoRepository,
+            RegistroFiscalRepository,
+        )
+
+        async with get_async_session() as session:
+            escrit_repo = EscrituracaoRepository(session)
+            escrit = await escrit_repo.get(eid)
+            if escrit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Escrituração {escrituracao_id} não encontrada.",
+                )
+            reg_repo = RegistroFiscalRepository(session)
+            registros_db = await reg_repo.list_by_escrituracao(
+                eid,
+                tipo_registro=tipo_registro,
+                limit=limit,
+                offset=offset,
+            )
+            total = await reg_repo.count_by_escrituracao(eid)
+            registros_items = [
+                RegistroFiscalItem(
+                    id=str(r.id),
+                    tipo_registro=r.tipo_registro,
+                    bloco=r.bloco,
+                    numero_linha=r.numero_linha,
+                    campos=_mask_campos(r.dados or {}),
+                )
+                for r in registros_db
+            ]
+
+        return RegistrosResponse(
+            escrituracao_id=escrituracao_id,
+            total=total,
+            offset=offset,
+            limit=limit,
+            registros=registros_items,
+        )
+
+    except HTTPException:
+        raise
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("listar_registros [%s]: %s", cid, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro interno. Referência: {cid}",
+        )
+
+
+class OperacaoLote(BaseModel):
+    registro_id: str = Field(..., description="UUID do RegistroFiscal a editar")
+    campos: Dict[str, Any] = Field(
+        ..., description="Campos a atualizar (merge parcial)"
+    )
+
+
+class LoteRequest(BaseModel):
+    operacoes: List[OperacaoLote] = Field(..., min_length=1, max_length=500)
+    dry_run: bool = Field(False, description="Se true, simula sem persistir")
+
+
+class DiffRegistro(BaseModel):
+    registro_id: str
+    tipo_registro: str
+    campos_antes: Dict[str, Any]
+    campos_depois: Dict[str, Any]
+
+
+class LoteResponse(BaseModel):
+    escrituracao_id: str
+    dry_run: bool
+    operacoes_aplicadas: int
+    diff: List[DiffRegistro]
+    achados_antes: List[AchadoItem]
+    achados_depois: List[AchadoItem]
+
+
+@router.post(
+    "/escrituracoes/{escrituracao_id}/registros/lote",
+    response_model=LoteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Edição em lote de registros fiscais (S-C.3)",
+    description=(
+        "Edita campos de registros canônicos em transação única. "
+        "dry_run=true: preview com diff + revalidação simulada, sem persistir. "
+        "dry_run=false: aplica tudo-ou-nada + FiscalAudit + revalidação automática. "
+        "Bloqueado se escrituração estiver em status 'processando'. "
+        "Campos PII mascarados na resposta (LGPD)."
+    ),
+)
+async def editar_registros_lote(
+    escrituracao_id: str,
+    request: LoteRequest,
+    user_id: str = Depends(AuthManager.verify_token),
+) -> LoteResponse:
+    """Edição em lote transacional de registros fiscais."""
+    try:
+        eid = uuid.UUID(escrituracao_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ID de escrituração inválido.",
+        )
+
+    try:
+        from sqlalchemy import select
+        from src.db.models import EscrituracaoFiscal, FiscalAudit, RegistroFiscal
+        from src.db.session import get_async_session
+        from src.fiscal.parser.base import SpedRecord
+        from src.fiscal.repository import (
+            EscrituracaoRepository,
+            RegistroFiscalRepository,
+        )
+        from src.fiscal.rules_engine import get_rules_engine
+
+        async with get_async_session() as session:
+            async with session.begin():
+                # ── Verificações de pré-condição ──────────────────────────────
+                escrit_repo = EscrituracaoRepository(session)
+                escrit = await escrit_repo.get(eid)
+                if escrit is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Escrituração {escrituracao_id} não encontrada.",
+                    )
+                if escrit.status == "processando":
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Escrituração em processamento — aguarde conclusão.",
+                    )
+
+                # ── Carrega registros solicitados ─────────────────────────────
+                reg_ids_req = []
+                for op in request.operacoes:
+                    try:
+                        reg_ids_req.append(uuid.UUID(op.registro_id))
+                    except ValueError:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"registro_id inválido: {op.registro_id!r}",
+                        )
+
+                stmt = select(RegistroFiscal).where(
+                    RegistroFiscal.escrituracao_id == eid,
+                    RegistroFiscal.id.in_(reg_ids_req),
+                )
+                result = await session.execute(stmt)
+                regs_db = {r.id: r for r in result.scalars().all()}
+
+                missing = [str(rid) for rid in reg_ids_req if rid not in regs_db]
+                if missing:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Registros não encontrados: {missing}",
+                    )
+
+                # ── Constrói diff e aplica mudanças em memória ────────────────
+                diff: List[DiffRegistro] = []
+                regs_modificados: Dict[uuid.UUID, Dict[str, Any]] = {}
+
+                for op in request.operacoes:
+                    rid = uuid.UUID(op.registro_id)
+                    reg = regs_db[rid]
+                    campos_antes = dict(reg.dados or {})
+                    campos_depois = {**campos_antes, **op.campos}
+                    diff.append(
+                        DiffRegistro(
+                            registro_id=str(rid),
+                            tipo_registro=reg.tipo_registro,
+                            campos_antes=_mask_campos(campos_antes),
+                            campos_depois=_mask_campos(campos_depois),
+                        )
+                    )
+                    regs_modificados[rid] = campos_depois
+
+                # ── Revalidação (antes e depois) ──────────────────────────────
+                reg_repo = RegistroFiscalRepository(session)
+                todos_registros_db = await reg_repo.list_by_escrituracao(
+                    eid, limit=5000
+                )
+
+                def _build_records(
+                    registros: list, overrides: Dict[uuid.UUID, Dict[str, Any]]
+                ) -> List[SpedRecord]:
+                    return [
+                        SpedRecord(
+                            bloco=r.bloco,
+                            tipo_registro=r.tipo_registro,
+                            campos=overrides.get(r.id, r.dados or {}),
+                            numero_linha=r.numero_linha,
+                        )
+                        for r in registros
+                    ]
+
+                rules_engine = get_rules_engine(
+                    escrit.details.get("regime", "lucro_real")
+                    if escrit.details
+                    else "lucro_real"
+                )
+
+                records_antes = _build_records(todos_registros_db, {})
+                result_antes = rules_engine.validate(records_antes)
+
+                records_depois = _build_records(todos_registros_db, regs_modificados)
+                result_depois = rules_engine.validate(records_depois)
+
+                achados_antes = [
+                    AchadoItem(
+                        regra_id=r.regra_id,
+                        severidade=r.severidade.value,
+                        campo=r.campo,
+                        descricao=r.descricao,
+                        tipo_registro=r.tipo_registro,
+                        numero_linha=r.numero_linha,
+                        valor_encontrado=r.valor_encontrado,
+                        dica=r.dica,
+                    )
+                    for r in result_antes.resultados
+                ]
+                achados_depois = [
+                    AchadoItem(
+                        regra_id=r.regra_id,
+                        severidade=r.severidade.value,
+                        campo=r.campo,
+                        descricao=r.descricao,
+                        tipo_registro=r.tipo_registro,
+                        numero_linha=r.numero_linha,
+                        valor_encontrado=r.valor_encontrado,
+                        dica=r.dica,
+                    )
+                    for r in result_depois.resultados
+                ]
+
+                if not request.dry_run:
+                    # ── Persiste mudanças ──────────────────────────────────────
+                    from datetime import datetime, timezone
+
+                    for op in request.operacoes:
+                        rid = uuid.UUID(op.registro_id)
+                        reg = regs_db[rid]
+                        reg.dados = regs_modificados[rid]
+
+                    # Atualiza achados na escrituração
+                    details = dict(escrit.details or {})
+                    details["achados"] = [
+                        {
+                            "regra_id": a.regra_id,
+                            "severidade": a.severidade,
+                            "campo": a.campo,
+                            "descricao": a.descricao,
+                            "tipo_registro": a.tipo_registro,
+                            "numero_linha": a.numero_linha,
+                            "valor_encontrado": a.valor_encontrado,
+                            "dica": a.dica,
+                        }
+                        for a in achados_depois
+                    ]
+                    escrit.details = details
+                    escrit.updated_at = datetime.now(timezone.utc)
+
+                    # FiscalAudit
+                    audit = FiscalAudit(
+                        operation="batch_edit",
+                        entity_type=escrit.tipo,
+                        entity_ref=str(eid),
+                        status="completed",
+                        details={
+                            "user_id": user_id,
+                            "operacoes": len(request.operacoes),
+                            "achados_antes": len(achados_antes),
+                            "achados_depois": len(achados_depois),
+                        },
+                    )
+                    session.add(audit)
+
+        return LoteResponse(
+            escrituracao_id=escrituracao_id,
+            dry_run=request.dry_run,
+            operacoes_aplicadas=len(request.operacoes),
+            diff=diff,
+            achados_antes=achados_antes,
+            achados_depois=achados_depois,
+        )
+
+    except HTTPException:
+        raise
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Banco de dados não disponível.",
+        )
+    except Exception as exc:
+        cid = uuid.uuid4().hex
+        logger.error("editar_registros_lote [%s]: %s", cid, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro interno. Referência: {cid}",

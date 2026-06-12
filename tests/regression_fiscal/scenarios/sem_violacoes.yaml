@@ -1,0 +1,47 @@
+name: "C100 totalmente válido — sem nenhuma violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "00"
+      ser: "001"
+      num_doc: "000000001"
+      chv_nfe: "33333333333333333333333333333333333333333333"
+      dt_doc: "2025-01-10"
+      vl_doc: "1000,00"
+      vl_bc_icms: "1000,00"
+      aliq_icms: "12,00"
+      vl_icms: "120,00"
+      vl_pis: "6,50"
+      vl_cofins: "30,00"
+  - tipo_registro: D100
+    bloco: D
+    numero_linha: 2
+    campos:
+      ind_oper: "1"
+      cod_sit: "00"
+      ser: "001"
+      num_doc: "000000002"
+      dt_doc: "2025-01-10"
+      vl_doc: "500,00"
+      vl_bc_icms: "500,00"
+      aliq_icms: "12,00"
+      vl_icms: "60,00"
+  - tipo_registro: E110
+    bloco: E
+    numero_linha: 3
+    campos:
+      vl_tot_debitos: "5000,00"
+      vl_tot_creditos: "4800,00"
+  - tipo_registro: M200
+    bloco: M
+    numero_linha: 4
+    campos:
+      vl_tot_cont_nc_per: "36,67"
+esperado:
+  regra_ids_ausentes: ["ICMS-001", "ICMS-002", "ICMS-003", "PIS-001", "COFINS-001"]
+  aprovado: true

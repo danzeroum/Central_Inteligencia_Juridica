@@ -1,0 +1,431 @@
+version: "1.0"
+# Regras fiscais base — carregadas para todos os regimes e UFs.
+# Migradas de src/fiscal/rules_engine.py (_build_rules) no S-C.3.
+# Novas regras (16-30) acrescentadas no S-C.3.
+# Editar este arquivo = ajustar regras SEM redeploy de código.
+
+rules:
+  # ── C100: Nota Fiscal — ICMS ────────────────────────────────────────────────
+
+  - id: ICMS-001
+    tipo_registro: C100
+    campo: vl_bc_icms
+    descricao: "Base de cálculo ICMS negativa"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_bc_icms deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_bc_icms
+
+  - id: ICMS-002
+    tipo_registro: C100
+    campo: vl_icms
+    descricao: "Valor ICMS negativo"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_icms deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_icms
+
+  - id: ICMS-003
+    tipo_registro: C100
+    campo: vl_icms
+    descricao: "Valor ICMS superior à base de cálculo"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_icms não pode ser maior que vl_bc_icms"
+    check:
+      all:
+        - operator: positive
+          field: vl_bc_icms
+        - operator: gt_field
+          field: vl_icms
+          ref_field: vl_bc_icms
+
+  - id: ICMS-004
+    tipo_registro: C100
+    campo: vl_bc_icms
+    descricao: "Base ICMS excede valor total do documento"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_bc_icms deve ser <= vl_doc"
+    check:
+      all:
+        - operator: positive
+          field: vl_doc
+        - operator: gt_field
+          field: vl_bc_icms
+          ref_field: vl_doc
+
+  - id: ICMS-005
+    tipo_registro: C100
+    campo: aliq_icms
+    descricao: "Valor ICMS inconsistente com base × alíquota (divergência > 1%)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "Verifique se vl_icms = vl_bc_icms × aliq_icms / 100"
+    check:
+      operator: pct_divergence
+      field: vl_icms
+      base_field: vl_bc_icms
+      rate_field: aliq_icms
+      threshold: 0.01
+
+  # ── C100: PIS / COFINS ────────────────────────────────────────────────────
+
+  - id: PIS-001
+    tipo_registro: C100
+    campo: vl_pis
+    descricao: "Valor PIS negativo"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_pis deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_pis
+
+  - id: COFINS-001
+    tipo_registro: C100
+    campo: vl_cofins
+    descricao: "Valor COFINS negativo"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_cofins deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_cofins
+
+  - id: PIS-002
+    tipo_registro: C100
+    campo: vl_pis
+    descricao: "Valor PIS excede valor total do documento"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_pis não pode ser maior que vl_doc"
+    check:
+      all:
+        - operator: positive
+          field: vl_doc
+        - operator: gt_field
+          field: vl_pis
+          ref_field: vl_doc
+
+  - id: COFINS-002
+    tipo_registro: C100
+    campo: vl_cofins
+    descricao: "Valor COFINS excede valor total do documento"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_cofins não pode ser maior que vl_doc"
+    check:
+      all:
+        - operator: positive
+          field: vl_doc
+        - operator: gt_field
+          field: vl_cofins
+          ref_field: vl_doc
+
+  # ── C100: Situação do documento ───────────────────────────────────────────
+
+  - id: COD-SIT-001
+    tipo_registro: C100
+    campo: cod_sit
+    descricao: "Documento cancelado/denegado com valor total > 0"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "Documentos cancelados (cod_sit 5-8) devem ter vl_doc = 0"
+    check:
+      all:
+        - operator: in_set
+          field: cod_sit
+          values: ["5", "6", "7", "8", "02", "05", "06", "07", "08"]
+        - operator: positive
+          field: vl_doc
+
+  # ── D100: Conhecimento de Transporte ─────────────────────────────────────
+
+  - id: ICMS-D-001
+    tipo_registro: D100
+    campo: vl_icms
+    descricao: "Valor ICMS negativo no CT-e (D100)"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_icms deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_icms
+
+  - id: ICMS-D-002
+    tipo_registro: D100
+    campo: vl_bc_icms
+    descricao: "Base de cálculo ICMS negativa no CT-e (D100)"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_bc_icms deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_bc_icms
+
+  - id: ICMS-D-003
+    tipo_registro: D100
+    campo: vl_icms
+    descricao: "Valor ICMS superior à base de cálculo no CT-e"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_icms não pode ser maior que vl_bc_icms"
+    check:
+      all:
+        - operator: positive
+          field: vl_bc_icms
+        - operator: gt_field
+          field: vl_icms
+          ref_field: vl_bc_icms
+
+  # ── M200: Apuração PIS ────────────────────────────────────────────────────
+
+  - id: PIS-M-001
+    tipo_registro: M200
+    campo: vl_tot_cont_nc_per
+    descricao: "Total PIS apurado negativo no M200"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido]
+    dica: "vl_tot_cont_nc_per deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_tot_cont_nc_per
+
+  # ── E110: Apuração ICMS ──────────────────────────────────────────────────
+
+  - id: ICMS-E-001
+    tipo_registro: E110
+    campo: vl_tot_debitos
+    descricao: "Total de débitos ICMS negativo no E110"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_tot_debitos deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_tot_debitos
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Regras novas — S-C.3 (regras 16-30)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # ── C170: Item de Nota Fiscal ─────────────────────────────────────────────
+
+  - id: C170-001
+    tipo_registro: C170
+    campo: vl_bc_icms
+    descricao: "Base de cálculo ICMS negativa em item de NF (C170)"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_bc_icms deve ser >= 0 em itens de nota fiscal"
+    check:
+      operator: negative
+      field: vl_bc_icms
+
+  - id: C170-002
+    tipo_registro: C170
+    campo: vl_icms
+    descricao: "Valor ICMS negativo em item de NF (C170)"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_icms deve ser >= 0 em itens de nota fiscal"
+    check:
+      operator: negative
+      field: vl_icms
+
+  - id: C170-003
+    tipo_registro: C170
+    campo: aliq_icms
+    descricao: "Valor ICMS inconsistente com base × alíquota em item (C170, divergência > 1%)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "Verifique se vl_icms = vl_bc_icms × aliq_icms / 100 no item"
+    check:
+      operator: pct_divergence
+      field: vl_icms
+      base_field: vl_bc_icms
+      rate_field: aliq_icms
+      threshold: 0.01
+
+  # ── C170: CST tributada zerada indevidamente ──────────────────────────────
+
+  - id: CST-001
+    tipo_registro: C170
+    campo: cst_icms
+    descricao: "CST de ICMS tributado com valor ICMS zerado e base positiva (zerado indevido)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: >
+      CSTs 00/10/20/70/90 indicam tributação integral ou parcial.
+      Se a base (vl_bc_icms) é positiva, o ICMS não deveria ser zero.
+      Verifique benefício fiscal ou exceção aplicável.
+    check:
+      all:
+        - operator: in_set
+          field: cst_icms
+          values: ["00", "10", "20", "70", "90"]
+        - operator: positive
+          field: vl_bc_icms
+        - operator: zero_not_none
+          field: vl_icms
+
+  # ── C170: CFOP fora do intervalo válido ──────────────────────────────────
+
+  - id: CFOP-001
+    tipo_registro: C170
+    campo: cfop
+    descricao: "CFOP com primeiro dígito fora do intervalo válido (1-7)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "CFOPs válidos iniciam com 1 (entrada estadual), 2 (entrada interestadual), 3 (entrada exterior), 5 (saída estadual), 6 (saída interestadual) ou 7 (saída exterior)"
+    check:
+      all:
+        - operator: not_missing
+          field: cfop
+        - operator: not_starts_with_any
+          field: cfop
+          prefixes: ["1", "2", "3", "5", "6", "7"]
+
+  # ── C100: Campos obrigatórios ─────────────────────────────────────────────
+
+  - id: DT-DOC-001
+    tipo_registro: C100
+    campo: dt_doc
+    descricao: "Data do documento fiscal ausente (C100)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "dt_doc é obrigatório para documentos fiscais"
+    check:
+      operator: missing
+      field: dt_doc
+
+  - id: NUM-DOC-001
+    tipo_registro: C100
+    campo: num_doc
+    descricao: "Número do documento fiscal ausente (C100)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "num_doc é obrigatório para documentos fiscais"
+    check:
+      operator: missing
+      field: num_doc
+
+  - id: CHV-NF-001
+    tipo_registro: C100
+    campo: chv_nfe
+    descricao: "NF-e (mod. 55) com chave de acesso ausente ou inválida (deve ter 44 dígitos)"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "Para NF-e (cod_mod=55), chv_nfe deve ter exatamente 44 dígitos"
+    check:
+      all:
+        - operator: eq_str
+          field: cod_mod
+          value: "55"
+        - any:
+            - operator: missing
+              field: chv_nfe
+            - operator: str_len_ne
+              field: chv_nfe
+              length: 44
+
+  # ── M210: Apuração PIS por CST ───────────────────────────────────────────
+
+  - id: PIS-M210-001
+    tipo_registro: M210
+    campo: vl_bc_cont
+    descricao: "Base de cálculo PIS negativa no M210"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido]
+    dica: "vl_bc_cont deve ser >= 0 no M210"
+    check:
+      operator: negative
+      field: vl_bc_cont
+
+  - id: PIS-M210-002
+    tipo_registro: M210
+    campo: aliq_pis_perc
+    descricao: "Valor PIS apurado inconsistente com base × alíquota no M210 (divergência > 1%)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido]
+    dica: "Verifique se vl_cont = vl_bc_cont × aliq_pis_perc / 100 no M210"
+    check:
+      operator: pct_divergence
+      field: vl_cont
+      base_field: vl_bc_cont
+      rate_field: aliq_pis_perc
+      threshold: 0.01
+
+  # ── M610: Apuração COFINS por CST ────────────────────────────────────────
+
+  - id: COFINS-M610-001
+    tipo_registro: M610
+    campo: vl_bc_cont
+    descricao: "Base de cálculo COFINS negativa no M610"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido]
+    dica: "vl_bc_cont deve ser >= 0 no M610"
+    check:
+      operator: negative
+      field: vl_bc_cont
+
+  - id: COFINS-M610-002
+    tipo_registro: M610
+    campo: aliq_cofins_perc
+    descricao: "Valor COFINS apurado inconsistente com base × alíquota no M610 (divergência > 1%)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido]
+    dica: "Verifique se vl_cont = vl_bc_cont × aliq_cofins_perc / 100 no M610"
+    check:
+      operator: pct_divergence
+      field: vl_cont
+      base_field: vl_bc_cont
+      rate_field: aliq_cofins_perc
+      threshold: 0.01
+
+  # ── E110: Apuração ICMS — créditos ───────────────────────────────────────
+
+  - id: ICMS-E-002
+    tipo_registro: E110
+    campo: vl_tot_creditos
+    descricao: "Total de créditos ICMS negativo no E110"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "vl_tot_creditos deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_tot_creditos
+
+  # ── D100: CT-e cancelado com valor ───────────────────────────────────────
+
+  - id: D-COD-SIT-001
+    tipo_registro: D100
+    campo: cod_sit
+    descricao: "CT-e cancelado/denegado com valor total > 0 (D100)"
+    severidade: aviso
+    regimes: [lucro_real, lucro_presumido, simples_nacional]
+    dica: "CT-e cancelados (cod_sit 5-8) devem ter vl_doc = 0"
+    check:
+      all:
+        - operator: in_set
+          field: cod_sit
+          values: ["5", "6", "7", "8", "02", "05", "06", "07", "08"]
+        - operator: positive
+          field: vl_doc
+
+  # ── M600: Apuração COFINS ─────────────────────────────────────────────────
+
+  - id: M600-001
+    tipo_registro: M600
+    campo: vl_tot_cont_nc_per
+    descricao: "Total COFINS apurado negativo no M600"
+    severidade: erro
+    regimes: [lucro_real, lucro_presumido]
+    dica: "vl_tot_cont_nc_per deve ser >= 0"
+    check:
+      operator: negative
+      field: vl_tot_cont_nc_per
