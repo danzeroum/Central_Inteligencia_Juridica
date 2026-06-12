@@ -22,9 +22,9 @@
   com sprint-alvo. Placeholder em código só com marcador `TODO(S-X.Y):` + entrada na
   tabela. Placeholder sem registro = bloqueio de merge.
 - **Disciplina de contagem.** O PR declara quantos testes novos traz; a suíte total nunca
-  regride. Baseline atual (master `6f62649`): **árvore completa local sem DB 1480 passed /
-  21 skipped** (unit+integração 1299/21 + 142 `regression_fiscal` + 39 `datasus`);
-  **CI integração 358 passed / 7 skipped** (run 27395640351).
+  regride. Baseline atual (branch `51a3b7c`, S-C.6 mergeado): **árvore completa local sem DB 1490 passed /
+  21 skipped** (unit+integração 1299/21 + 152 `regression_fiscal` + 39 `datasus`);
+  **CI integração 358 passed / 7 skipped** (run 27410841899).
 - **Branch por sprint.** O dev inicia cada sprint com a branch **resetada em
   `origin/master`** (`git fetch origin && git reset --hard origin/master`) — branches
   longevas com histórico próprio do doc geram conflito recorrente (aconteceu em #103 e #105).
@@ -44,7 +44,7 @@
 - **Teste fio-de-ouro.** `tests/integration/test_golden_thread.py` percorre o pipeline
   inteiro via API. Ele **nunca** é removido ou enfraquecido — cada sprint o **estende**
   (C.3: ciclo detectar→corrigir→reapurar ✓; C.4: apuração com ajuste E111 + regime/UF ✓;
-  C.5: ICMS-ST ✓; C.6: ST via E200/E210 reais; D: retificação; F: PER/DCOMP). É a prova
+  C.5: ICMS-ST ✓; C.6: ST via E200/E210 reais ✓; D: retificação; F: PER/DCOMP). É a prova
   permanente de que as
   funcionalidades estão integradas de ponta a ponta, não só testadas em unidade.
 
@@ -66,76 +66,13 @@
 | DT-12 | Workflows zumbis `ci-on-pr.yml`/`ci-on-push.yml` em *startup failure* em todo evento (0 jobs) desde antes da Onda 2 — ❌ permanente em master | pré-Onda 2 | S-C.4: removidos (PR #111); `ci.yml` é o gate único | **resolvido** |
 | DT-13 | `cd-deploy.yml` falhava em todo push a master (infra/secrets inexistentes) | pré-Onda 2 | Gateado em `workflow_dispatch` (PR #110) | **resolvido** |
 | DT-14 | **Convenção COD_AJ_APUR incorreta no E111**: a implementação classifica débito/crédito pelo **3º caractere** com valores `1`/`2`; o leiaute real (tabela 5.1.1 do Guia Prático EFD ICMS/IPI) usa o **4º caractere**: `0`=outros débitos, `1`=estorno de créditos, `2`=outros créditos, `3`=estorno de débitos, `4`=deduções, `5`=débitos especiais. Com códigos reais (ex.: `SP000207`) os ajustes caem em `avisos_ajuste` e **ficam fora do saldo**. Testes verdes porque as fixtures usam a convenção interna (consistente, porém infiel ao leiaute) | **spec do coordenador** (handoff S-C.4); detectado na leitura dirigida pós-merge #111 | S-C.5 Tarefa 1 — `_decode_aj_apur` pelo 4º caractere + fixtures/cenários com códigos reais | **resolvido** (PR #113) — 6 naturezas testadas; prova: run 27395640351, E2E E111 com `SP000207` PASSED |
-| DT-15 | **Fidelidade de leiaute do Bloco E (além do E111)** — 5 itens da leitura dirigida do #113: (1) confronto ST apontado para **E300/E310**, mas no leiaute real ST é **E200/E210** (E300/E310 = DIFAL EC 87/15); (2) `_E310_CAMPOS` é espelho inventado do E110, não o leiaute real; (3) `_E520_CAMPOS` diverge do E520 real (`VL_SD_ANT_IPI, VL_DEB_IPI, VL_CRED_IPI, VL_OD_IPI, VL_OC_IPI, VL_SC_IPI, VL_SD_IPI`) — inclui `vl_icms_ressarc` inexistente e omite OD/OC/SC/SD, desalinhando posições em arquivo real; (4) `_E530_CAMPOS` sem `IND_AJ` (flag real débito/crédito do ajuste IPI) — 4º caractere **não se aplica** ao E530; (5) deduções (natureza 4) dentro da fórmula do saldo podem inverter para credor artificialmente. Tudo verde com fixtures internas; infiel a arquivos reais | itens 1–2: TODO original do S-C.2 + **spec do coordenador**; 3–5: implementação S-C.5; detectados na leitura dirigida pós-merge #113 | **S-C.6** (sprint curto, antes do Bloco D) | **aberto** |
+| DT-15 | **Fidelidade de leiaute do Bloco E (além do E111)** — 5 itens da leitura dirigida do #113: (1) confronto ST apontado para **E300/E310**, mas no leiaute real ST é **E200/E210** (E300/E310 = DIFAL EC 87/15); (2) `_E310_CAMPOS` é espelho inventado do E110, não o leiaute real; (3) `_E520_CAMPOS` diverge do E520 real (`VL_SD_ANT_IPI, VL_DEB_IPI, VL_CRED_IPI, VL_OD_IPI, VL_OC_IPI, VL_SC_IPI, VL_SD_IPI`) — inclui `vl_icms_ressarc` inexistente e omite OD/OC/SC/SD, desalinhando posições em arquivo real; (4) `_E530_CAMPOS` sem `IND_AJ` (flag real débito/crédito do ajuste IPI) — 4º caractere **não se aplica** ao E530; (5) deduções (natureza 4) dentro da fórmula do saldo podem inverter para credor artificialmente. Tudo verde com fixtures internas; infiel a arquivos reais | itens 1–2: TODO original do S-C.2 + **spec do coordenador**; 3–5: implementação S-C.5; detectados na leitura dirigida pós-merge #113 | **S-C.6** (sprint curto, antes do Bloco D) | **resolvido** (branch `51a3b7c`, run 27410841899) — E200/E210 reais, E520/E530 fiéis ao leiaute, deduções só sobre devedor, regressão 142→152 |
 
-## 3. SPRINT ATUAL — S-C.6 "Fidelidade de leiaute do Bloco E" (curto — fecha DT-15)
+## 3. PRÓXIMO SPRINT — aguardando especificação do coordenador
 
-**Objetivo:** alinhar os registros do Bloco E ao leiaute oficial **antes** do Bloco D
-(editor/retificação opera sobre arquivos reais; confronto apontado para registro errado
-produziria correções erradas). Sprint curto, sem funcionalidade nova — só fidelidade.
-
-**Regra nova de DoD (vale deste sprint em diante):** todo handler de registro novo ou
-alterado é conferido **contra o Guia Prático EFD ICMS/IPI vigente**, e o header do
-handler cita a versão do leiaute conferida.
-
-### Tarefa 1 — ST real: E200/E210 (substitui o confronto via E300/E310)
-
-1. Handlers novos `E200` (`uf`, `dt_ini`, `dt_fin`) e `E210` (leiaute real: `ind_mov_st`,
-   `vl_sld_cred_ant_st`, `vl_devol_st`, `vl_ressarc_st`, `vl_out_cred_st`,
-   `vl_aj_creditos_st`, `vl_retencao_st`, `vl_out_deb_st`, `vl_aj_debitos_st`,
-   `vl_sld_dev_ant_st`, `vl_deducoes_st`, `vl_icms_recol_st`,
-   `vl_sld_cred_st_transportar`, `deb_esp_st`).
-2. `calcular_icms_st` confronta com **E210**: débitos declarados =
-   `vl_retencao_st + vl_out_deb_st + vl_aj_debitos_st`; créditos declarados =
-   `vl_devol_st + vl_ressarc_st + vl_out_cred_st + vl_aj_creditos_st`; detalhe por UF
-   vem do E200 pai. E210 órfão de E200 → ERRO estrutural (substitui o check E310/E300).
-3. **E300/E310: remover** os handlers atuais (campos inventados) e o uso na apuração.
-   DIFAL é funcionalidade futura: entra na fila como candidato, não como TODO em código.
-4. Fixtures (`efd_icms_st.txt`), unit tests e cenários migram para E200/E210 reais —
-   **mesmas contas manuais** (a edição é sancionada pelo DT-15). O E2E
-   `test_e2e_apuracao_icms_st` mantém o saldo esperado (200−100=100 devedor).
-
-### Tarefa 2 — IPI: E520 com leiaute real + E530 com IND_AJ
-
-5. `_E520_CAMPOS` → leiaute real: `vl_sd_ant_ipi`, `vl_deb_ipi`, `vl_cred_ipi`,
-   `vl_od_ipi`, `vl_oc_ipi`, `vl_sc_ipi`, `vl_sd_ipi` (remover `vl_icms_ressarc`).
-   `calcular_ipi` confronta `vl_deb_ipi`/`vl_cred_ipi` (+OD/OC como ajustes declarados).
-6. `_E530_CAMPOS` → leiaute real com **`ind_aj`** (`0`=débito, `1`=crédito) como fonte
-   da natureza do ajuste — **remover** o uso de `_decode_aj_apur` no E530 (a tabela de
-   4º caractere é exclusiva do E111). `cod_aj` vira informativo em `detalhes`.
-7. Casos manuais re-conferidos com os campos novos (mínimo: os 6 IPI existentes migrados
-   + 1 novo caso `ind_aj` crédito via E530).
-
-### Tarefa 3 — Deduções (natureza 4) abatem só saldo devedor
-
-8. Em `calcular_icms`: deduções saem da fórmula geral; aplicar **após** o saldo, somente
-   se `saldo_apurado > 0`, limitado a zerá-lo (`saldo_final = max(0, saldo - deducoes)`
-   quando devedor); excedente registrado em `detalhes["deducao_excedente"]` com AVISO.
-   2 casos: dedução parcial; dedução maior que o saldo (não vira credor).
-
-### Tarefa 4 — Regressão e fio-de-ouro
-
-9. Cenários migrados + novos (E210 divergência, E530 ind_aj, dedução excedente):
-   **≥150 total** (hoje 142). Fio-de-ouro intacto com fixtures migradas.
-
-### DoD do S-C.6 (o coordenador roda exatamente isto)
-
-```bash
-black --check src/ tests/
-python -m pytest tests/unit/ tests/integration/ -q     # ≥ 1299/21 local sem DB, 0 falhas
-python -m pytest tests/regression_fiscal/ -q           # ≥150 cenários verdes
-grep -rn "E300\|E310" src/fiscal/ --include="*.py"     # 0 ocorrências (handlers removidos)
-grep -rn "TODO(S-C" src/ --include="*.py"              # 0 ocorrências
-# No CI (prova por log, run_id citado no PR):
-#   - 7/7 E2E PASSED (ST agora via E200/E210, mesma conta)
-#   - log do Postgres: zero 'open transaction', zero 'Connection._cancel'
-```
-
-- [ ] E200/E210 com leiaute real (header cita versão do Guia Prático); E300/E310 removidos
-- [ ] E520 real (sem `vl_icms_ressarc`); E530 com `ind_aj` explícito
-- [ ] Deduções abatem só devedor, com caso de excedente
-- [ ] ≥150 cenários; contas manuais preservadas nas migrações
-- [ ] PR declara nº exato de testes novos; nenhuma afirmação de CI sem run_id
+S-C.6 encerrado. Próximo passo natural é **S-D.1 — Editor + Retificação** (ver seção 4),
+mas só inicia após sanção explícita do coordenador. Regras de DoD do S-C.6 em diante:
+handler novo/alterado conferido contra o Guia Prático EFD ICMS/IPI, versão citada no header.
 
 ---
 
@@ -149,6 +86,7 @@ grep -rn "TODO(S-C" src/ --include="*.py"              # 0 ocorrências
 | S-C.3 "Regras YAML/UF + Lote + Regressão" | #107 | **ENCERRADO** — 30+6 regras, lote com `dry_run`, 59 cenários, ciclo detectar→corrigir→reapurar. Prova por log reprovou a 1ª tentativa (run 27385154803: 5 E2E failed, `DetachedInstanceError`); corrigida; run final 27387068598: 349/7, 5 E2E PASSED. DT-11 ficou parcial (fechado no S-C.4) |
 | S-C.4 "Apuração estendida + regime no upload + saneamento CI" | #111 | **ENCERRADO** — E111/E112/E113 no saldo, cumulativo M100/M500, créditos M400/M405/M800; regime/UF do upload à apuração (fim do hardcode); DT-11 fechado por log (run 27393417155: **zero** `open transaction`/`Connection._cancel`), DT-12 (zumbis removidos), DT-13 (#110). 6/6 E2E PASSED nominais; integração 357/7; local 1426/20; regressão 111. ST/IPI re-escopados (`TODO(S-C.5)`). Mergeado antes do aval; validação pós-merge aprovou **com ressalva DT-14** (convenção COD_AJ_APUR — origem: spec do coordenador) |
 | S-C.5 "ICMS-ST + IPI + correção COD_AJ_APUR" | #113 | **ENCERRADO** — DT-14 fechado (`_decode_aj_apur` 4º caractere, naturezas 0..5, fixtures com códigos reais; E2E E111 com `SP000207` mantendo 100+50=150); `calcular_icms_st` + `calcular_ipi` com confronto e contas manuais; regras ST/IPI no YAML; regressão 111→142. Prova: run 27395640351 — 7/7 E2E PASSED (inclui `test_e2e_apuracao_icms_st`), integração 358/7, DT-11 limpo. Local: 1299/21, 142 regressão, black 343. Mergeado antes do aval; validação pós-merge aprovou **com DT-15** (fidelidade de leiaute Bloco E — ST real é E200/E210, não E300/E310; ver seção 2) |
+| S-C.6 "Fidelidade de leiaute do Bloco E" | branch `51a3b7c` | **ENCERRADO** — DT-15 fechado: handlers E200/E210 reais (leiaute Guia Prático v3.1.5, citado no header); E300/E310 removidos; `calcular_icms_st` confronta via E210 (`vl_retencao_st + vl_out_deb_st + vl_aj_debitos_st`); E520 com 7 campos reais (sem `vl_icms_ressarc`); E530 com `ind_aj` explícito (sem `_decode_aj_apur`); deduções abatem só saldo devedor (excedente → AVISO). Regressão 142→152 (+10 cenários). Prova: run 27410841899 — 6/6 jobs success (Python 3.11+3.12, lint, security, frontend, docker), integração 358/7, fio-de-ouro `test_e2e_apuracao_icms_st` PASSED (saldo 200−100=100 devedor). Local: 1299/21, 152 regressão, black ✓ |
 
 ## 4. Fila após o S-C.6 (deltas sobre o roadmap — não executar ainda)
 
