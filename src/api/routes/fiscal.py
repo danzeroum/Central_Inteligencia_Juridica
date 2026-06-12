@@ -241,6 +241,30 @@ async def get_escrituracao_status(
         async with get_async_session() as session:
             repo = EscrituracaoRepository(session)
             escrit = await repo.get(eid)
+            if escrit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Escrituração {escrituracao_id} não encontrada.",
+                )
+            details = escrit.details or {}
+            achados = details.get("achados", [])
+            erros = sum(1 for a in achados if a.get("severidade") == "erro")
+            avisos = sum(1 for a in achados if a.get("severidade") == "aviso")
+            response = EscrituracaoStatusResponse(
+                id=str(escrit.id),
+                status=escrit.status,
+                tipo=escrit.tipo,
+                origem=escrit.origem,
+                correlation_id=details.get("correlation_id"),
+                total_registros=details.get("total_registros"),
+                registros_por_bloco=details.get("registros_por_bloco"),
+                total_erros=erros,
+                total_avisos=avisos,
+                created_at=escrit.created_at.isoformat(),
+                updated_at=escrit.updated_at.isoformat(),
+            )
+    except HTTPException:
+        raise
     except RuntimeError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -254,30 +278,7 @@ async def get_escrituracao_status(
             detail=f"Erro interno. Referência: {cid}",
         )
 
-    if escrit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Escrituração {escrituracao_id} não encontrada.",
-        )
-
-    details = escrit.details or {}
-    achados = details.get("achados", [])
-    erros = sum(1 for a in achados if a.get("severidade") == "erro")
-    avisos = sum(1 for a in achados if a.get("severidade") == "aviso")
-
-    return EscrituracaoStatusResponse(
-        id=str(escrit.id),
-        status=escrit.status,
-        tipo=escrit.tipo,
-        origem=escrit.origem,
-        correlation_id=details.get("correlation_id"),
-        total_registros=details.get("total_registros"),
-        registros_por_bloco=details.get("registros_por_bloco"),
-        total_erros=erros,
-        total_avisos=avisos,
-        created_at=escrit.created_at.isoformat(),
-        updated_at=escrit.updated_at.isoformat(),
-    )
+    return response
 
 
 @router.get(
@@ -308,6 +309,22 @@ async def get_escrituracao_achados(
         async with get_async_session() as session:
             repo = EscrituracaoRepository(session)
             escrit = await repo.get(eid)
+            if escrit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Escrituração {escrituracao_id} não encontrada.",
+                )
+            all_achados = (escrit.details or {}).get("achados", [])
+            page = all_achados[offset : offset + limit]
+            response = AchadosResponse(
+                escrituracao_id=escrituracao_id,
+                total=len(all_achados),
+                offset=offset,
+                limit=limit,
+                achados=[AchadoItem(**a) for a in page],
+            )
+    except HTTPException:
+        raise
     except RuntimeError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -321,22 +338,7 @@ async def get_escrituracao_achados(
             detail=f"Erro interno. Referência: {cid}",
         )
 
-    if escrit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Escrituração {escrituracao_id} não encontrada.",
-        )
-
-    all_achados = (escrit.details or {}).get("achados", [])
-    page = all_achados[offset : offset + limit]
-
-    return AchadosResponse(
-        escrituracao_id=escrituracao_id,
-        total=len(all_achados),
-        offset=offset,
-        limit=limit,
-        achados=[AchadoItem(**a) for a in page],
-    )
+    return response
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -524,23 +526,23 @@ async def listar_apuracoes(
                 stmt = stmt.where(ApuracaoFiscal.periodo_competencia == periodo)
 
             result = await session.execute(stmt)
-            items = list(result.scalars().all())
+            items = [
+                ApuracaoListItem(
+                    id=str(a.id),
+                    escrituracao_id=str(a.escrituracao_id),
+                    tributo=a.tributo,
+                    periodo_competencia=a.periodo_competencia,
+                    total_debitos=a.total_debitos,
+                    total_creditos=a.total_creditos,
+                    saldo_apurado=a.saldo_apurado,
+                    situacao=a.situacao,
+                    total_divergencias=len(a.divergencias or []),
+                    created_at=a.created_at.isoformat(),
+                )
+                for a in result.scalars().all()
+            ]
 
-        return [
-            ApuracaoListItem(
-                id=str(a.id),
-                escrituracao_id=str(a.escrituracao_id),
-                tributo=a.tributo,
-                periodo_competencia=a.periodo_competencia,
-                total_debitos=a.total_debitos,
-                total_creditos=a.total_creditos,
-                saldo_apurado=a.saldo_apurado,
-                situacao=a.situacao,
-                total_divergencias=len(a.divergencias or []),
-                created_at=a.created_at.isoformat(),
-            )
-            for a in items
-        ]
+        return items
 
     except RuntimeError:
         raise HTTPException(
