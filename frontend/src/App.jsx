@@ -13,7 +13,8 @@ import ProfileScreen     from './screens/user/ProfileScreen.jsx';
 import Invest360Screen   from './screens/user/Invest360Screen.jsx';
 import PrivacyScreen     from './screens/user/PrivacyScreen.jsx';
 
-import FiscalDashboardScreen from './screens/fiscal/FiscalDashboardScreen.jsx';
+import FiscalDashboardScreen    from './screens/fiscal/FiscalDashboardScreen.jsx';
+import ReportsWorkbenchScreen   from './screens/fiscal/ReportsWorkbenchScreen.jsx';
 
 import HitlScreen        from './screens/admin/HitlScreen.jsx';
 import HitlDetailScreen  from './screens/admin/HitlDetailScreen.jsx';
@@ -43,7 +44,9 @@ const NAV = {
   ],
   admin: [
     { group: 'Fiscal', items: [
-      { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law', isNew: true },
+      { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law',    isNew: true },
+      { id: 'reports',          label: 'Relatórios',        icon: 'ledger', isNew: true },
+      { id: 'workbench',        label: 'Workbench SQL',     icon: 'flow',   isNew: true },
     ]},
     { group: 'Operação', items: [
       { id: 'hitl',    label: 'Aprovações',    icon: 'shield', hasBadge: true },
@@ -68,9 +71,11 @@ const TITLES = {
   invest360:   ['Investigar',  'Investigação 360°'],
   history:     ['Investigar',  'Minhas consultas'],
   perfil:      ['Conta',       'Meu Perfil'],
-  privacidade: ['Conta',       'Privacidade (LGPD)'],
-  'fiscal-dashboard': ['Fiscal', 'Analytics Fiscal'],
-  hitl:        ['Operação',    'Aprovações'],
+  privacidade:        ['Conta',       'Privacidade (LGPD)'],
+  'fiscal-dashboard': ['Fiscal',      'Analytics Fiscal'],
+  reports:            ['Fiscal',      'Relatórios Premium'],
+  workbench:          ['Fiscal',      'Workbench SQL'],
+  hitl:               ['Operação',    'Aprovações'],
   'hitl-detail': ['Operação',  'Aprovações', 'Modificar'],
   monitor:     ['Operação',    'Monitoramento'],
   ledger:      ['Governança',  'Auditoria'],
@@ -170,6 +175,8 @@ export default function App() {
     invest360:    <Invest360Screen go={go} />,
     privacidade:  <PrivacyScreen />,
     'fiscal-dashboard': <FiscalDashboardScreen />,
+    reports:      <ReportsWorkbenchScreen />,
+    workbench:    <ReportsWorkbenchScreen />,
     hitl:         <HitlScreen go={go} onPendingChange={setPendingCount} />,
     'hitl-detail': <HitlDetailScreen go={go} />,
     training:     <TrainingScreen />,
