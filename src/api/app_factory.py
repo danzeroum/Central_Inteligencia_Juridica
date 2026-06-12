@@ -112,6 +112,13 @@ def create_app() -> FastAPI:
 
     app.include_router(vault_router)
 
+    # Bloco E.2 — Relatórios premium + Workbench seguro (S-E.2)
+    from src.api.routes.reports import router as reports_router
+    from src.api.routes.workbench import router as workbench_router
+
+    app.include_router(reports_router)
+    app.include_router(workbench_router)
+
     @app.exception_handler(Exception)
     async def _unhandled_exception_handler(
         request: Request, exc: Exception
