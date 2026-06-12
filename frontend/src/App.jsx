@@ -13,6 +13,8 @@ import ProfileScreen     from './screens/user/ProfileScreen.jsx';
 import Invest360Screen   from './screens/user/Invest360Screen.jsx';
 import PrivacyScreen     from './screens/user/PrivacyScreen.jsx';
 
+import FiscalDashboardScreen from './screens/fiscal/FiscalDashboardScreen.jsx';
+
 import HitlScreen        from './screens/admin/HitlScreen.jsx';
 import HitlDetailScreen  from './screens/admin/HitlDetailScreen.jsx';
 import TrainingScreen    from './screens/admin/TrainingScreen.jsx';
@@ -40,6 +42,9 @@ const NAV = {
     ]},
   ],
   admin: [
+    { group: 'Fiscal', items: [
+      { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law', isNew: true },
+    ]},
     { group: 'Operação', items: [
       { id: 'hitl',    label: 'Aprovações',    icon: 'shield', hasBadge: true },
       { id: 'monitor', label: 'Monitoramento', icon: 'pulse'                  },
@@ -64,6 +69,7 @@ const TITLES = {
   history:     ['Investigar',  'Minhas consultas'],
   perfil:      ['Conta',       'Meu Perfil'],
   privacidade: ['Conta',       'Privacidade (LGPD)'],
+  'fiscal-dashboard': ['Fiscal', 'Analytics Fiscal'],
   hitl:        ['Operação',    'Aprovações'],
   'hitl-detail': ['Operação',  'Aprovações', 'Modificar'],
   monitor:     ['Operação',    'Monitoramento'],
@@ -163,6 +169,7 @@ export default function App() {
     perfil:       <ProfileScreen />,
     invest360:    <Invest360Screen go={go} />,
     privacidade:  <PrivacyScreen />,
+    'fiscal-dashboard': <FiscalDashboardScreen />,
     hitl:         <HitlScreen go={go} onPendingChange={setPendingCount} />,
     'hitl-detail': <HitlDetailScreen go={go} />,
     training:     <TrainingScreen />,

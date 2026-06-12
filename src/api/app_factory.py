@@ -92,6 +92,11 @@ def create_app() -> FastAPI:
 
     app.include_router(fiscal_router)
 
+    # Bloco E — Analytics Fiscal (S-E.1)
+    from src.api.routes.analytics import router as analytics_router
+
+    app.include_router(analytics_router)
+
     # Bloco B — Ingestão & Normalização
     from src.api.routes.upload import router as upload_router
 
