@@ -131,9 +131,10 @@ DATABASE_URL=postgresql+asyncpg://postgres:test@localhost:5432/cij_test \
 | S-E.1 | Dashboards fiscais + KPIs | #116 | ✅ merged |
 | S-F.1 | Cofre de credenciais & assinatura digital RSA-PSS | #118 | ✅ merged |
 | S-F.2 | Gerador PER/DCOMP (Factory) + validação de layout | #119 | ✅ merged |
-| S-E.2 | Relatórios premium + SQL Workbench seguro | #117 | ⏳ CI |
-| S-F.3 | Transmissão e-CAC + Circuit Breaker + Observer | #120 | ⏳ CI |
+| S-E.2 | Relatórios premium + SQL Workbench seguro | #117 | ✅ merged |
+| S-F.3 | Transmissão e-CAC + Circuit Breaker + Observer | #120 | ✅ merged |
+| S-D.2 | Retificação SPED ponta-a-ponta (comparador, layout validator, nota de correção) | #121 | ✅ merged |
 
 ---
 
-*Documento mantido automaticamente pelo agente. Última atualização: S-F.3 (2026-06-12).*
+*Documento mantido automaticamente pelo agente. Última atualização: S-D.2 (2026-06-12).*
