@@ -17,7 +17,11 @@ df = fetcher.fetch_competencia("SP", 2025, 1)   # LazyFrame
 
 from __future__ import annotations
 
-import ftplib
+# nosec B402 — FTP é o ÚNICO protocolo disponível no servidor público ftp.datasus.gov.br
+# (Ministério da Saúde).  Não existe mirror SFTP/HTTPS para arquivos DBC do SIH-RD.
+# Login é anônimo; nenhuma credencial é transmitida; dados são públicos e não sensíveis.
+# Risco aceito em ADR-017; revisão periódica se DATASUS oferecer HTTPS (issue SAUDE-02).
+import ftplib  # nosec B402
 import logging
 import tempfile
 from pathlib import Path
@@ -104,8 +108,8 @@ class FetcherDatasusFTP:
             return local_dbc
 
         logger.info("FTP download: %s:%s", _FTP_HOST, remote)
-        with ftplib.FTP(_FTP_HOST, timeout=self._timeout) as ftp:
-            ftp.login()
+        with ftplib.FTP(_FTP_HOST, timeout=self._timeout) as ftp:  # nosec B321
+            ftp.login()  # login anônimo — sem credenciais (ADR-017)
             with local_dbc.open("wb") as f:
                 ftp.retrbinary(f"RETR {remote}", f.write)
         logger.info("baixado: %s (%d bytes)", local_dbc.name, local_dbc.stat().st_size)
