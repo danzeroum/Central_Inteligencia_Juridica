@@ -15,6 +15,9 @@ import PrivacyScreen     from './screens/user/PrivacyScreen.jsx';
 
 import FiscalDashboardScreen    from './screens/fiscal/FiscalDashboardScreen.jsx';
 import EscrituracaoScreen       from './screens/fiscal/EscrituracaoScreen.jsx';
+import RetificacaoScreen        from './screens/fiscal/RetificacaoScreen.jsx';
+import PERDCOMPScreen           from './screens/fiscal/PERDCOMPScreen.jsx';
+import TransmissaoScreen        from './screens/fiscal/TransmissaoScreen.jsx';
 import ReportsWorkbenchScreen   from './screens/fiscal/ReportsWorkbenchScreen.jsx';
 
 import HitlScreen        from './screens/admin/HitlScreen.jsx';
@@ -45,10 +48,13 @@ const NAV = {
   ],
   admin: [
     { group: 'Fiscal', items: [
-      { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law',    isNew: true },
-      { id: 'escrituracoes',    label: 'Escriturações',    icon: 'doc',    isNew: true },
-      { id: 'reports',          label: 'Relatórios',        icon: 'ledger', isNew: true },
-      { id: 'workbench',        label: 'Workbench SQL',     icon: 'flow',   isNew: true },
+      { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law',     isNew: true },
+      { id: 'escrituracoes',    label: 'Escriturações',    icon: 'doc',     isNew: true },
+      { id: 'retificacao',      label: 'Retificação',      icon: 'compare', isNew: true },
+      { id: 'per-dcomp',        label: 'PER/DCOMP',        icon: 'ledger',  isNew: true },
+      { id: 'transmissao',      label: 'Transmissão e-CAC', icon: 'pulse',  isNew: true },
+      { id: 'reports',          label: 'Relatórios',        icon: 'ledger',  isNew: true },
+      { id: 'workbench',        label: 'Workbench SQL',     icon: 'flow',    isNew: true },
     ]},
     { group: 'Operação', items: [
       { id: 'hitl',    label: 'Aprovações',    icon: 'shield', hasBadge: true },
@@ -74,10 +80,13 @@ const TITLES = {
   history:     ['Investigar',  'Minhas consultas'],
   perfil:      ['Conta',       'Meu Perfil'],
   privacidade:        ['Conta',       'Privacidade (LGPD)'],
-  'fiscal-dashboard': ['Fiscal',      'Analytics Fiscal'],
-  escrituracoes:      ['Fiscal',      'Escriturações SPED'],
-  reports:            ['Fiscal',      'Relatórios Premium'],
-  workbench:          ['Fiscal',      'Workbench SQL'],
+  'fiscal-dashboard': ['Fiscal', 'Analytics Fiscal'],
+  escrituracoes:      ['Fiscal', 'Escriturações SPED'],
+  retificacao:        ['Fiscal', 'Retificação SPED'],
+  'per-dcomp':        ['Fiscal', 'PER/DCOMP'],
+  transmissao:        ['Fiscal', 'Transmissão e-CAC'],
+  reports:            ['Fiscal', 'Relatórios Premium'],
+  workbench:          ['Fiscal', 'Workbench SQL'],
   hitl:               ['Operação',    'Aprovações'],
   'hitl-detail': ['Operação',  'Aprovações', 'Modificar'],
   monitor:     ['Operação',    'Monitoramento'],
@@ -178,9 +187,12 @@ export default function App() {
     invest360:    <Invest360Screen go={go} />,
     privacidade:  <PrivacyScreen />,
     'fiscal-dashboard': <FiscalDashboardScreen />,
-    escrituracoes: <EscrituracaoScreen />,
-    reports:      <ReportsWorkbenchScreen />,
-    workbench:    <ReportsWorkbenchScreen />,
+    escrituracoes:      <EscrituracaoScreen />,
+    retificacao:        <RetificacaoScreen />,
+    'per-dcomp':        <PERDCOMPScreen />,
+    transmissao:        <TransmissaoScreen />,
+    reports:            <ReportsWorkbenchScreen />,
+    workbench:          <ReportsWorkbenchScreen />,
     hitl:         <HitlScreen go={go} onPendingChange={setPendingCount} />,
     'hitl-detail': <HitlDetailScreen go={go} />,
     training:     <TrainingScreen />,
