@@ -16,33 +16,12 @@ function ErrAlert({ msg }) {
   );
 }
 
-function Label({ children }) {
-  return (
-    <label style={{ fontSize: 12, color: 'var(--faint)', display: 'block', marginBottom: 4 }}>
-      {children}
-    </label>
-  );
-}
-
 function Section({ title, children }) {
   return (
     <section className="card" style={{ padding: 16, marginBottom: 12 }}>
       <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{title}</h3>
       {children}
     </section>
-  );
-}
-
-function KvGrid({ items }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 16px', fontSize: 12 }}>
-      {items.map(([k, v]) => (
-        <React.Fragment key={k}>
-          <span style={{ color: 'var(--faint)' }}>{k}:</span>
-          <span>{String(v ?? '—')}</span>
-        </React.Fragment>
-      ))}
-    </div>
   );
 }
 
