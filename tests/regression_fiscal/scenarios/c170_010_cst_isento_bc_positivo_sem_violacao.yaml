@@ -1,0 +1,15 @@
+name: "CST-001: C170 CST 40 (isento) com BC e ICMS zero — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C170
+    bloco: C
+    numero_linha: 1
+    campos:
+      cfop: "5102"
+      cst_icms: "40"
+      vl_bc_icms: "1000,00"
+      aliq_icms: "0,00"
+      vl_icms: "0,00"
+esperado:
+  regra_ids_ausentes: ["CST-001"]
+  aprovado: true

@@ -1,0 +1,11 @@
+name: "PIS-M-001: M200 total PIS zero — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: M200
+    bloco: M
+    numero_linha: 1
+    campos:
+      vl_tot_cont_nc_per: "0,00"
+esperado:
+  regra_ids_ausentes: ["PIS-M-001"]
+  aprovado: true

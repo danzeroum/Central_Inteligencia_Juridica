@@ -485,6 +485,46 @@ class TestGoldenThreadE2E:
         icms_desta = [a for a in r.json() if a["escrituracao_id"] == db_id]
         assert len(icms_desta) == 1
 
+    def test_e2e_apuracao_com_ajuste_e111_e_regime(self, api_client):
+        """S-C.4: Upload com regime/uf + E111 débito → apuração soma ajuste no saldo.
+
+        Fixture efd_icms_ajuste_e111.txt tem:
+          C100 saída vl_icms=100 + E111 ajuste débito vl_aj_apur=50
+          E110 declarado saldo=150
+        Upload com regime=lucro_real&uf=SP → apuração deve retornar saldo=150 devedor.
+        Manual: debitos=100, creditos=0, ajustes_debito=50, ajustes_credito=0 → saldo=150.
+        """
+        fixture_path = _FIXTURES / "efd_icms_ajuste_e111.txt"
+        with fixture_path.open("rb") as f:
+            resp = api_client.post(
+                "/api/v1/fiscal/upload",
+                files={"file": ("efd_icms_ajuste_e111.txt", f, "text/plain")},
+                data={
+                    "tipo": "efd_icms",
+                    "ano": 2025,
+                    "mes": 1,
+                    "regime": "lucro_real",
+                    "uf": "SP",
+                },
+            )
+        assert resp.status_code == 202
+        db_id = resp.json().get("db_id")
+        assert db_id is not None
+
+        r = api_client.get(f"/api/v1/fiscal/escrituracoes/{db_id}")
+        assert r.status_code == 200
+        assert r.json()["status"] == "processado"
+
+        r = api_client.post(f"/api/v1/fiscal/escrituracoes/{db_id}/apuracao")
+        assert r.status_code == 200
+        ap = r.json()
+        icms = next((i for i in ap["items"] if i["tributo"] == "ICMS"), None)
+        assert icms is not None
+        assert Decimal(icms["saldo_apurado"]) == Decimal(
+            "150"
+        ), f"Saldo esperado 150, got: {icms}"
+        assert icms["situacao"] == "devedor"
+
     def test_e2e_ciclo_detectar_corrigir_reapurar(self, api_client):
         """Ciclo completo S-C.3: upload com ERRO → corrigir via lote → revalidação 0 erros → apuração ok.
 

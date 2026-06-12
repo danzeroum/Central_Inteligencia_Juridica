@@ -1,0 +1,15 @@
+name: "ICMS-D-002: CT-e base positiva — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: D100
+    bloco: D
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_sit: "00"
+      vl_doc: "5000,00"
+      vl_bc_icms: "5000,00"
+      vl_icms: "600,00"
+esperado:
+  regra_ids_ausentes: ["ICMS-D-002"]
+  aprovado: true

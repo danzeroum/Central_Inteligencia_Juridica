@@ -1,0 +1,22 @@
+name: "PIS-002: PIS excede valor do documento — violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "00"
+      num_doc: "000000008"
+      chv_nfe: "33333333333333333333333333333333333333333333"
+      dt_doc: "2025-03-01"
+      vl_doc: "100,00"
+      vl_bc_icms: "100,00"
+      aliq_icms: "12,00"
+      vl_icms: "12,00"
+      vl_pis: "500,00"
+      vl_cofins: "3,00"
+esperado:
+  regra_ids_violadas: ["PIS-002"]
+  aprovado: false

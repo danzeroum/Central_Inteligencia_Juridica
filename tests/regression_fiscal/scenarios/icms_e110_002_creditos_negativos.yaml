@@ -1,0 +1,12 @@
+name: "ICMS-E-002: E110 total créditos negativo"
+regime: lucro_real
+registros:
+  - tipo_registro: E110
+    bloco: E
+    numero_linha: 1
+    campos:
+      vl_tot_debitos: "100,00"
+      vl_tot_creditos: "-50,00"
+esperado:
+  regra_ids_violadas: ["ICMS-E-002"]
+  aprovado: false

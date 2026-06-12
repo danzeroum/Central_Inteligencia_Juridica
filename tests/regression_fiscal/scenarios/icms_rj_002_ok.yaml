@@ -1,0 +1,23 @@
+name: "ICMS-RJ: RJ sem violação base ICMS"
+regime: lucro_real
+uf: RJ
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "00"
+      num_doc: "000010001"
+      chv_nfe: "33333333333333333333333333333333333333333333"
+      dt_doc: "2025-01-10"
+      vl_doc: "3000,00"
+      vl_bc_icms: "3000,00"
+      aliq_icms: "20,00"
+      vl_icms: "600,00"
+      vl_pis: "19,50"
+      vl_cofins: "90,00"
+esperado:
+  regra_ids_ausentes: ["ICMS-001", "ICMS-002"]
+  aprovado: true

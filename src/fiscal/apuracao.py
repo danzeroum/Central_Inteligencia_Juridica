@@ -9,13 +9,7 @@ Uso:
     for item in resultado.items:
         print(item.tributo, item.situacao, item.saldo_apurado)
 
-Fora de escopo nesta iteração (TODO(S-C.4)):
-- Ajustes de apuração (E111, E112, E113)
-- ICMS-ST (E300..E316)
-- IPI (E520..E530)
-- Regime cumulativo PIS/COFINS (M100, M500)
-- Créditos PIS/COFINS (M400/M405, M800)
-- Benefícios fiscais estaduais
+TODO(S-C.5): ICMS-ST (E300..E316), IPI (E520..E530)
 """
 
 from __future__ import annotations
@@ -47,6 +41,34 @@ def _to_dec(value: Any) -> Decimal:
         return Decimal(s)
     except InvalidOperation:
         return Decimal("0")
+
+
+def _load_apuracao_config() -> Dict[str, str]:
+    import yaml
+    from pathlib import Path
+
+    cfg_path = (
+        Path(__file__).parent.parent.parent
+        / "config"
+        / "fiscal"
+        / "rules"
+        / "base.yaml"
+    )
+    try:
+        data = yaml.safe_load(cfg_path.read_text())
+        return data.get("apuracao_config", {})
+    except Exception:
+        return {}
+
+
+_apuracao_config: Dict[str, str] = {}
+
+
+def _get_aliq(key: str, default: str) -> Decimal:
+    global _apuracao_config
+    if not _apuracao_config:
+        _apuracao_config = _load_apuracao_config()
+    return Decimal(_apuracao_config.get(key, default))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -87,6 +109,8 @@ class ItemApuracao:
     situacao: str  # "devedor" | "credor" | "equilibrado"
     divergencias: List[DivergenciaApuracao] = field(default_factory=list)
     detalhes: Dict[str, Any] = field(default_factory=dict)
+    ajustes_debito: Decimal = Decimal("0")
+    ajustes_credito: Decimal = Decimal("0")
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -99,6 +123,8 @@ class ItemApuracao:
             "situacao": self.situacao,
             "divergencias": [d.to_dict() for d in self.divergencias],
             "detalhes": self.detalhes,
+            "ajustes_debito": str(self.ajustes_debito),
+            "ajustes_credito": str(self.ajustes_credito),
         }
 
 
@@ -143,12 +169,13 @@ class ApuracaoEngine:
 
         ind_oper="1" (saída) → débito; ind_oper="0" (entrada) → crédito.
         Documentos cancelados (cod_sit 5-8) são ignorados.
-        Fora de escopo: E111 ajustes, ICMS-ST, benefícios estaduais.
+        TODO(S-C.5): ICMS-ST (E300..E316), IPI (E520..E530)
         """
         debitos = Decimal("0")
         creditos = Decimal("0")
         e110: Optional[Dict[str, Any]] = None
         n_c100 = 0
+        e110_found = False
 
         for record in records:
             if record.tipo_registro in ("C100", "D100"):
@@ -165,8 +192,42 @@ class ApuracaoEngine:
                     creditos += vl_icms
             elif record.tipo_registro == "E110":
                 e110 = record.campos
+                e110_found = True
 
-        saldo_apurado = debitos - creditos - saldo_credor_anterior
+        ajustes_debito = Decimal("0")
+        ajustes_credito = Decimal("0")
+        avisos_ajuste: List[str] = []
+        e111_count = 0
+        e112_count = 0
+        e113_count = 0
+
+        for record in records:
+            if record.tipo_registro == "E111":
+                e111_count += 1
+                cod = str(record.campos.get("cod_aj_apur") or "")
+                vl = _to_dec(record.campos.get("vl_aj_apur"))
+                if len(cod) >= 3:
+                    natureza = cod[2]
+                    if natureza == "1":
+                        ajustes_debito += vl
+                    elif natureza == "2":
+                        ajustes_credito += vl
+                    else:
+                        avisos_ajuste.append(cod)
+                else:
+                    avisos_ajuste.append(cod or "(vazio)")
+            elif record.tipo_registro == "E112":
+                e112_count += 1
+            elif record.tipo_registro == "E113":
+                e113_count += 1
+
+        saldo_apurado = (
+            debitos
+            - creditos
+            + ajustes_debito
+            - ajustes_credito
+            - saldo_credor_anterior
+        )
         situacao = (
             "devedor"
             if saldo_apurado > 0
@@ -174,6 +235,28 @@ class ApuracaoEngine:
         )
 
         divergencias: List[DivergenciaApuracao] = []
+
+        if e111_count > 0 and not e110_found:
+            divergencias.append(
+                DivergenciaApuracao(
+                    campo="E111",
+                    valor_computado="E111 sem E110 correspondente",
+                    valor_declarado="E110 obrigatório",
+                    diferenca="estrutura",
+                    severidade=Severidade.ERRO,
+                )
+            )
+
+        for cod_inv in avisos_ajuste:
+            divergencias.append(
+                DivergenciaApuracao(
+                    campo="E111.cod_aj_apur",
+                    valor_computado=cod_inv,
+                    valor_declarado="código com 3º char '1' ou '2'",
+                    diferenca="código de ajuste desconhecido",
+                    severidade=Severidade.AVISO,
+                )
+            )
 
         if e110 is not None:
             decl_debitos = _to_dec(e110.get("vl_tot_debitos"))
@@ -205,7 +288,9 @@ class ApuracaoEngine:
                     )
                 )
 
-            computed_saldo_e110 = debitos - creditos - decl_saldo_ant
+            computed_saldo_e110 = (
+                debitos - creditos + ajustes_debito - ajustes_credito - decl_saldo_ant
+            )
             diff_s = abs(computed_saldo_e110 - decl_saldo)
             if diff_s > _TOLERANCIA:
                 divergencias.append(
@@ -227,21 +312,71 @@ class ApuracaoEngine:
             saldo_apurado=saldo_apurado,
             situacao=situacao,
             divergencias=divergencias,
+            ajustes_debito=ajustes_debito,
+            ajustes_credito=ajustes_credito,
             detalhes={
                 "total_registros_c100_d100": n_c100,
                 "e110_declarado": e110 is not None,
+                "ajustes_debito": str(ajustes_debito),
+                "ajustes_credito": str(ajustes_credito),
+                "e111_count": e111_count,
+                "e112_count": e112_count,
+                "e113_count": e113_count,
             },
         )
 
     def calcular_pis(self, records: List[SpedRecord]) -> ItemApuracao:
+        """Apura PIS a partir de M100 (cumulativo) ou M210 (não-cumulativo)."""
+        m100_records = [r for r in records if r.tipo_registro == "M100"]
+        if m100_records:
+            return self._calcular_pis_cumulativo(records, m100_records)
+        return self._calcular_pis_nao_cumulativo(records)
+
+    def _calcular_pis_cumulativo(
+        self, records: List[SpedRecord], m100_records: List[SpedRecord]
+    ) -> ItemApuracao:
+        """Apura PIS no regime cumulativo via M100."""
+        aliq_default = _get_aliq("pis_cumulativo_aliq", "0.0065")
+        total_pis = Decimal("0")
+        creditos = Decimal("0")
+
+        for r in m100_records:
+            vl_cont = _to_dec(r.campos.get("vl_cont"))
+            if vl_cont:
+                total_pis += vl_cont
+            else:
+                vl_bc = _to_dec(r.campos.get("vl_bc"))
+                aliq_str = r.campos.get("aliq_pis_ou_pasep")
+                aliq = _to_dec(aliq_str) / 100 if aliq_str else aliq_default
+                total_pis += vl_bc * aliq
+
+        for r in records:
+            if r.tipo_registro in ("M400", "M405"):
+                creditos += _to_dec(r.campos.get("vl_cred"))
+
+        saldo = total_pis - creditos
+        situacao = "devedor" if saldo > 0 else "credor" if saldo < 0 else "equilibrado"
+
+        return ItemApuracao(
+            tributo="PIS",
+            periodo=self._periodo_from_records(records),
+            total_debitos=total_pis,
+            total_creditos=creditos,
+            saldo_credor_anterior=Decimal("0"),
+            saldo_apurado=saldo,
+            situacao=situacao,
+            detalhes={"regime": "cumulativo", "total_m100_linhas": len(m100_records)},
+        )
+
+    def _calcular_pis_nao_cumulativo(self, records: List[SpedRecord]) -> ItemApuracao:
         """Apura PIS (não-cumulativo) a partir de M210 e confronta com M200.
 
         Soma vl_cont_apr de todos os M210; confronta com M200 vl_tot_cont_nc_per.
-        Fora de escopo: regime cumulativo (M100), créditos (M400/M405).
         """
         total_m210 = Decimal("0")
         m200: Optional[Dict[str, Any]] = None
         n_m210 = 0
+        creditos = Decimal("0")
 
         for record in records:
             if record.tipo_registro == "M210":
@@ -249,6 +384,8 @@ class ApuracaoEngine:
                 total_m210 += _to_dec(record.campos.get("vl_cont_apr"))
             elif record.tipo_registro == "M200":
                 m200 = record.campos
+            elif record.tipo_registro in ("M400", "M405"):
+                creditos += _to_dec(record.campos.get("vl_cred"))
 
         divergencias: List[DivergenciaApuracao] = []
 
@@ -266,19 +403,16 @@ class ApuracaoEngine:
                     )
                 )
 
-        situacao = (
-            "devedor"
-            if total_m210 > 0
-            else "credor" if total_m210 < 0 else "equilibrado"
-        )
+        saldo = total_m210 - creditos
+        situacao = "devedor" if saldo > 0 else "credor" if saldo < 0 else "equilibrado"
 
         return ItemApuracao(
             tributo="PIS",
             periodo=self._periodo_from_records(records),
             total_debitos=total_m210,
-            total_creditos=Decimal("0"),
+            total_creditos=creditos,
             saldo_credor_anterior=Decimal("0"),
-            saldo_apurado=total_m210,
+            saldo_apurado=saldo,
             situacao=situacao,
             divergencias=divergencias,
             detalhes={
@@ -288,14 +422,59 @@ class ApuracaoEngine:
         )
 
     def calcular_cofins(self, records: List[SpedRecord]) -> ItemApuracao:
+        """Apura COFINS a partir de M500 (cumulativo) ou M610 (não-cumulativo)."""
+        m500_records = [r for r in records if r.tipo_registro == "M500"]
+        if m500_records:
+            return self._calcular_cofins_cumulativo(records, m500_records)
+        return self._calcular_cofins_nao_cumulativo(records)
+
+    def _calcular_cofins_cumulativo(
+        self, records: List[SpedRecord], m500_records: List[SpedRecord]
+    ) -> ItemApuracao:
+        """Apura COFINS no regime cumulativo via M500."""
+        aliq_default = _get_aliq("cofins_cumulativo_aliq", "0.03")
+        total_cofins = Decimal("0")
+        creditos = Decimal("0")
+
+        for r in m500_records:
+            vl_cont = _to_dec(r.campos.get("vl_cont"))
+            if vl_cont:
+                total_cofins += vl_cont
+            else:
+                vl_bc = _to_dec(r.campos.get("vl_bc"))
+                aliq_str = r.campos.get("aliq_cofins")
+                aliq = _to_dec(aliq_str) / 100 if aliq_str else aliq_default
+                total_cofins += vl_bc * aliq
+
+        for r in records:
+            if r.tipo_registro == "M800":
+                creditos += _to_dec(r.campos.get("vl_cred"))
+
+        saldo = total_cofins - creditos
+        situacao = "devedor" if saldo > 0 else "credor" if saldo < 0 else "equilibrado"
+
+        return ItemApuracao(
+            tributo="COFINS",
+            periodo=self._periodo_from_records(records),
+            total_debitos=total_cofins,
+            total_creditos=creditos,
+            saldo_credor_anterior=Decimal("0"),
+            saldo_apurado=saldo,
+            situacao=situacao,
+            detalhes={"regime": "cumulativo", "total_m500_linhas": len(m500_records)},
+        )
+
+    def _calcular_cofins_nao_cumulativo(
+        self, records: List[SpedRecord]
+    ) -> ItemApuracao:
         """Apura COFINS (não-cumulativo) a partir de M610 e confronta com M600.
 
         Soma vl_cont_apr de todos os M610; confronta com M600 vl_tot_cont_nc_per.
-        Fora de escopo: regime cumulativo (M500), créditos (M800).
         """
         total_m610 = Decimal("0")
         m600: Optional[Dict[str, Any]] = None
         n_m610 = 0
+        creditos = Decimal("0")
 
         for record in records:
             if record.tipo_registro == "M610":
@@ -303,6 +482,8 @@ class ApuracaoEngine:
                 total_m610 += _to_dec(record.campos.get("vl_cont_apr"))
             elif record.tipo_registro == "M600":
                 m600 = record.campos
+            elif record.tipo_registro == "M800":
+                creditos += _to_dec(record.campos.get("vl_cred"))
 
         divergencias: List[DivergenciaApuracao] = []
 
@@ -320,19 +501,16 @@ class ApuracaoEngine:
                     )
                 )
 
-        situacao = (
-            "devedor"
-            if total_m610 > 0
-            else "credor" if total_m610 < 0 else "equilibrado"
-        )
+        saldo = total_m610 - creditos
+        situacao = "devedor" if saldo > 0 else "credor" if saldo < 0 else "equilibrado"
 
         return ItemApuracao(
             tributo="COFINS",
             periodo=self._periodo_from_records(records),
             total_debitos=total_m610,
-            total_creditos=Decimal("0"),
+            total_creditos=creditos,
             saldo_credor_anterior=Decimal("0"),
-            saldo_apurado=total_m610,
+            saldo_apurado=saldo,
             situacao=situacao,
             divergencias=divergencias,
             detalhes={

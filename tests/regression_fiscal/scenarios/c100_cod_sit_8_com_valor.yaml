@@ -1,0 +1,22 @@
+name: "COD-SIT-001: C100 cod_sit=8 (denegado) com valor — aviso"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "8"
+      num_doc: "000008001"
+      chv_nfe: "33333333333333333333333333333333333333333333"
+      dt_doc: "2025-10-01"
+      vl_doc: "500,00"
+      vl_bc_icms: "500,00"
+      aliq_icms: "12,00"
+      vl_icms: "60,00"
+      vl_pis: "3,25"
+      vl_cofins: "15,00"
+esperado:
+  regra_ids_violadas: ["COD-SIT-001"]
+  aprovado: true

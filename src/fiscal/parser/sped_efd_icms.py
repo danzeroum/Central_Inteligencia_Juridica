@@ -353,6 +353,41 @@ def _handle_e520(campos: List[str]) -> Dict[str, Any]:
     return d
 
 
+_E111_CAMPOS = ["cod_aj_apur", "descr_compl_aj", "vl_aj_apur"]
+
+
+def _handle_e111(campos: List[str]) -> Dict[str, Any]:
+    d = _zip_campos(_E111_CAMPOS, campos)
+    _apply_dec(d, "vl_aj_apur")
+    return d
+
+
+_E112_CAMPOS = ["cod_aj_apur", "num_da", "num_acj", "descr_compl", "valor"]
+
+
+def _handle_e112(campos: List[str]) -> Dict[str, Any]:
+    return _zip_campos(_E112_CAMPOS, campos)
+
+
+_E113_CAMPOS = [
+    "cod_aj_apur",
+    "ser",
+    "sub",
+    "num_doc",
+    "dt_doc",
+    "cod_item",
+    "vl_aj_item",
+    "vl_bc_icms",
+    "aliq_icms",
+    "vl_icms",
+    "vl_outros",
+]
+
+
+def _handle_e113(campos: List[str]) -> Dict[str, Any]:
+    return _zip_campos(_E113_CAMPOS, campos)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Bloco 9 — Controle e Encerramento
 # ─────────────────────────────────────────────────────────────────────────────
@@ -400,6 +435,9 @@ class SpedEfdIcmsParser(SpedParser):
         # Bloco E
         self.register_handler("E001", _handle_ind_mov)
         self.register_handler("E110", _handle_e110)
+        self.register_handler("E111", _handle_e111)
+        self.register_handler("E112", _handle_e112)
+        self.register_handler("E113", _handle_e113)
         self.register_handler("E520", _handle_e520)
         self.register_handler("E990", _handle_qt_lin)
         # Bloco 9

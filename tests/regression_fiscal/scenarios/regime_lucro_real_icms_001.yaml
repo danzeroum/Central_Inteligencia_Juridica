@@ -1,0 +1,21 @@
+name: "Lucro real: ICMS correto sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "00"
+      num_doc: "000002000"
+      chv_nfe: "33333333333333333333333333333333333333333333"
+      dt_doc: "2025-04-01"
+      vl_doc: "2500,00"
+      vl_bc_icms: "2500,00"
+      aliq_icms: "12,00"
+      vl_icms: "300,00"
+      vl_pis: "16,25"
+      vl_cofins: "75,00"
+esperado:
+  aprovado: true

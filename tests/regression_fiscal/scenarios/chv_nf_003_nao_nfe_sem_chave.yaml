@@ -1,0 +1,22 @@
+name: "CHV-NF-001: CT-e (cod_mod≠55) sem chave — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "57"
+      cod_sit: "00"
+      num_doc: "000000011"
+      chv_nfe: ""
+      dt_doc: "2025-01-20"
+      vl_doc: "8000,00"
+      vl_bc_icms: "8000,00"
+      aliq_icms: "12,00"
+      vl_icms: "960,00"
+      vl_pis: "52,00"
+      vl_cofins: "240,00"
+esperado:
+  regra_ids_ausentes: ["CHV-NF-001"]
+  aprovado: true

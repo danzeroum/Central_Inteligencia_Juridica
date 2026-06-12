@@ -1,0 +1,23 @@
+name: "Sem violações: C100 completo e correto"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "00"
+      ser: "001"
+      num_doc: "000001000"
+      chv_nfe: "43250112345678000195550010000010001234567890"
+      dt_doc: "2025-01-25"
+      vl_doc: "5000,00"
+      vl_bc_icms: "5000,00"
+      aliq_icms: "12,00"
+      vl_icms: "600,00"
+      vl_pis: "32,50"
+      vl_cofins: "150,00"
+esperado:
+  regra_ids_ausentes: ["ICMS-001", "ICMS-002", "ICMS-003", "PIS-001", "COFINS-001"]
+  aprovado: true
