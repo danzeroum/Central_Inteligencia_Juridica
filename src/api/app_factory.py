@@ -124,6 +124,11 @@ def create_app() -> FastAPI:
 
     app.include_router(transmissao_router)
 
+    # Bloco D.2 — Retificação SPED ponta-a-ponta (S-D.2)
+    from src.api.routes.retificacao import router as retificacao_router
+
+    app.include_router(retificacao_router)
+
     @app.exception_handler(Exception)
     async def _unhandled_exception_handler(
         request: Request, exc: Exception

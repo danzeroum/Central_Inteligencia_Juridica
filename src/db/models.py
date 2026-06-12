@@ -227,6 +227,12 @@ class EscrituracaoFiscal(Base):
     periodo_id: Mapped[uuid.UUID] = mapped_column(
         SAUuid(as_uuid=True), ForeignKey("periodo_fiscal.id"), nullable=False
     )
+    # S-D.2: rastreabilidade de versões (retificação)
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        SAUuid(as_uuid=True),
+        ForeignKey("escrituracao_fiscal.id"),
+        nullable=True,
+    )
     # Tipo: efd_icms | efd_contrib | xml | pdf
     tipo: Mapped[str] = mapped_column(String(32), nullable=False)
     # Origem: upload | api | worker
@@ -261,6 +267,12 @@ class EscrituracaoFiscal(Base):
     apuracoes: Mapped[List["ApuracaoFiscal"]] = relationship(
         "ApuracaoFiscal", back_populates="escrituracao", cascade="all, delete-orphan"
     )
+    nota_correcao: Mapped[Optional["NotaCorrecao"]] = relationship(
+        "NotaCorrecao",
+        foreign_keys="NotaCorrecao.escrituracao_retificada_id",
+        back_populates="escrituracao_retificada",
+        uselist=False,
+    )
 
     __table_args__ = (
         Index("ix_escrituracao_fiscal_tenant_id", "tenant_id"),
@@ -268,6 +280,7 @@ class EscrituracaoFiscal(Base):
         Index("ix_escrituracao_fiscal_tipo", "tipo"),
         Index("ix_escrituracao_fiscal_status", "status"),
         Index("ix_escrituracao_fiscal_created_at", "created_at"),
+        Index("ix_escrituracao_fiscal_parent_id", "parent_id"),
     )
 
 
@@ -422,4 +435,53 @@ class ApuracaoFiscal(Base):
         Index("ix_apuracao_fiscal_tributo", "tributo"),
         Index("ix_apuracao_fiscal_situacao", "situacao"),
         Index("ix_apuracao_fiscal_created_at", "created_at"),
+    )
+
+
+class NotaCorrecao(Base):
+    """Nota de correção que documenta uma retificação SPED (S-D.2).
+
+    Liga a escrituração original à versão retificada e registra o motivo,
+    o resumo das mudanças e quem aprovou.
+    """
+
+    __tablename__ = "nota_correcao"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        SAUuid(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    escrituracao_original_id: Mapped[uuid.UUID] = mapped_column(
+        SAUuid(as_uuid=True),
+        ForeignKey("escrituracao_fiscal.id"),
+        nullable=False,
+    )
+    escrituracao_retificada_id: Mapped[uuid.UUID] = mapped_column(
+        SAUuid(as_uuid=True),
+        ForeignKey("escrituracao_fiscal.id"),
+        nullable=False,
+        unique=True,
+    )
+    motivo: Mapped[str] = mapped_column(String(1000), nullable=False)
+    # JSON: {registros_alterados, registros_adicionados, registros_removidos}
+    resumo_mudancas: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
+    aprovado_por: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    escrituracao_original: Mapped["EscrituracaoFiscal"] = relationship(
+        "EscrituracaoFiscal",
+        foreign_keys=[escrituracao_original_id],
+    )
+    escrituracao_retificada: Mapped["EscrituracaoFiscal"] = relationship(
+        "EscrituracaoFiscal",
+        foreign_keys=[escrituracao_retificada_id],
+        back_populates="nota_correcao",
+    )
+
+    __table_args__ = (
+        Index("ix_nota_correcao_original_id", "escrituracao_original_id"),
+        Index("ix_nota_correcao_retificada_id", "escrituracao_retificada_id"),
     )
