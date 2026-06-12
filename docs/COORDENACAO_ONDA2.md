@@ -22,9 +22,9 @@
   com sprint-alvo. Placeholder em código só com marcador `TODO(S-X.Y):` + entrada na
   tabela. Placeholder sem registro = bloqueio de merge.
 - **Disciplina de contagem.** O PR declara quantos testes novos traz; a suíte total nunca
-  regride. Baseline atual (branch `51a3b7c`, S-C.6 mergeado): **árvore completa local sem DB 1490 passed /
-  21 skipped** (unit+integração 1299/21 + 152 `regression_fiscal` + 39 `datasus`);
-  **CI integração 358 passed / 7 skipped** (run 27410841899).
+  regride. Baseline atual (branch `74574c7`, S-D.1 em andamento): **árvore completa local sem DB ≥1501 passed /
+  22 skipped** (unit+integração ≥1310/22 + 152 `regression_fiscal` + 39 `datasus`);
+  **CI integração 358 passed / 7 skipped** (run 27410841899 — S-C.6; S-D.1 aguardando run).
 - **Branch por sprint.** O dev inicia cada sprint com a branch **resetada em
   `origin/master`** (`git fetch origin && git reset --hard origin/master`) — branches
   longevas com histórico próprio do doc geram conflito recorrente (aconteceu em #103 e #105).
@@ -44,7 +44,7 @@
 - **Teste fio-de-ouro.** `tests/integration/test_golden_thread.py` percorre o pipeline
   inteiro via API. Ele **nunca** é removido ou enfraquecido — cada sprint o **estende**
   (C.3: ciclo detectar→corrigir→reapurar ✓; C.4: apuração com ajuste E111 + regime/UF ✓;
-  C.5: ICMS-ST ✓; C.6: ST via E200/E210 reais ✓; D: retificação; F: PER/DCOMP). É a prova
+  C.5: ICMS-ST ✓; C.6: ST via E200/E210 reais ✓; D.1: retificação + HITL gate ✓; F: PER/DCOMP). É a prova
   permanente de que as
   funcionalidades estão integradas de ponta a ponta, não só testadas em unidade.
 
@@ -68,11 +68,30 @@
 | DT-14 | **Convenção COD_AJ_APUR incorreta no E111**: a implementação classifica débito/crédito pelo **3º caractere** com valores `1`/`2`; o leiaute real (tabela 5.1.1 do Guia Prático EFD ICMS/IPI) usa o **4º caractere**: `0`=outros débitos, `1`=estorno de créditos, `2`=outros créditos, `3`=estorno de débitos, `4`=deduções, `5`=débitos especiais. Com códigos reais (ex.: `SP000207`) os ajustes caem em `avisos_ajuste` e **ficam fora do saldo**. Testes verdes porque as fixtures usam a convenção interna (consistente, porém infiel ao leiaute) | **spec do coordenador** (handoff S-C.4); detectado na leitura dirigida pós-merge #111 | S-C.5 Tarefa 1 — `_decode_aj_apur` pelo 4º caractere + fixtures/cenários com códigos reais | **resolvido** (PR #113) — 6 naturezas testadas; prova: run 27395640351, E2E E111 com `SP000207` PASSED |
 | DT-15 | **Fidelidade de leiaute do Bloco E (além do E111)** — 5 itens da leitura dirigida do #113: (1) confronto ST apontado para **E300/E310**, mas no leiaute real ST é **E200/E210** (E300/E310 = DIFAL EC 87/15); (2) `_E310_CAMPOS` é espelho inventado do E110, não o leiaute real; (3) `_E520_CAMPOS` diverge do E520 real (`VL_SD_ANT_IPI, VL_DEB_IPI, VL_CRED_IPI, VL_OD_IPI, VL_OC_IPI, VL_SC_IPI, VL_SD_IPI`) — inclui `vl_icms_ressarc` inexistente e omite OD/OC/SC/SD, desalinhando posições em arquivo real; (4) `_E530_CAMPOS` sem `IND_AJ` (flag real débito/crédito do ajuste IPI) — 4º caractere **não se aplica** ao E530; (5) deduções (natureza 4) dentro da fórmula do saldo podem inverter para credor artificialmente. Tudo verde com fixtures internas; infiel a arquivos reais | itens 1–2: TODO original do S-C.2 + **spec do coordenador**; 3–5: implementação S-C.5; detectados na leitura dirigida pós-merge #113 | **S-C.6** (sprint curto, antes do Bloco D) | **resolvido** (branch `51a3b7c`, run 27410841899) — E200/E210 reais, E520/E530 fiéis ao leiaute, deduções só sobre devedor, regressão 142→152 |
 
-## 3. PRÓXIMO SPRINT — aguardando especificação do coordenador
+## 3. SPRINT ATUAL — S-D.1 "Editor + Retificação" (em andamento)
 
-S-C.6 encerrado. Próximo passo natural é **S-D.1 — Editor + Retificação** (ver seção 4),
-mas só inicia após sanção explícita do coordenador. Regras de DoD do S-C.6 em diante:
-handler novo/alterado conferido contra o Guia Prático EFD ICMS/IPI, versão citada no header.
+**Branch:** `claude/happy-dirac-rt864d` — commit `74574c7`
+**PR:** #114 (atualizado com evidências S-D.1)
+
+### Escopo sancionado
+
+| Item | Entregável | Arquivo |
+|---|---|---|
+| SpedWriter | `gerar(records, ind_ret)` → bytes SPED CRLF; 0000.cod_fin='1'; 9999.qdt_lins recalculado | `src/fiscal/writer/sped_writer.py` |
+| GET retificado | `/escrituracoes/{id}/retificado` → download TXT + FiscalAudit `gerar_retificado` | `src/api/routes/fiscal.py` |
+| HITL gate | `LoteRequest.require_approval=True` → enfileira HITL; resposta 200 `status=aguardando_aprovacao` | `src/api/routes/fiscal.py` |
+| POST confirmar | `/lote/confirmar` → aplica lote HITL aprovado + FiscalAudit `lote_aprovado` | `src/api/routes/fiscal.py` |
+| Unit tests | 11 testes `test_sped_writer.py` (cálculos manuais, CRLF, cod_fin, 9999, _raw, UTF-8) | `tests/unit/test_sped_writer.py` |
+| Fio-de-ouro | `test_e2e_retificacao` (upload→retificado cod_fin='1'→lote require_approval→HITL→confirmar) | `tests/integration/test_golden_thread.py` |
+
+### DoD (preenchido após CI)
+
+- [ ] unit tests: 11 novos (`test_sped_writer.py`) + regressão ≥1501 local
+- [ ] CI run_id: **aguardando**
+- [ ] E2E `test_e2e_retificacao` PASSED no CI (requer Postgres)
+- [ ] FiscalAudit registra `gerar_retificado` e `lote_aprovado`
+- [ ] `black --check` ✓
+- [ ] coordinator review antes do merge
 
 ---
 
@@ -88,11 +107,9 @@ handler novo/alterado conferido contra o Guia Prático EFD ICMS/IPI, versão cit
 | S-C.5 "ICMS-ST + IPI + correção COD_AJ_APUR" | #113 | **ENCERRADO** — DT-14 fechado (`_decode_aj_apur` 4º caractere, naturezas 0..5, fixtures com códigos reais; E2E E111 com `SP000207` mantendo 100+50=150); `calcular_icms_st` + `calcular_ipi` com confronto e contas manuais; regras ST/IPI no YAML; regressão 111→142. Prova: run 27395640351 — 7/7 E2E PASSED (inclui `test_e2e_apuracao_icms_st`), integração 358/7, DT-11 limpo. Local: 1299/21, 142 regressão, black 343. Mergeado antes do aval; validação pós-merge aprovou **com DT-15** (fidelidade de leiaute Bloco E — ST real é E200/E210, não E300/E310; ver seção 2) |
 | S-C.6 "Fidelidade de leiaute do Bloco E" | branch `51a3b7c` | **ENCERRADO** — DT-15 fechado: handlers E200/E210 reais (leiaute Guia Prático v3.1.5, citado no header); E300/E310 removidos; `calcular_icms_st` confronta via E210 (`vl_retencao_st + vl_out_deb_st + vl_aj_debitos_st`); E520 com 7 campos reais (sem `vl_icms_ressarc`); E530 com `ind_aj` explícito (sem `_decode_aj_apur`); deduções abatem só saldo devedor (excedente → AVISO). Regressão 142→152 (+10 cenários). Prova: run 27410841899 — 6/6 jobs success (Python 3.11+3.12, lint, security, frontend, docker), integração 358/7, fio-de-ouro `test_e2e_apuracao_icms_st` PASSED (saldo 200−100=100 devedor). Local: 1299/21, 152 regressão, black ✓ |
 
-## 4. Fila após o S-C.6 (deltas sobre o roadmap — não executar ainda)
+## 4. Fila após o S-D.1 (deltas sobre o roadmap — não executar ainda)
 
-- **S-D.1/S-D.2 — Editor + Retificação** (inicia só após o S-C.6: opera sobre arquivos reais). Reusa HITL/progressive_autonomy para aprovação;
-  toda edição vira evento no ledger (UF/período/obrigação); geração do arquivo retificado
-  a partir dos registros canônicos editados; fio-de-ouro ganha editar→aprovar→regerar.
+- **S-D.2 — Editor avançado** (próximo após S-D.1): toda edição vira evento no ledger (UF/período/obrigação); reprocessamento assíncrono com Celery após retificação.
 - **S-E.1/S-E.2 — Analítica.** Dashboards sobre apuração/achados; workbench read-only
   com consultas parametrizadas (RBAC).
 - **DIFAL EC 87/15 (E300/E310)** — candidato sem sprint; só com demanda do stakeholder.
