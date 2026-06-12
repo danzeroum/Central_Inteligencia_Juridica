@@ -1,0 +1,14 @@
+name: "COFINS-M610-001: base zero — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: M610
+    bloco: M
+    numero_linha: 1
+    campos:
+      vl_bc_cont: "0,00"
+      aliq_cofins_perc: "7,60"
+      vl_cont: "0,00"
+      vl_cont_apr: "0,00"
+esperado:
+  regra_ids_ausentes: ["COFINS-M610-001"]
+  aprovado: true

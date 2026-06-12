@@ -1,0 +1,38 @@
+name: "Múltiplas notas — todas corretas, sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "1"
+      cod_mod: "55"
+      cod_sit: "00"
+      num_doc: "000003001"
+      chv_nfe: "11111111111111111111111111111111111111111111"
+      dt_doc: "2025-05-01"
+      vl_doc: "1000,00"
+      vl_bc_icms: "1000,00"
+      aliq_icms: "12,00"
+      vl_icms: "120,00"
+      vl_pis: "6,50"
+      vl_cofins: "30,00"
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 2
+    campos:
+      ind_oper: "0"
+      cod_mod: "55"
+      cod_sit: "00"
+      num_doc: "000003002"
+      chv_nfe: "22222222222222222222222222222222222222222222"
+      dt_doc: "2025-05-02"
+      vl_doc: "2000,00"
+      vl_bc_icms: "2000,00"
+      aliq_icms: "12,00"
+      vl_icms: "240,00"
+      vl_pis: "13,00"
+      vl_cofins: "60,00"
+esperado:
+  regra_ids_ausentes: ["ICMS-001", "ICMS-002", "ICMS-003"]
+  aprovado: true

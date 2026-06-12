@@ -826,9 +826,12 @@ async def editar_registros_lote(
                     ]
 
                 rules_engine = get_rules_engine(
-                    escrit.details.get("regime", "lucro_real")
-                    if escrit.details
-                    else "lucro_real"
+                    (
+                        escrit.details.get("regime", "lucro_real")
+                        if escrit.details
+                        else "lucro_real"
+                    ),
+                    uf=escrit.details.get("uf") if escrit.details else None,
                 )
 
                 records_antes = _build_records(todos_registros_db, {})

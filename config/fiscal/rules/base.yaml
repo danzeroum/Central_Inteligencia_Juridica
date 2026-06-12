@@ -429,3 +429,8 @@ rules:
     check:
       operator: negative
       field: vl_tot_cont_nc_per
+
+# ── Configuração de apuração (lida por apuracao.py) ──────────────────────────
+apuracao_config:
+  pis_cumulativo_aliq: "0.0065"
+  cofins_cumulativo_aliq: "0.03"

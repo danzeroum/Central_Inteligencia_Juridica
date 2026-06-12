@@ -1,0 +1,14 @@
+name: "COFINS-M610-002: M610 divergência alíquota — aviso"
+regime: lucro_real
+registros:
+  - tipo_registro: M610
+    bloco: M
+    numero_linha: 1
+    campos:
+      vl_bc_cont: "10000,00"
+      aliq_cofins_perc: "7,60"
+      vl_cont: "999,00"
+      vl_cont_apr: "999,00"
+esperado:
+  regra_ids_violadas: ["COFINS-M610-002"]
+  aprovado: true

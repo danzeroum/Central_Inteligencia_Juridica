@@ -1,0 +1,22 @@
+name: "Entrada NF: ICMS positivo — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C100
+    bloco: C
+    numero_linha: 1
+    campos:
+      ind_oper: "0"
+      cod_mod: "55"
+      cod_sit: "00"
+      num_doc: "000009001"
+      chv_nfe: "55555555555555555555555555555555555555555555"
+      dt_doc: "2025-11-01"
+      vl_doc: "4000,00"
+      vl_bc_icms: "4000,00"
+      aliq_icms: "12,00"
+      vl_icms: "480,00"
+      vl_pis: "26,00"
+      vl_cofins: "120,00"
+esperado:
+  regra_ids_ausentes: ["ICMS-001", "ICMS-002"]
+  aprovado: true

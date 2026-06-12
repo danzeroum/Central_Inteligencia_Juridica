@@ -173,3 +173,79 @@ def test_upload_response_schema(api_client):
     assert "size_bytes" in body
     assert "sha256" in body
     assert "message" in body
+
+
+# ── Regime e UF no upload ─────────────────────────────────────────────────────
+
+
+def test_upload_com_regime_lucro_presumido(api_client):
+    data = _make_sped_payload(content=b"|0000|REGIME TEST|\n" * 5)
+    resp = api_client.post(
+        "/api/v1/fiscal/upload",
+        files=data,
+        data={"tipo": "efd_icms", "ano": 2025, "mes": 1, "regime": "lucro_presumido"},
+    )
+    assert resp.status_code == 202
+    body = resp.json()
+    assert "correlation_id" in body
+
+
+def test_upload_com_uf_sp(api_client):
+    data = _make_sped_payload(content=b"|0000|UF TEST|\n" * 5)
+    resp = api_client.post(
+        "/api/v1/fiscal/upload",
+        files=data,
+        data={"tipo": "efd_icms", "ano": 2025, "mes": 1, "uf": "SP"},
+    )
+    assert resp.status_code == 202
+    assert "correlation_id" in resp.json()
+
+
+def test_upload_sem_regime_usa_lucro_real(api_client):
+    data = _make_sped_payload(content=b"|0000|DEFAULT REGIME|\n" * 5)
+    resp = api_client.post(
+        "/api/v1/fiscal/upload",
+        files=data,
+        data={"tipo": "efd_icms", "ano": 2025, "mes": 2},
+    )
+    assert resp.status_code == 202
+
+
+def test_upload_regime_invalido_retorna_422(api_client):
+    data = _make_sped_payload(content=b"|0000|BAD REGIME|\n" * 5)
+    resp = api_client.post(
+        "/api/v1/fiscal/upload",
+        files=data,
+        data={"tipo": "efd_icms", "ano": 2025, "mes": 1, "regime": "regime_malicioso"},
+    )
+    assert resp.status_code == 422
+
+
+def test_upload_uf_invalida_retorna_422(api_client):
+    data = _make_sped_payload(content=b"|0000|BAD UF|\n" * 5)
+    resp = api_client.post(
+        "/api/v1/fiscal/upload",
+        files=data,
+        data={"tipo": "efd_icms", "ano": 2025, "mes": 1, "uf": "SPX"},
+    )
+    assert resp.status_code == 422
+
+
+def test_upload_uf_numerica_retorna_422(api_client):
+    data = _make_sped_payload(content=b"|0000|NUMERIC UF|\n" * 5)
+    resp = api_client.post(
+        "/api/v1/fiscal/upload",
+        files=data,
+        data={"tipo": "efd_icms", "ano": 2025, "mes": 1, "uf": "12"},
+    )
+    assert resp.status_code == 422
+
+
+def test_upload_regime_simples_aceito(api_client):
+    data = _make_sped_payload(content=b"|0000|SIMPLES|\n" * 5)
+    resp = api_client.post(
+        "/api/v1/fiscal/upload",
+        files=data,
+        data={"tipo": "efd_icms", "ano": 2025, "mes": 3, "regime": "simples"},
+    )
+    assert resp.status_code == 202

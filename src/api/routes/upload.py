@@ -30,6 +30,7 @@ router = APIRouter(prefix="/api/v1/fiscal", tags=["Fiscal"])
 _sanitizer = InputSanitizer(max_length=256)
 
 _ALLOWED_TIPOS = {"efd_icms", "efd_contrib", "xml", "pdf", "outro"}
+_ALLOWED_REGIMES = frozenset({"lucro_real", "lucro_presumido", "simples"})
 
 
 class UploadResponse(BaseModel):
@@ -68,6 +69,16 @@ async def upload_fiscal(
         None,
         description="CNPJ mascarado do contribuinte (LGPD — somente forma mascarada)",
     ),
+    regime: Optional[str] = Form(
+        None,
+        description="Regime tributário: lucro_real | lucro_presumido | simples. "
+        "Se omitido, assume lucro_real (AVISO registrado).",
+    ),
+    uf: Optional[str] = Form(
+        None,
+        description="Sigla da UF do estabelecimento (ex: SP, RJ). "
+        "Ativa regras fiscais estaduais na revalidação.",
+    ),
     _principal: Principal = Depends(current_principal),
     guard: UploadGuard = Depends(get_upload_guard),
 ) -> UploadResponse:
@@ -89,6 +100,25 @@ async def upload_fiscal(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="ano deve estar entre 2000 e 2100.",
+        )
+
+    if regime is not None and regime not in _ALLOWED_REGIMES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"regime inválido. Aceitos: {sorted(_ALLOWED_REGIMES)}",
+        )
+    if uf is not None and (len(uf) != 2 or not uf.isalpha()):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="uf deve ser sigla com 2 letras (ex: SP)",
+        )
+
+    _regime_assumido = regime is None
+    _regime = regime or "lucro_real"
+    if _regime_assumido:
+        logger.warning(
+            "Regime não informado — assumindo lucro_real (correlation_id=%s)",
+            "pending",
         )
 
     filename = _sanitizer.sanitize_text(file.filename or "arquivo")
@@ -162,6 +192,9 @@ async def upload_fiscal(
                     details={
                         "correlation_id": correlation_id,
                         "original_filename": filename,
+                        "regime": _regime,
+                        "regime_assumido": _regime_assumido,
+                        **({"uf": uf.upper()} if uf else {}),
                     },
                 )
                 escrit_repo = EscrituracaoRepository(session)
@@ -203,7 +236,6 @@ async def upload_fiscal(
     # ── Disparo do processamento (DT-05) ──────────────────────────────────────
     # Celery disponível → enfileira task; caso contrário → executa inline.
     competencia = f"{ano}-{mes:02d}" if mes else str(ano)
-    _regime = "lucro_real"  # TODO(S-C.4): extrair regime dos metadados do upload
 
     try:
         from src.workers.celery_app import celery_app as _celery
@@ -222,6 +254,7 @@ async def upload_fiscal(
                 escrituracao_id=db_id,
                 tipo=tipo,
                 regime=_regime,
+                uf=uf.upper() if uf else None,
             )
             logger.info(
                 "process_sped_file enfileirado via Celery (correlation_id=%s)",
@@ -241,6 +274,7 @@ async def upload_fiscal(
                 escrituracao_id=db_id,
                 tipo=tipo,
                 regime=_regime,
+                uf=uf.upper() if uf else None,
                 correlation_id=correlation_id,
                 raw_data=result.data,
             )

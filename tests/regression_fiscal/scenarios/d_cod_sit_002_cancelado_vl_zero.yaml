@@ -1,0 +1,14 @@
+name: "D-COD-SIT-001: CT-e cancelado com valor zero — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: D100
+    bloco: D
+    numero_linha: 1
+    campos:
+      cod_sit: "5"
+      vl_doc: "0,00"
+      vl_bc_icms: "0,00"
+      vl_icms: "0,00"
+esperado:
+  regra_ids_ausentes: ["D-COD-SIT-001"]
+  aprovado: true

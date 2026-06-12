@@ -15,6 +15,7 @@ from typing import Optional
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.pool import NullPool
 
 
 def _database_url() -> Optional[str]:
@@ -45,11 +46,9 @@ def get_async_engine() -> Optional[AsyncEngine]:
     url = _database_url()
     if not url:
         return None
-    return create_async_engine(
-        _to_async_url(url),
-        echo=False,
-        pool_pre_ping=True,
-    )
+    if os.getenv("ENVIRONMENT") == "test":
+        return create_async_engine(_to_async_url(url), echo=False, poolclass=NullPool)
+    return create_async_engine(_to_async_url(url), echo=False, pool_pre_ping=True)
 
 
 @lru_cache(maxsize=1)

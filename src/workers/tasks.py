@@ -171,6 +171,7 @@ async def _execute_processing(
     regime: str,
     correlation_id: str,
     raw_data: Optional[bytes] = None,
+    uf: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Pipeline SPED real: download → parse → regras → apuração → persistência.
 
@@ -181,7 +182,7 @@ async def _execute_processing(
     from src.fiscal.parser.registry import get_parser
     from src.fiscal.rules_engine import get_rules_engine
 
-    log_ctx = f"correlation_id={correlation_id} tipo={tipo} regime={regime}"
+    log_ctx = f"correlation_id={correlation_id} tipo={tipo} regime={regime} uf={uf}"
 
     # ── Estágio 1: obter dados brutos ─────────────────────────────────────────
     logger.info("process_sped [1/4 download] %s", log_ctx)
@@ -232,7 +233,7 @@ async def _execute_processing(
         parse_result.total_registros,
     )
     try:
-        rules_engine = get_rules_engine(regime)
+        rules_engine = get_rules_engine(regime, uf=uf)
         rule_results = rules_engine.validate(parse_result.records)
     except Exception as exc:
         logger.warning("process_sped [aviso regras] %s: %s", log_ctx, exc)
@@ -306,6 +307,7 @@ def process_sped_file(
     escrituracao_id: Optional[str] = None,
     tipo: str = "efd_icms",
     regime: str = "lucro_real",
+    uf: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Processa arquivo SPED: download (MinIO) → parse → regras → apuração → DB.
 
@@ -316,11 +318,12 @@ def process_sped_file(
     """
     correlation_id = str(uuid.uuid4())
     logger.info(
-        "process_sped_file: key=%s tenant=%s tipo=%s regime=%s correlation_id=%s",
+        "process_sped_file: key=%s tenant=%s tipo=%s regime=%s uf=%s correlation_id=%s",
         file_key,
         tenant_id,
         tipo,
         regime,
+        uf,
         correlation_id,
     )
     return asyncio.run(
@@ -332,6 +335,7 @@ def process_sped_file(
             escrituracao_id=escrituracao_id,
             tipo=tipo,
             regime=regime,
+            uf=uf,
             correlation_id=correlation_id,
         )
     )

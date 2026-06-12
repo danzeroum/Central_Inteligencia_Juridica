@@ -1,0 +1,15 @@
+name: "CFOP-001: CFOP com prefixo 7 (saída exterior) — sem violação"
+regime: lucro_real
+registros:
+  - tipo_registro: C170
+    bloco: C
+    numero_linha: 1
+    campos:
+      cfop: "7102"
+      vl_bc_icms: "0,00"
+      vl_icms: "0,00"
+      cst_icms: "041"
+      aliq_icms: "0,00"
+esperado:
+  regra_ids_ausentes: ["CFOP-001"]
+  aprovado: true
