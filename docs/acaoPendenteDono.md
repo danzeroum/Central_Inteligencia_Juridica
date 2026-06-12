@@ -135,7 +135,8 @@ DATABASE_URL=postgresql+asyncpg://postgres:test@localhost:5432/cij_test \
 | S-F.3 | Transmissão e-CAC + Circuit Breaker + Observer | #120 | ✅ merged |
 | S-D.2 | Retificação SPED ponta-a-ponta (comparador, layout validator, nota de correção) | #121 | ✅ merged |
 | S-G.1 | Painel operacional Escriturações SPED (upload, achados, registros, apuração) | #123 | ✅ merged |
-| S-G.2 | Frontend: RetificacaoScreen + PERDCOMPScreen + TransmissaoScreen | #124 | 🔄 CI |
+| S-G.2 | Frontend: RetificacaoScreen + PERDCOMPScreen + TransmissaoScreen | #124 | ✅ merged |
+| S-G.3 | Frontend: VaultScreen + DueDiligenceScreen + ConsultoriaScreen | #125 | 🔄 CI |
 
 ---
 

@@ -18,6 +18,8 @@ import EscrituracaoScreen       from './screens/fiscal/EscrituracaoScreen.jsx';
 import RetificacaoScreen        from './screens/fiscal/RetificacaoScreen.jsx';
 import PERDCOMPScreen           from './screens/fiscal/PERDCOMPScreen.jsx';
 import TransmissaoScreen        from './screens/fiscal/TransmissaoScreen.jsx';
+import DueDiligenceScreen       from './screens/fiscal/DueDiligenceScreen.jsx';
+import ConsultoriaScreen        from './screens/fiscal/ConsultoriaScreen.jsx';
 import ReportsWorkbenchScreen   from './screens/fiscal/ReportsWorkbenchScreen.jsx';
 
 import HitlScreen        from './screens/admin/HitlScreen.jsx';
@@ -27,6 +29,7 @@ import AgentsScreen      from './screens/admin/AgentsScreen.jsx';
 import LedgerScreen      from './screens/admin/LedgerScreen.jsx';
 import DmnScreen         from './screens/admin/DmnScreen.jsx';
 import MonitorScreen     from './screens/admin/MonitorScreen.jsx';
+import VaultScreen       from './screens/admin/VaultScreen.jsx';
 
 // ── Navegação agrupada (Fase 1) ────────────────────────────────────────────
 const NAV = {
@@ -53,6 +56,8 @@ const NAV = {
       { id: 'retificacao',      label: 'Retificação',      icon: 'compare', isNew: true },
       { id: 'per-dcomp',        label: 'PER/DCOMP',        icon: 'ledger',  isNew: true },
       { id: 'transmissao',      label: 'Transmissão e-CAC', icon: 'pulse',  isNew: true },
+      { id: 'due-diligence',    label: 'Due Diligência',   icon: 'radar',   isNew: true },
+      { id: 'consultoria',      label: 'Consultoria',      icon: 'scale',   isNew: true },
       { id: 'reports',          label: 'Relatórios',        icon: 'ledger',  isNew: true },
       { id: 'workbench',        label: 'Workbench SQL',     icon: 'flow',    isNew: true },
     ]},
@@ -61,8 +66,9 @@ const NAV = {
       { id: 'monitor', label: 'Monitoramento', icon: 'pulse'                  },
     ]},
     { group: 'Governança', items: [
-      { id: 'ledger', label: 'Auditoria', icon: 'ledger' },
-      { id: 'dmn',    label: 'Autonomia', icon: 'flow'   },
+      { id: 'ledger', label: 'Auditoria',         icon: 'ledger'  },
+      { id: 'dmn',    label: 'Autonomia',          icon: 'flow'    },
+      { id: 'vault',  label: 'Cofre Credenciais', icon: 'lock',    isNew: true },
     ]},
     { group: 'Treinamento', items: [
       { id: 'training', label: 'Treinamento', icon: 'graduate' },
@@ -85,8 +91,11 @@ const TITLES = {
   retificacao:        ['Fiscal', 'Retificação SPED'],
   'per-dcomp':        ['Fiscal', 'PER/DCOMP'],
   transmissao:        ['Fiscal', 'Transmissão e-CAC'],
+  'due-diligence':    ['Fiscal', 'Due Diligência 360°'],
+  consultoria:        ['Fiscal', 'Consultoria Tributária'],
   reports:            ['Fiscal', 'Relatórios Premium'],
   workbench:          ['Fiscal', 'Workbench SQL'],
+  vault:              ['Governança', 'Cofre de Credenciais'],
   hitl:               ['Operação',    'Aprovações'],
   'hitl-detail': ['Operação',  'Aprovações', 'Modificar'],
   monitor:     ['Operação',    'Monitoramento'],
@@ -191,8 +200,11 @@ export default function App() {
     retificacao:        <RetificacaoScreen />,
     'per-dcomp':        <PERDCOMPScreen />,
     transmissao:        <TransmissaoScreen />,
+    'due-diligence':    <DueDiligenceScreen />,
+    consultoria:        <ConsultoriaScreen />,
     reports:            <ReportsWorkbenchScreen />,
     workbench:          <ReportsWorkbenchScreen />,
+    vault:              <VaultScreen />,
     hitl:         <HitlScreen go={go} onPendingChange={setPendingCount} />,
     'hitl-detail': <HitlDetailScreen go={go} />,
     training:     <TrainingScreen />,
