@@ -1,8 +1,18 @@
 name: CD — Deploy (staging → prod)
 
+# DT-13: sem infra de staging/registry configurada, este workflow falha em
+# todo push a master (docker/login: Username and password required).
+# Gateado em workflow_dispatch até DOCKER_REGISTRY/DOCKER_USERNAME/DOCKER_PASSWORD
+# e STAGING_URL estarem configurados como secrets/vars do repositório.
 on:
-  push:
-    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente alvo'
+        required: false
+        default: 'staging'
+        type: choice
+        options: [staging, production]
 
 jobs:
   docker-publish:
