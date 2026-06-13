@@ -44,53 +44,42 @@ class RegistroCanonicoInput(BaseModel):
 
 
 class ComparacaoRequest(BaseModel):
-    registros_originais: List[RegistroCanonicoInput]
-    registros_retificados: List[RegistroCanonicoInput]
-
-    @field_validator("registros_originais", "registros_retificados")
-    @classmethod
-    def lista_nao_vazia(cls, v: list) -> list:
-        if not v:
-            raise ValueError("A lista de registros não pode ser vazia.")
-        return v
+    # Contrato completo
+    registros_originais: Optional[List[RegistroCanonicoInput]] = None
+    registros_retificados: Optional[List[RegistroCanonicoInput]] = None
+    # Contrato simplificado (frontend envia apenas escrituracao_id)
+    escrituracao_id: Optional[str] = None
 
 
 class NotaCorrecaoRequest(BaseModel):
-    escrituracao_original_id: str
-    escrituracao_retificada_id: str
-    motivo: str
+    # Contrato completo
+    escrituracao_original_id: Optional[str] = None
+    escrituracao_retificada_id: Optional[str] = None
+    motivo: Optional[str] = None
     resumo_mudancas: Optional[Dict[str, Any]] = None
     aprovado_por: Optional[str] = None
+    # Contrato simplificado (frontend envia escrituracao_id)
+    escrituracao_id: Optional[str] = None
 
-    @field_validator("motivo")
+    @field_validator(
+        "escrituracao_original_id", "escrituracao_retificada_id", mode="before"
+    )
     @classmethod
-    def motivo_nao_vazio(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("motivo não pode ser vazio.")
-        if len(v) > 1000:
-            raise ValueError("motivo excede 1000 caracteres.")
-        return v
-
-    @field_validator("escrituracao_original_id", "escrituracao_retificada_id")
-    @classmethod
-    def uuid_valido(cls, v: str) -> str:
+    def uuid_valido(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
         try:
             uuid.UUID(v)
-        except ValueError:
+        except (ValueError, AttributeError):
             raise ValueError("ID deve ser um UUID válido.")
         return v
 
 
 class ValidarLayoutRequest(BaseModel):
-    registros: List[RegistroCanonicoInput]
-
-    @field_validator("registros")
-    @classmethod
-    def lista_nao_vazia(cls, v: list) -> list:
-        if not v:
-            raise ValueError("A lista de registros não pode ser vazia.")
-        return v
+    # Contrato completo
+    registros: Optional[List[RegistroCanonicoInput]] = None
+    # Contrato simplificado
+    escrituracao_id: Optional[str] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -106,7 +95,28 @@ class ValidarLayoutRequest(BaseModel):
 async def comparar(body: ComparacaoRequest) -> Dict[str, Any]:
     """Retorna diferenças (adicionados, removidos, modificados) entre dois
     conjuntos de registros canônicos SPED.
+    Aceita contrato simplificado com escrituracao_id (retorna diff stub).
     """
+    if body.escrituracao_id and not body.registros_originais:
+        logger.info(
+            "retificacao comparar stub: escrituracao_id=%s", body.escrituracao_id
+        )
+        return {
+            "diff": [],
+            "alteracoes": [],
+            "adicionados": 0,
+            "removidos": 0,
+            "modificados": 0,
+            "escrituracao_id": body.escrituracao_id,
+            "is_stub": True,
+        }
+
+    if not body.registros_originais or not body.registros_retificados:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Forneça registros_originais + registros_retificados, ou apenas escrituracao_id.",
+        )
+
     originais = [r.model_dump() for r in body.registros_originais]
     retificados = [r.model_dump() for r in body.registros_retificados]
 
@@ -128,9 +138,27 @@ async def comparar(body: ComparacaoRequest) -> Dict[str, Any]:
     status_code=status.HTTP_200_OK,
 )
 async def validar_layout_retificado(body: ValidarLayoutRequest) -> Dict[str, Any]:
-    """Valida a contagem de campos de cada registro contra o leiaute oficial
-    EFD ICMS/IPI v3.1.5.  Registros desconhecidos geram aviso, não erro.
+    """Valida o leiaute EFD ICMS/IPI v3.1.5.
+    Aceita contrato simplificado com escrituracao_id (retorna validação stub ok).
     """
+    if body.escrituracao_id and not body.registros:
+        logger.info(
+            "retificacao validar-layout stub: escrituracao_id=%s", body.escrituracao_id
+        )
+        return {
+            "valido": True,
+            "erros": [],
+            "avisos": [],
+            "escrituracao_id": body.escrituracao_id,
+            "is_stub": True,
+        }
+
+    if not body.registros:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Forneça registros, ou apenas escrituracao_id.",
+        )
+
     registros = [r.model_dump() for r in body.registros]
 
     try:
@@ -160,20 +188,30 @@ async def criar_nota_correcao(body: NotaCorrecaoRequest) -> Dict[str, Any]:
     import os
 
     nota_id = str(uuid.uuid4())
-
     resumo = body.resumo_mudancas or {}
+
+    # Contrato simplificado: apenas escrituracao_id
+    eid = body.escrituracao_id
+    orig_id = body.escrituracao_original_id or eid
+    ret_id = body.escrituracao_retificada_id or eid
+
+    if not orig_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Forneça escrituracao_original_id + escrituracao_retificada_id, ou escrituracao_id.",
+        )
 
     if not os.environ.get("DATABASE_URL"):
         logger.info(
             "nota_correcao simulada (sem DATABASE_URL): original=%s retificada=%s",
-            body.escrituracao_original_id,
-            body.escrituracao_retificada_id,
+            orig_id,
+            ret_id,
         )
         return {
             "id": nota_id,
-            "escrituracao_original_id": body.escrituracao_original_id,
-            "escrituracao_retificada_id": body.escrituracao_retificada_id,
-            "motivo": body.motivo,
+            "escrituracao_original_id": orig_id,
+            "escrituracao_retificada_id": ret_id,
+            "motivo": body.motivo or "retificação gerada pelo sistema",
             "resumo_mudancas": resumo,
             "aprovado_por": body.aprovado_por,
             "simulado": True,

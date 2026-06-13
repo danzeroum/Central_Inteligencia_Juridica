@@ -32,7 +32,12 @@ export default function PERDCOMPScreen() {
 
   useEffect(() => {
     api.perDcompTipos()
-      .then((d) => setTipos(d.tipos || (Array.isArray(d) ? d : TIPOS_FALLBACK)))
+      .then((d) => {
+        const raw = d.tipos || (Array.isArray(d) ? d : null);
+        if (!raw) { setTipos(TIPOS_FALLBACK); return; }
+        // normaliza campos do backend (tipo→id, descricao→desc) para uso no componente
+        setTipos(raw.map((t) => ({ id: t.tipo || t.id, nome: t.nome, desc: t.descricao || t.desc || '' })));
+      })
       .catch(() => setTipos(TIPOS_FALLBACK));
   }, []);
 

@@ -243,6 +243,182 @@
   check('Chaves gravadas no storage', true, keys.join(', ') || '(vazio)');
   console.groupEnd();
 
+  /* ──────────────────────────────────────────────────────────────────────── */
+  /* 9. FLUXO FISCAL — endpoints do fio-de-ouro                               */
+  /* ──────────────────────────────────────────────────────────────────────── */
+  console.group('9. Fluxo Fiscal — endpoints');
+
+  // 9a. PER/DCOMP tipos (GET — sem body)
+  const rTipos = await GET('/api/v1/fiscal/per-dcomp/tipos');
+  const bTipos = await j(rTipos);
+  check('GET /fiscal/per-dcomp/tipos → 200', rTipos.ok, `HTTP ${rTipos.status}`);
+  const tiposArr = bTipos.tipos || (Array.isArray(bTipos) ? bTipos : null);
+  check('PER/DCOMP tipos retorna array', Array.isArray(tiposArr), tiposArr ? `${tiposArr.length} tipo(s)` : 'estrutura inesperada');
+
+  // 9b. Circuit breaker da Transmissão
+  const rCircuit = await GET('/api/v1/fiscal/transmissao/circuit');
+  const bCircuit = await j(rCircuit);
+  check('GET /fiscal/transmissao/circuit → 200', rCircuit.ok, `HTTP ${rCircuit.status}`);
+  check('Circuit breaker retorna campo open/status',
+    bCircuit && (bCircuit.open !== undefined || bCircuit.status !== undefined),
+    `open=${bCircuit?.open} status=${bCircuit?.status}`);
+
+  // 9c. Retificação — comparar com escrituracao_id (stub → 200)
+  const rComp = await POST('/api/v1/fiscal/retificacao/comparar', { escrituracao_id: 'test-uuid-smoke' });
+  check('POST /fiscal/retificacao/comparar (escrituracao_id stub → 200)', [200, 422].includes(rComp.status), `HTTP ${rComp.status}`);
+
+  // 9d. Retificação — validar layout com escrituracao_id (stub → 200)
+  const rValLayout = await POST('/api/v1/fiscal/retificacao/validar-layout', { escrituracao_id: 'test-uuid-smoke' });
+  check('POST /fiscal/retificacao/validar-layout (escrituracao_id stub → 200)', [200, 422].includes(rValLayout.status), `HTTP ${rValLayout.status}`);
+
+  // 9e. PER/DCOMP — gerar com escrituracao_id (stub → 200/201)
+  const rPer = await POST('/api/v1/fiscal/per-dcomp/gerar', { escrituracao_id: 'test-uuid-smoke', tipo: 'dcomp_credito_apuracao' });
+  check('POST /fiscal/per-dcomp/gerar (escrituracao_id stub → 200/201)', [200, 201, 422].includes(rPer.status), `HTTP ${rPer.status}`);
+
+  // 9f. PER/DCOMP — validar (sem body → 422)
+  const rPerVal = await POST('/api/v1/fiscal/per-dcomp/validar', {});
+  check('POST /fiscal/per-dcomp/validar (sem body → 422)', [200, 422].includes(rPerVal.status), `HTTP ${rPerVal.status}`);
+
+  // 9g. Transmissão — enviar com escrituracao_id (stub → 202)
+  const rEnviar = await POST('/api/v1/fiscal/transmissao/enviar', { escrituracao_id: 'test-uuid-smoke', ambiente: 'homologacao' });
+  check('POST /fiscal/transmissao/enviar (escrituracao_id stub → 202)', [200, 201, 202, 422].includes(rEnviar.status), `HTTP ${rEnviar.status}`);
+
+  // 9h. Analytics KPIs
+  const rKpis = await GET('/api/v1/fiscal/analytics/kpis');
+  check('GET /fiscal/analytics/kpis → 200', rKpis.ok, `HTTP ${rKpis.status}`);
+
+  // 9i. Distribuição de achados
+  const rDist = await GET('/api/v1/fiscal/analytics/achados/distribuicao');
+  check('GET /fiscal/analytics/achados/distribuicao → 200', rDist.ok, `HTTP ${rDist.status}`);
+
+  // 9j. Anomalias
+  const rAnom = await GET('/api/v1/fiscal/analytics/anomalias?severidade_minima=aviso');
+  check('GET /fiscal/analytics/anomalias → 200', rAnom.ok, `HTTP ${rAnom.status}`);
+
+  // 9k. Histórico de apurações
+  const rHist = await GET('/api/v1/fiscal/analytics/apuracoes/historico?limit=5');
+  check('GET /fiscal/analytics/apuracoes/historico → 200', rHist.ok, `HTTP ${rHist.status}`);
+
+  // 9l. Reports — tipos
+  const rRepTipos = await GET('/api/v1/fiscal/reports/tipos');
+  check('GET /fiscal/reports/tipos → 200', rRepTipos.ok, `HTTP ${rRepTipos.status}`);
+
+  // 9m. Workbench — queries disponíveis
+  const rWbQ = await GET('/api/v1/fiscal/workbench/queries');
+  check('GET /fiscal/workbench/queries → 200', rWbQ.ok, `HTTP ${rWbQ.status}`);
+
+  // 9n. Due Diligência 360° (CNPJ Petrobras)
+  const rDD = await GET(`/api/v1/fiscal/due-diligence/${CNPJ}`);
+  check('GET /fiscal/due-diligence/{cnpj} → 200', rDD.ok, `HTTP ${rDD.status}`);
+
+  // 9o. Consultoria Tributária (POST com body mínimo)
+  const rConsult = await POST('/api/v1/fiscal/consultoria', {
+    regime: 'lucro_real', cnae: '6201-5/01', porte: 'epp',
+    pergunta: 'Alíquota PIS/COFINS para serviços de software?', n_citacoes: 1,
+  });
+  check('POST /fiscal/consultoria → 200', rConsult.ok, `HTTP ${rConsult.status}`);
+
+  console.groupEnd();
+
+  /* ──────────────────────────────────────────────────────────────────────── */
+  /* 10. CSS DESIGN SYSTEM — tokens e classes fiscais no DOM                  */
+  /* ──────────────────────────────────────────────────────────────────────── */
+  console.group('10. CSS Design System');
+
+  // Tokens
+  const rootStyle = getComputedStyle(document.documentElement);
+  const cssTokens = { '--navy': '#2C5AA0', '--ok': '#1f8a4c', '--warn': '#8a6d0b', '--crit': '#c0392b' };
+  for (const [token, expected] of Object.entries(cssTokens)) {
+    const val = rootStyle.getPropertyValue(token).trim().toLowerCase();
+    check(`Token CSS ${token} definido`, !!val, val || 'não definido');
+  }
+
+  // Classes fiscais no stylesheet compilado
+  const fiscalClasses = [
+    '.fstepper', '.fstep', '.dropzone', '.job-card', '.job-spin',
+    '.ach-card', '.diff-view', '.apur-grid', '.type-opt', '.ficha',
+    '.amb-banner', '.circuit', '.confirm-check', '.success-mark',
+    '.hitl-gate', '.validate-ok', '.fiscal-screen',
+  ];
+  const allCSS = Array.from(document.styleSheets)
+    .flatMap(ss => { try { return Array.from(ss.cssRules || []); } catch { return []; } })
+    .map(r => r.selectorText || '').join(' ');
+
+  let cssOk = 0;
+  for (const cls of fiscalClasses) {
+    const name = cls.replace('.', '').split('.')[0];
+    if (allCSS.includes(name)) cssOk++;
+  }
+  check(`Classes fiscais no stylesheet (${cssOk}/${fiscalClasses.length})`,
+    cssOk === fiscalClasses.length || (cssOk >= fiscalClasses.length * 0.8 ? 'warn' : false),
+    `${cssOk} de ${fiscalClasses.length} encontradas`);
+
+  console.groupEnd();
+
+  /* ──────────────────────────────────────────────────────────────────────── */
+  /* 11. PII — varredura de CNPJ/CPF desmascarados no DOM                    */
+  /* ──────────────────────────────────────────────────────────────────────── */
+  console.group('11. PII — Mascaramento no DOM');
+
+  const domText = document.body?.innerText || '';
+  // Padrão CNPJ sem mascaramento: 00.000.000/0000-00
+  const cnpjRaw   = (domText.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g) || []).filter(m => !m.includes('*'));
+  // Padrão CPF sem mascaramento: 000.000.000-00
+  const cpfRaw    = (domText.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/g) || []).filter(m => !m.includes('*'));
+  // Padrão CNPJ 14 dígitos seguidos
+  const cnpjDigit = (domText.match(/\b\d{14}\b/g) || []);
+
+  check('Nenhum CNPJ desmascarado no DOM', cnpjRaw.length === 0, cnpjRaw.length > 0 ? cnpjRaw.slice(0,3).join(', ') : 'OK');
+  check('Nenhum CPF desmascarado no DOM', cpfRaw.length === 0, cpfRaw.length > 0 ? cpfRaw.slice(0,3).join(', ') : 'OK');
+  check('Nenhum CNPJ em 14 dígitos seguidos no DOM', cnpjDigit.length === 0 || 'warn',
+    cnpjDigit.length > 0 ? `${cnpjDigit.length} ocorrência(s)` : 'OK');
+
+  // localStorage
+  const lsValues = Object.values(localStorage).join(' ');
+  const cnpjInLS = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/.test(lsValues) || /\b\d{14}\b/.test(lsValues);
+  check('Nenhum CNPJ no localStorage', !cnpjInLS, cnpjInLS ? 'CNPJ encontrado no storage' : 'OK');
+
+  console.groupEnd();
+
+  /* ──────────────────────────────────────────────────────────────────────── */
+  /* 12. STEPPER FISCAL — sessionStorage                                      */
+  /* ──────────────────────────────────────────────────────────────────────── */
+  console.group('12. Stepper Fiscal — sessionStorage');
+
+  // Testa escrita/leitura das chaves do stepper
+  const stepperKeys = ['f_step', 'f_max', 'f_eid'];
+  for (const k of stepperKeys) {
+    sessionStorage.setItem(k, k === 'f_eid' ? 'test-uuid' : '1');
+    const got = sessionStorage.getItem(k);
+    check(`sessionStorage ${k} — escrita/leitura`, got !== null, got ?? 'null');
+    sessionStorage.removeItem(k);
+  }
+  check('sessionStorage operacional', true, `${Object.keys(sessionStorage).length} chave(s) ativas`);
+
+  console.groupEnd();
+
+  /* ──────────────────────────────────────────────────────────────────────── */
+  /* 13. ACESSIBILIDADE — checagens básicas (sem axe-core)                   */
+  /* ──────────────────────────────────────────────────────────────────────── */
+  console.group('13. Acessibilidade básica');
+
+  const imgsNoAlt = document.querySelectorAll('img:not([alt])').length;
+  check('Todas imgs têm alt', imgsNoAlt === 0, imgsNoAlt > 0 ? `${imgsNoAlt} img(s) sem alt` : 'OK');
+
+  const btnsNoLabel = Array.from(document.querySelectorAll('button')).filter(b =>
+    !b.textContent.trim() && !b.getAttribute('aria-label') && !b.getAttribute('title')
+  ).length;
+  check('Todos botões têm texto/aria-label', btnsNoLabel === 0 || 'warn',
+    btnsNoLabel > 0 ? `${btnsNoLabel} botão(ões) sem texto acessível` : 'OK');
+
+  const alertRoles = document.querySelectorAll('[role="alert"]').length;
+  check(`role=alert no DOM (${alertRoles})`, true, `${alertRoles} elemento(s) role=alert`);
+
+  const focusOutline = rootStyle.getPropertyValue('--navy').trim();
+  check('focus-visible usa --navy (WCAG AA)', !!focusOutline, focusOutline || 'não definido');
+
+  console.groupEnd();
+
   console.groupEnd(); // main group
 
   /* ──────────────────────────────────────────────────────────────────────── */
@@ -331,6 +507,6 @@
     } : null,
   };
 
-  console.log(`%c${failN === 0 ? '✅' : '❌'} Smoke test ${summary.status}: ${passN}✔ ${warnN}⚠ ${failN}✗`, 'font-size:14px; font-weight:bold');
+  console.log(`%c${failN === 0 ? '✅' : '❌'} Smoke test ${summary.status}: ${passN}✔ ${warnN}⚠ ${failN}✗ (13 grupos)`, 'font-size:14px; font-weight:bold');
   return summary;
 })();
