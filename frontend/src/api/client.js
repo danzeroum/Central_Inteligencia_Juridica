@@ -167,6 +167,22 @@ export const api = {
     });
   },
 
+  // Fluxo fiscal — fio-de-ouro
+  fiscalJob:         (id) => request(`/api/v1/fiscal/escrituracoes/${id}`),
+  fiscalAchados:     (id, sev) => request(`/api/v1/fiscal/escrituracoes/${id}/achados?limit=200${sev ? `&severidade=${sev}` : ''}`),
+  fiscalRegistros:   (id) => request(`/api/v1/fiscal/escrituracoes/${id}/registros?limit=200`),
+  fiscalLote:        (id, body) => request(`/api/v1/fiscal/escrituracoes/${id}/registros/lote`, { method: 'POST', body }),
+  fiscalApuracao:    (id) => request(`/api/v1/fiscal/escrituracoes/${id}/apuracao`, { method: 'POST' }),
+  retificacaoComparar:     (body) => request('/api/v1/retificacao/comparar', { method: 'POST', body }),
+  retificacaoValidarLayout:(body) => request('/api/v1/retificacao/validar-layout', { method: 'POST', body }),
+  retificacaoGerar:        (body) => request('/api/v1/retificacao/nota-correcao', { method: 'POST', body }),
+  perDcompTipos:  () => request('/api/v1/per_dcomp/tipos'),
+  perDcompGerar:  (body) => request('/api/v1/per_dcomp/gerar', { method: 'POST', body }),
+  perDcompValidar:(body) => request('/api/v1/per_dcomp/validar', { method: 'POST', body }),
+  transmissaoCircuit: () => request('/api/v1/transmissao/circuit'),
+  transmissaoEnviar:  (body) => request('/api/v1/transmissao/enviar', { method: 'POST', body }),
+  transmissaoStatus:  (id) => request(`/api/v1/transmissao/status/${id}`),
+
   // Métodos genéricos para uso direto por screens que precisam de flexibilidade
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body }),
