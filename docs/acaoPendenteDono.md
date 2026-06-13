@@ -134,7 +134,17 @@ DATABASE_URL=postgresql+asyncpg://postgres:test@localhost:5432/cij_test \
 | S-E.2 | Relatórios premium + SQL Workbench seguro | #117 | ✅ merged |
 | S-F.3 | Transmissão e-CAC + Circuit Breaker + Observer | #120 | ✅ merged |
 | S-D.2 | Retificação SPED ponta-a-ponta (comparador, layout validator, nota de correção) | #121 | ✅ merged |
+| S-G.1 | Painel operacional Escriturações SPED | #123 | ✅ merged |
+| S-G.2 | Telas Retificação / PER-DCOMP / Transmissão e-CAC | #124 | ✅ merged |
+| S-G.3 | VaultScreen / DueDiligenceScreen / ConsultoriaScreen | #125 | ✅ merged |
+| S-0.4 | Slots dinâmicos no frontend + PATCH toggle de módulos + SSE | #126 | ✅ merged |
+
+> **Onda 2 funcionalmente completa** — capstone PER/DCOMP transmitido em homologação (#120).
+> Sprint atual: **S-0.6 Consolidação & Release-Readiness** (ver `COORDENACAO_ONDA2.md` §3).
+> Próximos marcos dependem de decisão do dono: **Onda 3** (novas obrigações) ou **go-live de
+> produção** (que exige os itens AP-01..AP-06 acima — Postgres, MinIO, Celery, certificado A1
+> e acesso e-CAC).
 
 ---
 
-*Documento mantido automaticamente pelo agente. Última atualização: S-D.2 (2026-06-12).*
+*Documento mantido automaticamente pelo agente. Última atualização: S-0.4 (2026-06-13).*
