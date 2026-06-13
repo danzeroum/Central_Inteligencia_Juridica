@@ -22,9 +22,9 @@
   com sprint-alvo. Placeholder em código só com marcador `TODO(S-X.Y):` + entrada na
   tabela. Placeholder sem registro = bloqueio de merge.
 - **Disciplina de contagem.** O PR declara quantos testes novos traz; a suíte total nunca
-  regride. Baseline atual (branch `74574c7`, S-D.1 em andamento): **árvore completa local sem DB ≥1501 passed /
-  22 skipped** (unit+integração ≥1310/22 + 152 `regression_fiscal` + 39 `datasus`);
-  **CI integração 358 passed / 7 skipped** (run 27410841899 — S-C.6; S-D.1 aguardando run).
+  regride. Baseline atual (master `0a5b6f8`, S-0.4): **árvore completa local sem DB 1712 passed /
+  31 skipped** (PR #126); **unit+integração 1494 passed / 22 skipped** (validação pós-merge do
+  coordenador); **CI 6/6 verde** (run 27450484554).
 - **Branch por sprint.** O dev inicia cada sprint com a branch **resetada em
   `origin/master`** (`git fetch origin && git reset --hard origin/master`) — branches
   longevas com histórico próprio do doc geram conflito recorrente (aconteceu em #103 e #105).
@@ -68,30 +68,56 @@
 | DT-14 | **Convenção COD_AJ_APUR incorreta no E111**: a implementação classifica débito/crédito pelo **3º caractere** com valores `1`/`2`; o leiaute real (tabela 5.1.1 do Guia Prático EFD ICMS/IPI) usa o **4º caractere**: `0`=outros débitos, `1`=estorno de créditos, `2`=outros créditos, `3`=estorno de débitos, `4`=deduções, `5`=débitos especiais. Com códigos reais (ex.: `SP000207`) os ajustes caem em `avisos_ajuste` e **ficam fora do saldo**. Testes verdes porque as fixtures usam a convenção interna (consistente, porém infiel ao leiaute) | **spec do coordenador** (handoff S-C.4); detectado na leitura dirigida pós-merge #111 | S-C.5 Tarefa 1 — `_decode_aj_apur` pelo 4º caractere + fixtures/cenários com códigos reais | **resolvido** (PR #113) — 6 naturezas testadas; prova: run 27395640351, E2E E111 com `SP000207` PASSED |
 | DT-15 | **Fidelidade de leiaute do Bloco E (além do E111)** — 5 itens da leitura dirigida do #113: (1) confronto ST apontado para **E300/E310**, mas no leiaute real ST é **E200/E210** (E300/E310 = DIFAL EC 87/15); (2) `_E310_CAMPOS` é espelho inventado do E110, não o leiaute real; (3) `_E520_CAMPOS` diverge do E520 real (`VL_SD_ANT_IPI, VL_DEB_IPI, VL_CRED_IPI, VL_OD_IPI, VL_OC_IPI, VL_SC_IPI, VL_SD_IPI`) — inclui `vl_icms_ressarc` inexistente e omite OD/OC/SC/SD, desalinhando posições em arquivo real; (4) `_E530_CAMPOS` sem `IND_AJ` (flag real débito/crédito do ajuste IPI) — 4º caractere **não se aplica** ao E530; (5) deduções (natureza 4) dentro da fórmula do saldo podem inverter para credor artificialmente. Tudo verde com fixtures internas; infiel a arquivos reais | itens 1–2: TODO original do S-C.2 + **spec do coordenador**; 3–5: implementação S-C.5; detectados na leitura dirigida pós-merge #113 | **S-C.6** (sprint curto, antes do Bloco D) | **resolvido** (branch `51a3b7c`, run 27410841899) — E200/E210 reais, E520/E530 fiéis ao leiaute, deduções só sobre devedor, regressão 142→152 |
 
-## 3. SPRINT ATUAL — S-D.1 "Editor + Retificação" (em andamento)
+## 3. SPRINT ATUAL — S-0.6 "Consolidação & Release-Readiness da Onda 2"
 
-**Branch:** `claude/happy-dirac-rt864d` — commit `74574c7`
-**PR:** #114 (atualizado com evidências S-D.1)
+**Contexto:** a Onda 2 está funcionalmente completa — capstone PER/DCOMP gerado, validado
+e **transmitido em homologação** (#118/#119/#120); Blocos C–G e fundação (S-0.2/0.3/0.4)
+entregues. Não há sprint de feature pendente no roadmap. Este sprint **não adiciona
+funcionalidade**: fecha gaps de consistência, reconcilia o rastreio e **prova o DoD do
+programa** (roadmap §13). Decisão do stakeholder (2026-06-13): consolidar antes de Onda 3
+ou produção.
 
-### Escopo sancionado
+### Tarefa 1 — Gap de consistência: ReportsWorkbench no cliente central
 
-| Item | Entregável | Arquivo |
-|---|---|---|
-| SpedWriter | `gerar(records, ind_ret)` → bytes SPED CRLF; 0000.cod_fin='1'; 9999.qdt_lins recalculado | `src/fiscal/writer/sped_writer.py` |
-| GET retificado | `/escrituracoes/{id}/retificado` → download TXT + FiscalAudit `gerar_retificado` | `src/api/routes/fiscal.py` |
-| HITL gate | `LoteRequest.require_approval=True` → enfileira HITL; resposta 200 `status=aguardando_aprovacao` | `src/api/routes/fiscal.py` |
-| POST confirmar | `/lote/confirmar` → aplica lote HITL aprovado + FiscalAudit `lote_aprovado` | `src/api/routes/fiscal.py` |
-| Unit tests | 11 testes `test_sped_writer.py` (cálculos manuais, CRLF, cod_fin, 9999, _raw, UTF-8) | `tests/unit/test_sped_writer.py` |
-| Fio-de-ouro | `test_e2e_retificacao` (upload→retificado cod_fin='1'→lote require_approval→HITL→confirmar) | `tests/integration/test_golden_thread.py` |
+`frontend/src/screens/fiscal/ReportsWorkbenchScreen.jsx:12` usa `fetch()` cru; migrar para
+`frontend/src/api/client.js` (padrão das outras 7 telas fiscais). Sem mudança de
+comportamento; centraliza auth/headers/baseURL. Cobrir com o que já existe em
+`client.test.js`.
 
-### DoD (preenchido após CI)
+### Tarefa 2 — Auditoria do DoD do programa (roadmap §13) → relatório
 
-- [ ] unit tests: 11 novos (`test_sped_writer.py`) + regressão ≥1501 local
-- [ ] CI run_id: **aguardando**
-- [ ] E2E `test_e2e_retificacao` PASSED no CI (requer Postgres)
-- [ ] FiscalAudit registra `gerar_retificado` e `lote_aprovado`
-- [ ] `black --check` ✓
-- [ ] coordinator review antes do merge
+Produzir `docs/RELEASE_READINESS_ONDA2.md`, um KPI por linha com evidência:
+- **Cobertura ≥80% nos módulos fiscais** — `pytest --cov=src/fiscal --cov=src/api/routes/fiscal.py --cov-report=term-missing`; se <80%, listar gaps e cobrir os críticos.
+- **0 OWASP crítica** — bandit HIGH/HIGH=0 (já no gate), pip-audit + Trivy HIGH/CRITICAL=0; citar versões.
+- **p95 da API ≤ ~250ms** — medir endpoints fiscais quentes (status, achados, apuração GET, slots) com Postgres local; tabela p50/p95.
+- **0 regressão Onda 1** — suíte total verde (árvore 1712/31; unit+int 1494/22).
+- **≥3–4 módulos comerciais registráveis** — enumerar do ModuleRegistry.
+Cada KPI marcado ✅/⚠️/❌ com a evidência (comando/run_id/arquivo). **⚠️/❌ viram débito
+(DT-16+) com sprint-alvo** — zero débito silencioso. Este é também o *catch-up* da
+validação dos sprints D/E/F/G entregues em modo autônomo (não tiveram aval por-sprint).
+
+### Tarefa 3 — Reconciliar rastreio (FEITA pelo coordenador neste PR; **dev não edita docs**)
+
+- `COORDENACAO_ONDA2.md`: seções 3/3-A/4 reconciliadas (este PR).
+- `acaoPendenteDono.md`: linhas S-G.1/2/3 e S-0.4 adicionadas; rodapé atualizado (este PR).
+- **Dev:** não toque nesses dois arquivos neste sprint — evita a corrida do kickoff
+  (o push do S-0.4 ao `acaoPendenteDono.md` não aterrissou). Seu escopo é Tarefa 1 (código)
+  + Tarefa 2 (auditoria + `RELEASE_READINESS_ONDA2.md`).
+
+### DoD do S-0.6 (o coordenador roda exatamente isto)
+
+```bash
+black --check src/ tests/
+cd frontend && npm run lint                      # 0 warnings
+grep -rn "fetch(" frontend/src/screens/fiscal/   # 0 (tudo via api/client.js)
+pytest tests/unit tests/integration -q           # ≥1494/22, 0 falhas
+pytest --cov=src/fiscal --cov-report=term -q     # cobertura no relatório
+```
+
+- [ ] ReportsWorkbench migrado; nenhum `fetch()` cru em telas fiscais
+- [ ] `docs/RELEASE_READINESS_ONDA2.md` com os 5 KPIs evidenciados
+- [ ] KPIs ⚠️/❌ registrados como DT com sprint-alvo
+- [ ] CI 6/6; PR declara nº de testes novos; nenhuma afirmação de CI sem run_id
 
 ---
 
@@ -106,15 +132,29 @@
 | S-C.4 "Apuração estendida + regime no upload + saneamento CI" | #111 | **ENCERRADO** — E111/E112/E113 no saldo, cumulativo M100/M500, créditos M400/M405/M800; regime/UF do upload à apuração (fim do hardcode); DT-11 fechado por log (run 27393417155: **zero** `open transaction`/`Connection._cancel`), DT-12 (zumbis removidos), DT-13 (#110). 6/6 E2E PASSED nominais; integração 357/7; local 1426/20; regressão 111. ST/IPI re-escopados (`TODO(S-C.5)`). Mergeado antes do aval; validação pós-merge aprovou **com ressalva DT-14** (convenção COD_AJ_APUR — origem: spec do coordenador) |
 | S-C.5 "ICMS-ST + IPI + correção COD_AJ_APUR" | #113 | **ENCERRADO** — DT-14 fechado (`_decode_aj_apur` 4º caractere, naturezas 0..5, fixtures com códigos reais; E2E E111 com `SP000207` mantendo 100+50=150); `calcular_icms_st` + `calcular_ipi` com confronto e contas manuais; regras ST/IPI no YAML; regressão 111→142. Prova: run 27395640351 — 7/7 E2E PASSED (inclui `test_e2e_apuracao_icms_st`), integração 358/7, DT-11 limpo. Local: 1299/21, 142 regressão, black 343. Mergeado antes do aval; validação pós-merge aprovou **com DT-15** (fidelidade de leiaute Bloco E — ST real é E200/E210, não E300/E310; ver seção 2) |
 | S-C.6 "Fidelidade de leiaute do Bloco E" | branch `51a3b7c` | **ENCERRADO** — DT-15 fechado: handlers E200/E210 reais (leiaute Guia Prático v3.1.5, citado no header); E300/E310 removidos; `calcular_icms_st` confronta via E210 (`vl_retencao_st + vl_out_deb_st + vl_aj_debitos_st`); E520 com 7 campos reais (sem `vl_icms_ressarc`); E530 com `ind_aj` explícito (sem `_decode_aj_apur`); deduções abatem só saldo devedor (excedente → AVISO). Regressão 142→152 (+10 cenários). Prova: run 27410841899 — 6/6 jobs success (Python 3.11+3.12, lint, security, frontend, docker), integração 358/7, fio-de-ouro `test_e2e_apuracao_icms_st` PASSED (saldo 200−100=100 devedor). Local: 1299/21, 152 regressão, black ✓ |
+| S-D.1 "SpedWriter + Retificação + HITL gate" | #114 | **ENCERRADO** (modo autônomo; prova: merge + CI do PR) — `SpedWriter.gerar`, GET `/retificado`, HITL gate em lote, POST `/lote/confirmar`; fio-de-ouro `test_e2e_retificacao` |
+| S-E.1 "Dashboards fiscais + KPIs" | #116 | **ENCERRADO** (modo autônomo) — analytics fiscal, endpoints de KPI |
+| S-F.1 "Cofre de credenciais + assinatura RSA-PSS/SHA-256" | #118 | **ENCERRADO** (modo autônomo) — vault de credenciais, assinatura digital |
+| S-F.2 "Gerador PER/DCOMP (Factory) + validação de layout" | #119 | **ENCERRADO** (modo autônomo) |
+| S-E.2 "Relatórios premium + SQL Workbench seguro" | #117 | **ENCERRADO** (modo autônomo) — workbench read-only parametrizado |
+| S-F.3 "Transmissão e-CAC + Circuit Breaker + Observer" | #120 | **ENCERRADO** (modo autônomo) — **capstone**: PER/DCOMP transmitido em homologação |
+| S-D.2 "Retificação SPED ponta-a-ponta" | #121 | **ENCERRADO** (modo autônomo) — comparador, layout validator, nota de correção |
+| S-G.1 "Painel operacional Escriturações SPED" | #123 | **ENCERRADO** (modo autônomo) — tela operacional |
+| S-G.2 "Telas Retificação / PER-DCOMP / Transmissão e-CAC" | #124 | **ENCERRADO** (modo autônomo) |
+| S-G.3 "VaultScreen / DueDiligenceScreen / ConsultoriaScreen" | #125 | **ENCERRADO** (modo autônomo) |
+| S-0.4 "Slots dinâmicos frontend + PATCH toggle + SSE" | #126 | **ENCERRADO** — validação pós-merge **pelo coordenador**: run 27450484554 6/6 verde; local unit+int 1494/22, árvore 1712/31; frontend lint 0 warnings |
+| — nota | — | Sprints D/E/F/G entregues em **modo autônomo** (sancionado 2026-06-12) — sem aval por-sprint; o *catch-up* de validação é a Tarefa 2 do S-0.6 (release-readiness) |
 
-## 4. Fila após o S-D.1 (deltas sobre o roadmap — não executar ainda)
+## 4. Fila após o S-0.6 (não executar sem sanção do stakeholder)
 
-- **S-D.2 — Editor avançado** (próximo após S-D.1): toda edição vira evento no ledger (UF/período/obrigação); reprocessamento assíncrono com Celery após retificação.
-- **S-E.1/S-E.2 — Analítica.** Dashboards sobre apuração/achados; workbench read-only
-  com consultas parametrizadas (RBAC).
-- **DIFAL EC 87/15 (E300/E310)** — candidato sem sprint; só com demanda do stakeholder.
-- **S-F.1..F.3 — PER/DCOMP capstone.** Vault → gerador → transmissão homologação; o
-  fio-de-ouro vira o teste do capstone. A apuração completa (C.4+C.5) é insumo direto.
+- **Onda 3** (roadmap §14): CAT42-SP + e-CredAc, obrigações estaduais por UF (DRCST-SC,
+  ADRC-PR, DPRST-BA…), crédito tributário, PER/DCOMP estendido (PGDAS/PGFN). Reusa
+  Factory+Decorator+Adapter+vault do Bloco F **sem tocar no Core**. Programa novo — requer
+  sanção e priorização.
+- **Go-live de produção** (`acaoPendenteDono.md` AP-01..06): owner-actions (Postgres, MinIO,
+  Celery, **certificado A1**, acesso e-CAC homologação). Bloqueiam produção; não são sprint
+  de dev — o S-0.6 entrega o lado de código turn-key se o stakeholder optar por produção.
+- **DIFAL EC 87/15 (E300/E310)** — candidato sem sprint; só com demanda.
 
 ## 5. Como o coordenador valida cada PR
 
