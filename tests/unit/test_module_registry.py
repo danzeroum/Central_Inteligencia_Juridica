@@ -50,7 +50,7 @@ def test_registry_register_and_get():
     reg = ModuleRegistry()
     m = ModuleManifest(module_id="x", name="X")
     reg.register(m)
-    assert reg.get("x") is m
+    assert reg.get("x") == m
     assert reg.get("missing") is None
 
 

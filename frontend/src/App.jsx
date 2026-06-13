@@ -3,6 +3,7 @@ import { Icon } from './components/primitives.jsx';
 import { ToastProvider } from './components/toast.jsx';
 import { api } from './api/client.js';
 import { setToken, logout, isAuthed, getPrincipal, isAdmin } from './api/auth.js';
+import { useSlots } from './hooks/useSlots.js';
 
 import AssistantScreen   from './screens/user/AssistantScreen.jsx';
 import ProcessScreen     from './screens/user/ProcessScreen.jsx';
@@ -165,11 +166,18 @@ function Login({ onAuthenticated }) {
   );
 }
 
+// IDs já presentes no NAV estático — usados para deduplicar os slots dinâmicos.
+const HARDCODED_IDS = new Set(
+  [...NAV.user, ...NAV.admin].flatMap(g => g.items.map(i => i.id))
+);
+
 export default function App() {
   const [authed, setAuthed]           = useState(isAuthed());
   const [mode, setMode]               = useState(isAdmin() ? 'admin' : 'user');
   const [route, setRoute]             = useState(isAdmin() ? 'hitl' : 'assistant');
   const [pendingCount, setPendingCount] = useState(0);
+
+  const dynamicSlots = useSlots();
 
   const switchMode = (m) => { setMode(m); setRoute(m === 'admin' ? 'hitl' : 'invest360'); };
   const go = (r) => {
@@ -264,6 +272,23 @@ export default function App() {
                 })}
               </div>
             ))}
+            {/* Módulos dinâmicos — slots não presentes no NAV estático */}
+            {dynamicSlots.filter(s => s.screen_id && !HARDCODED_IDS.has(s.screen_id)).length > 0 && (
+              <div className="nav-group">
+                <div className="nav-group-label">Módulos</div>
+                {dynamicSlots
+                  .filter(s => s.screen_id && !HARDCODED_IDS.has(s.screen_id))
+                  .map(s => (
+                    <button
+                      key={s.screen_id}
+                      className={'nav-item' + (route === s.screen_id ? ' active' : '')}
+                      onClick={() => go(s.screen_id)}>
+                      <Icon name={s.icon || 'spark'} className="nav-icon" />
+                      {s.label}
+                    </button>
+                  ))}
+              </div>
+            )}
           </nav>
 
           <div className="sidebar-foot">

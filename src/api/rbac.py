@@ -66,6 +66,8 @@ ROLE_PERMISSIONS: dict[Role, Set[str]] = {
         # S-D.2: Retificação SPED
         "retificacao:read",
         "retificacao:write",
+        # S-0.4: gerência de módulos
+        "modules:write",
     },
     Role.OPERATOR: {
         "hitl:write",

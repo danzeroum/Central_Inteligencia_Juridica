@@ -193,6 +193,7 @@ class FrontendSlotResponse(BaseModel):
     route: str
     order: int = 0
     enabled: bool = True
+    screen_id: Optional[str] = None
 
 
 class ModuleResponse(BaseModel):

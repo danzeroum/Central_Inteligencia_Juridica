@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import copy
 import logging
 import os
 from typing import Dict, List, Optional
@@ -16,10 +18,11 @@ class ModuleRegistry:
 
     def __init__(self) -> None:
         self._modules: Dict[str, ModuleManifest] = {}
+        self._subscribers: List[asyncio.Queue] = []
 
     def register(self, manifest: ModuleManifest) -> None:
-        """Registra ou sobrescreve um módulo no registry."""
-        self._modules[manifest.module_id] = manifest
+        """Registra ou sobrescreve um módulo no registry (cópia do manifesto)."""
+        self._modules[manifest.module_id] = copy.copy(manifest)
         logger.debug("Módulo registrado: %s v%s", manifest.module_id, manifest.version)
 
     def get(self, module_id: str) -> Optional[ModuleManifest]:
@@ -41,6 +44,40 @@ class ModuleRegistry:
             return False
         manifest.is_active = False
         return True
+
+    def toggle(self, module_id: str) -> Optional[ModuleManifest]:
+        """Alterna o estado is_active de um módulo. Retorna o manifesto ou ``None``."""
+        manifest = self._modules.get(module_id)
+        if manifest is None:
+            return None
+        manifest.is_active = not manifest.is_active
+        logger.info(
+            "Módulo '%s' %s.",
+            module_id,
+            "ativado" if manifest.is_active else "desativado",
+        )
+        return manifest
+
+    def subscribe(self) -> asyncio.Queue:
+        """Registra um subscriber SSE e retorna sua fila de eventos."""
+        q: asyncio.Queue = asyncio.Queue()
+        self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        """Remove um subscriber SSE."""
+        try:
+            self._subscribers.remove(q)
+        except ValueError:
+            pass
+
+    async def broadcast(self, event: dict) -> None:
+        """Notifica todos os subscribers SSE com o evento fornecido."""
+        for q in list(self._subscribers):
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
 
     async def sync_to_db(self) -> None:
         """Faz upsert dos módulos ativos na tabela ``Module`` do banco.
