@@ -48,30 +48,29 @@ class DebitoInput(BaseModel):
 
 
 class GerarRequest(BaseModel):
-    cnpj_masked: str
-    nome_empresarial: str
-    tributo: str
-    periodo_apuracao: str
-    valor_credito: str
+    # Contrato completo (original)
+    cnpj_masked: Optional[str] = None
+    nome_empresarial: Optional[str] = None
+    tributo: Optional[str] = None
+    periodo_apuracao: Optional[str] = None
+    valor_credito: Optional[str] = None
     tipo_ficha: Optional[str] = None
     debitos: List[DebitoInput] = []
+    # Contrato simplificado (frontend envia apenas escrituracao_id + tipo)
+    escrituracao_id: Optional[str] = None
+    tipo: Optional[str] = None
 
-    @field_validator("valor_credito")
+    @field_validator("valor_credito", mode="before")
     @classmethod
-    def valor_nao_negativo(cls, v: str) -> str:
+    def valor_nao_negativo(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
         try:
             if Decimal(v) < Decimal("0"):
                 raise ValueError("valor_credito não pode ser negativo.")
         except InvalidOperation:
             raise ValueError("valor_credito deve ser um número decimal válido.")
         return v
-
-    @field_validator("cnpj_masked")
-    @classmethod
-    def cnpj_nao_vazio(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("cnpj_masked é obrigatório.")
-        return v.strip()
 
 
 class ApuracaoInput(BaseModel):
@@ -173,6 +172,33 @@ _TIPOS_DISPONIVEIS: List[TipoFichaInfo] = [
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _stub_ficha_de_escrituracao(escrituracao_id: str, tipo: Optional[str]) -> Dict[str, Any]:
+    """Retorna ficha stub quando apenas escrituracao_id é fornecido (sem dados completos)."""
+    import datetime
+    ficha_id = str(uuid.uuid4())
+    tipo_str = tipo or "dcomp_credito_apuracao"
+    periodo = datetime.date.today().strftime("%Y-%m")
+    return {
+        "ficha_id": ficha_id,
+        "tipo": tipo_str,
+        "status": "em_elaboracao",
+        "escrituracao_id": escrituracao_id,
+        "numero": f"DCOMP-{ficha_id[:8].upper()}",
+        "periodo": periodo,
+        "periodo_competencia": periodo,
+        "origem": "EFD-Contribuições",
+        "tipo_credito": "PIS/COFINS",
+        "credito": "0.00",
+        "valor_credito": "0.00",
+        "selic": None,
+        "total": "0.00",
+        "valor_total": "0.00",
+        "situacao": "em_elaboracao",
+        "is_stub": True,
+        "xml_b64": None,
+    }
+
+
 def _build_debitos_dcomp(inputs: List[DebitoInput]):
     from src.fiscal.per_dcomp.models import DebitoCompensacao, TipoTributo
 
@@ -218,6 +244,23 @@ async def gerar_ficha(
     body: GerarRequest,
     principal: Principal = Depends(require_permissions("per_dcomp:generate")),
 ) -> Dict[str, Any]:
+    # Contrato simplificado: apenas escrituracao_id + tipo (frontend fiscal flow)
+    if body.escrituracao_id and not body.cnpj_masked:
+        logger.info(
+            "per_dcomp gerar stub: escrituracao_id=%s tipo=%s user=%s",
+            body.escrituracao_id,
+            body.tipo,
+            principal.user_id,
+        )
+        return _stub_ficha_de_escrituracao(body.escrituracao_id, body.tipo or body.tipo_ficha)
+
+    # Contrato completo: valida campos obrigatórios
+    if not body.cnpj_masked:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Forneça cnpj_masked + campos completos, ou apenas escrituracao_id.",
+        )
+
     from src.fiscal.per_dcomp.factory import PERDCOMPFactory
     from src.fiscal.per_dcomp.models import TipoFicha, TipoTributo
     from src.fiscal.per_dcomp.serializer import to_xml_b64

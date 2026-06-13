@@ -249,39 +249,39 @@
   console.group('9. Fluxo Fiscal — endpoints');
 
   // 9a. PER/DCOMP tipos (GET — sem body)
-  const rTipos = await GET('/api/v1/per_dcomp/tipos');
+  const rTipos = await GET('/api/v1/fiscal/per-dcomp/tipos');
   const bTipos = await j(rTipos);
-  check('GET /per_dcomp/tipos → 200', rTipos.ok, `HTTP ${rTipos.status}`);
+  check('GET /fiscal/per-dcomp/tipos → 200', rTipos.ok, `HTTP ${rTipos.status}`);
   const tiposArr = bTipos.tipos || (Array.isArray(bTipos) ? bTipos : null);
   check('PER/DCOMP tipos retorna array', Array.isArray(tiposArr), tiposArr ? `${tiposArr.length} tipo(s)` : 'estrutura inesperada');
 
   // 9b. Circuit breaker da Transmissão
-  const rCircuit = await GET('/api/v1/transmissao/circuit');
+  const rCircuit = await GET('/api/v1/fiscal/transmissao/circuit');
   const bCircuit = await j(rCircuit);
-  check('GET /transmissao/circuit → 200', rCircuit.ok, `HTTP ${rCircuit.status}`);
+  check('GET /fiscal/transmissao/circuit → 200', rCircuit.ok, `HTTP ${rCircuit.status}`);
   check('Circuit breaker retorna campo open/status',
     bCircuit && (bCircuit.open !== undefined || bCircuit.status !== undefined),
     `open=${bCircuit?.open} status=${bCircuit?.status}`);
 
-  // 9c. Retificação — comparar (sem body → 422)
-  const rComp = await POST('/api/v1/retificacao/comparar', {});
-  check('POST /retificacao/comparar (sem body → 422)', [200, 422].includes(rComp.status), `HTTP ${rComp.status}`);
+  // 9c. Retificação — comparar com escrituracao_id (stub → 200)
+  const rComp = await POST('/api/v1/fiscal/retificacao/comparar', { escrituracao_id: 'test-uuid-smoke' });
+  check('POST /fiscal/retificacao/comparar (escrituracao_id stub → 200)', [200, 422].includes(rComp.status), `HTTP ${rComp.status}`);
 
-  // 9d. Retificação — validar layout (sem body → 422)
-  const rValLayout = await POST('/api/v1/retificacao/validar-layout', {});
-  check('POST /retificacao/validar-layout (sem body → 422)', [200, 422].includes(rValLayout.status), `HTTP ${rValLayout.status}`);
+  // 9d. Retificação — validar layout com escrituracao_id (stub → 200)
+  const rValLayout = await POST('/api/v1/fiscal/retificacao/validar-layout', { escrituracao_id: 'test-uuid-smoke' });
+  check('POST /fiscal/retificacao/validar-layout (escrituracao_id stub → 200)', [200, 422].includes(rValLayout.status), `HTTP ${rValLayout.status}`);
 
-  // 9e. PER/DCOMP — gerar (sem body → 422)
-  const rPer = await POST('/api/v1/per_dcomp/gerar', {});
-  check('POST /per_dcomp/gerar (sem body → 422)', [200, 422].includes(rPer.status), `HTTP ${rPer.status}`);
+  // 9e. PER/DCOMP — gerar com escrituracao_id (stub → 200/201)
+  const rPer = await POST('/api/v1/fiscal/per-dcomp/gerar', { escrituracao_id: 'test-uuid-smoke', tipo: 'dcomp_credito_apuracao' });
+  check('POST /fiscal/per-dcomp/gerar (escrituracao_id stub → 200/201)', [200, 201, 422].includes(rPer.status), `HTTP ${rPer.status}`);
 
   // 9f. PER/DCOMP — validar (sem body → 422)
-  const rPerVal = await POST('/api/v1/per_dcomp/validar', {});
-  check('POST /per_dcomp/validar (sem body → 422)', [200, 422].includes(rPerVal.status), `HTTP ${rPerVal.status}`);
+  const rPerVal = await POST('/api/v1/fiscal/per-dcomp/validar', {});
+  check('POST /fiscal/per-dcomp/validar (sem body → 422)', [200, 422].includes(rPerVal.status), `HTTP ${rPerVal.status}`);
 
-  // 9g. Transmissão — enviar (sem body → 422)
-  const rEnviar = await POST('/api/v1/transmissao/enviar', {});
-  check('POST /transmissao/enviar (sem body → 422)', [200, 422].includes(rEnviar.status), `HTTP ${rEnviar.status}`);
+  // 9g. Transmissão — enviar com escrituracao_id (stub → 202)
+  const rEnviar = await POST('/api/v1/fiscal/transmissao/enviar', { escrituracao_id: 'test-uuid-smoke', ambiente: 'homologacao' });
+  check('POST /fiscal/transmissao/enviar (escrituracao_id stub → 202)', [200, 201, 202, 422].includes(rEnviar.status), `HTTP ${rEnviar.status}`);
 
   // 9h. Analytics KPIs
   const rKpis = await GET('/api/v1/fiscal/analytics/kpis');

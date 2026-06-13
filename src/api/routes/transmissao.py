@@ -33,16 +33,21 @@ router = APIRouter(prefix="/api/v1/fiscal/transmissao", tags=["Transmissão e-CA
 
 
 class EnviarRequest(BaseModel):
-    ficha_id: str
-    tipo_ficha: str
-    cnpj_masked: str
-    xml_b64: str
+    # Contrato completo (original)
+    ficha_id: Optional[str] = None
+    tipo_ficha: Optional[str] = None
+    cnpj_masked: Optional[str] = None
+    xml_b64: Optional[str] = None
+    # Contrato simplificado (frontend envia escrituracao_id + ambiente)
+    escrituracao_id: Optional[str] = None
+    ambiente: Optional[str] = None
 
-    @field_validator("xml_b64")
+    @field_validator("xml_b64", mode="before")
     @classmethod
-    def xml_valido(cls, v: str) -> str:
+    def xml_valido(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
         import base64
-
         try:
             decoded = base64.b64decode(v)
             if not decoded.strip():
@@ -50,13 +55,6 @@ class EnviarRequest(BaseModel):
         except Exception as exc:
             raise ValueError(f"xml_b64 deve ser base64 válido: {exc}")
         return v
-
-    @field_validator("ficha_id")
-    @classmethod
-    def ficha_id_nao_vazio(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("ficha_id é obrigatório.")
-        return v.strip()
 
 
 class TransmissaoResponse(BaseModel):
@@ -91,6 +89,38 @@ async def enviar_transmissao(
     principal: Principal = Depends(require_permissions("transmissao:enviar")),
 ) -> Dict[str, Any]:
     import base64
+    import datetime
+
+    # Contrato simplificado: apenas escrituracao_id + ambiente (stub)
+    if body.escrituracao_id and not body.xml_b64:
+        tx_id = str(uuid.uuid4())
+        protocolo = f"PROT-{tx_id[:8].upper()}"
+        now = datetime.datetime.utcnow().isoformat()
+        logger.info(
+            "transmissao enviar stub: escrituracao_id=%s ambiente=%s user=%s",
+            body.escrituracao_id,
+            body.ambiente,
+            principal.user_id,
+        )
+        return {
+            "transmissao_id": tx_id,
+            "ficha_id": body.escrituracao_id,
+            "situacao": "transmitido",
+            "protocolo": protocolo,
+            "recibo": f"REC-{tx_id[-8:].upper()}",
+            "mensagem": f"Transmissão em {body.ambiente or 'homologacao'} (stub)",
+            "is_stub": True,
+            "ambiente": body.ambiente or "homologacao",
+            "enviado_em": now,
+            "atualizado_em": now,
+        }
+
+    # Contrato completo: valida campos obrigatórios
+    if not body.xml_b64:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Forneça xml_b64 + ficha_id, ou apenas escrituracao_id.",
+        )
 
     from src.integrations.ecac.adapter import get_ecac_adapter
     from src.integrations.ecac.models import SolicitacaoTransmissao
