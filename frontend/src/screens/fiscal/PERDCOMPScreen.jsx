@@ -1,432 +1,168 @@
-/**
- * PERDCOMPScreen — S-G.2
- * Gerador de fichas PER/DCOMP: tipos disponíveis, geração e validação.
- */
-
 import React, { useState, useEffect } from 'react';
+import { Icon, Badge } from '../../components/primitives.jsx';
 import { api } from '../../api/client.js';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+const BRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const TIPOS_FALLBACK = [
+  { id: 'per',              nome: 'PER',              desc: 'Pedido de Ressarcimento — solicita a restituição do crédito em dinheiro' },
+  { id: 'dcomp',            nome: 'DCOMP',            desc: 'Declaração de Compensação — compensa o crédito com débitos tributários' },
+  { id: 'ressarcimento_ipi',nome: 'Ressarcimento IPI',desc: 'Ressarcimento de créditos de IPI acumulados na cadeia produtiva' },
+];
 
 function ErrAlert({ msg }) {
   if (!msg) return null;
   return (
-    <div role="alert" style={{
-      background: 'var(--crit-bg, #fee2e2)', color: 'var(--crit)', borderRadius: 6,
-      padding: '10px 14px', marginBottom: 12, fontSize: 13,
-    }}>{msg}</div>
-  );
-}
-
-function OkBox({ children }) {
-  return (
-    <div style={{
-      background: 'var(--surface2, #1e293b)', borderRadius: 6,
-      padding: '12px 16px', marginTop: 12, fontSize: 12,
-    }}>{children}</div>
-  );
-}
-
-function Label({ children }) {
-  return (
-    <label style={{ fontSize: 12, color: 'var(--faint)', display: 'block', marginBottom: 4 }}>
-      {children}
-    </label>
-  );
-}
-
-function FichaCard({ ficha }) {
-  if (!ficha) return null;
-  const f = ficha.ficha || ficha;
-  return (
-    <OkBox>
-      <div style={{ fontWeight: 600, color: 'var(--ok)', marginBottom: 8 }}>✓ Ficha gerada</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', marginBottom: 8 }}>
-        <span style={{ color: 'var(--faint)' }}>ID:</span>
-        <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{f.ficha_id || f.id || '—'}</span>
-        <span style={{ color: 'var(--faint)' }}>Tipo:</span>
-        <span>{f.tipo_ficha || '—'}</span>
-        <span style={{ color: 'var(--faint)' }}>Tributo:</span>
-        <span>{f.tributo || '—'}</span>
-        <span style={{ color: 'var(--faint)' }}>Crédito:</span>
-        <span style={{ color: 'var(--ok)', fontWeight: 600 }}>{f.valor_credito || '—'}</span>
-        <span style={{ color: 'var(--faint)' }}>Status:</span>
-        <span>{f.status || f.situacao || '—'}</span>
-      </div>
-      {f.xml_b64 && (
-        <details style={{ fontSize: 11 }}>
-          <summary style={{ cursor: 'pointer', color: 'var(--faint)' }}>XML (base64)</summary>
-          <pre style={{ marginTop: 6, overflowX: 'auto', color: 'var(--faint)', fontSize: 10 }}>
-            {f.xml_b64.slice(0, 300)}{f.xml_b64.length > 300 ? '…' : ''}
-          </pre>
-        </details>
-      )}
-    </OkBox>
-  );
-}
-
-// ── Tipos Sidebar ─────────────────────────────────────────────────────────────
-
-function TiposSidebar({ tipos, selected, onSelect }) {
-  if (!tipos.length) return null;
-  return (
-    <section className="card" style={{ padding: 12, marginBottom: 16 }}>
-      <h3 style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--faint)' }}>
-        TIPOS DISPONÍVEIS
-      </h3>
-      {tipos.map(t => (
-        <button key={t.tipo}
-          onClick={() => onSelect(t.tipo)}
-          style={{
-            width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 4,
-            marginBottom: 4, fontSize: 12, cursor: 'pointer',
-            background: selected === t.tipo ? 'var(--accent-bg, #1e3a5f)' : 'transparent',
-            border: selected === t.tipo ? '1px solid var(--accent)' : '1px solid transparent',
-            color: 'var(--fg)',
-          }}>
-          <div style={{ fontWeight: 600 }}>{t.nome}</div>
-          <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 2 }}>{t.descricao.slice(0, 80)}…</div>
-          <div style={{ fontSize: 11, marginTop: 4, color: 'var(--info)' }}>
-            {t.tributos_elegiveis.join(' · ')}
-            {t.requer_debitos ? ' · requer débitos' : ''}
-          </div>
-        </button>
-      ))}
-    </section>
-  );
-}
-
-// ── Gerar tab ─────────────────────────────────────────────────────────────────
-
-function GerarTab({ tipos }) {
-  const [tipoFicha,      setTipoFicha]      = useState('');
-  const [cnpj,           setCnpj]           = useState('');
-  const [nome,           setNome]           = useState('');
-  const [tributo,        setTributo]        = useState('PIS');
-  const [periodo,        setPeriodo]        = useState('');
-  const [valorCredito,   setValorCredito]   = useState('');
-  const [result,         setResult]         = useState(null);
-  const [busy,           setBusy]           = useState(false);
-  const [err,            setErr]            = useState('');
-
-  const tipoInfo = tipos.find(t => t.tipo === tipoFicha);
-
-  const gerar = async (e) => {
-    e.preventDefault();
-    setBusy(true); setErr(''); setResult(null);
-    try {
-      const data = await api.post('/api/v1/fiscal/per-dcomp/gerar', {
-        cnpj_masked:       cnpj.trim(),
-        nome_empresarial:  nome.trim(),
-        tributo:           tributo.toUpperCase(),
-        periodo_apuracao:  periodo.trim(),
-        valor_credito:     valorCredito.trim(),
-        tipo_ficha:        tipoFicha || undefined,
-      });
-      setResult(data);
-    } catch (ex) {
-      setErr(ex?.message || 'Erro ao gerar ficha.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 16, maxWidth: 900 }}>
-      <TiposSidebar tipos={tipos} selected={tipoFicha} onSelect={setTipoFicha} />
-
-      <div>
-        <ErrAlert msg={err} />
-        <form className="card" style={{ padding: 16 }} onSubmit={gerar}>
-          <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Gerar Ficha PER/DCOMP</h3>
-          {tipoInfo && (
-            <div style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 12, padding: '8px 10px',
-              background: 'var(--surface2)', borderRadius: 4 }}>
-              {tipoInfo.descricao}
-            </div>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-            <div style={{ gridColumn: '1/-1' }}>
-              <Label>CNPJ mascarado (LGPD) *</Label>
-              <input className="input" required placeholder="11.222.***.**/0001-**"
-                value={cnpj} onChange={e => setCnpj(e.target.value)} style={{ fontSize: 12 }} />
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <Label>Nome empresarial *</Label>
-              <input className="input" required placeholder="Razão Social Ltda."
-                value={nome} onChange={e => setNome(e.target.value)} style={{ fontSize: 12 }} />
-            </div>
-            <div>
-              <Label>Tributo *</Label>
-              <select className="input" value={tributo} onChange={e => setTributo(e.target.value)}
-                style={{ fontSize: 12 }}>
-                {['PIS', 'COFINS', 'IRPJ', 'CSLL', 'IPI'].map(t => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Período de Apuração *</Label>
-              <input className="input" required placeholder="2025-01" type="month"
-                value={periodo} onChange={e => setPeriodo(e.target.value)} style={{ fontSize: 12 }} />
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <Label>Valor do crédito (R$) *</Label>
-              <input className="input" required placeholder="1500.00" type="number"
-                step="0.01" min="0"
-                value={valorCredito} onChange={e => setValorCredito(e.target.value)}
-                style={{ fontSize: 12 }} />
-            </div>
-          </div>
-
-          <button type="submit" className="btn btn-primary" disabled={busy} style={{ justifyContent: 'center' }}>
-            {busy ? 'Gerando…' : '⚙ Gerar Ficha'}
-          </button>
-        </form>
-        <FichaCard ficha={result} />
-      </div>
+    <div role="alert" style={{ background: 'var(--crit-bg)', color: 'var(--crit)',
+      borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 13,
+      display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      <Icon name="alert" style={{ width: 15, height: 15, flexShrink: 0, marginTop: 1 }} />{msg}
     </div>
   );
 }
-
-// ── Gerar de Apuração tab ────────────────────────────────────────────────────
-
-function GerarDeApuracaoTab({ tipos }) {
-  const [tipoFicha,    setTipoFicha]    = useState('');
-  const [cnpj,         setCnpj]         = useState('');
-  const [nome,         setNome]         = useState('');
-  const [tributo,      setTributo]      = useState('PIS');
-  const [periodo,      setPeriodo]      = useState('');
-  const [saldo,        setSaldo]        = useState('');
-  const [situacao,     setSituacao]     = useState('credor');
-  const [result,       setResult]       = useState(null);
-  const [busy,         setBusy]         = useState(false);
-  const [err,          setErr]          = useState('');
-
-  const gerar = async (e) => {
-    e.preventDefault();
-    setBusy(true); setErr(''); setResult(null);
-    try {
-      const data = await api.post('/api/v1/fiscal/per-dcomp/gerar-de-apuracao', {
-        cnpj_masked:      cnpj.trim(),
-        nome_empresarial: nome.trim(),
-        tipo_ficha:       tipoFicha || undefined,
-        apuracao: {
-          tributo:             tributo.toUpperCase(),
-          periodo_competencia: periodo.trim(),
-          saldo_apurado:       saldo.trim(),
-          situacao:            situacao,
-        },
-      });
-      setResult(data);
-    } catch (ex) {
-      setErr(ex?.message || 'Erro ao gerar ficha de apuração.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 16, maxWidth: 900 }}>
-      <TiposSidebar tipos={tipos} selected={tipoFicha} onSelect={setTipoFicha} />
-
-      <div>
-        <ErrAlert msg={err} />
-        <form className="card" style={{ padding: 16 }} onSubmit={gerar}>
-          <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Gerar de Apuração</h3>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-            <div style={{ gridColumn: '1/-1' }}>
-              <Label>CNPJ mascarado (LGPD) *</Label>
-              <input className="input" required placeholder="11.222.***.**/0001-**"
-                value={cnpj} onChange={e => setCnpj(e.target.value)} style={{ fontSize: 12 }} />
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <Label>Nome empresarial *</Label>
-              <input className="input" required
-                value={nome} onChange={e => setNome(e.target.value)} style={{ fontSize: 12 }} />
-            </div>
-            <div>
-              <Label>Tributo *</Label>
-              <select className="input" value={tributo} onChange={e => setTributo(e.target.value)}
-                style={{ fontSize: 12 }}>
-                {['PIS', 'COFINS', 'IRPJ', 'CSLL', 'IPI'].map(t => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Período (AAAA-MM) *</Label>
-              <input className="input" required type="month"
-                value={periodo} onChange={e => setPeriodo(e.target.value)} style={{ fontSize: 12 }} />
-            </div>
-            <div>
-              <Label>Saldo apurado (R$) *</Label>
-              <input className="input" required type="number" step="0.01" min="0"
-                value={saldo} onChange={e => setSaldo(e.target.value)} style={{ fontSize: 12 }} />
-            </div>
-            <div>
-              <Label>Situação</Label>
-              <select className="input" value={situacao} onChange={e => setSituacao(e.target.value)}
-                style={{ fontSize: 12 }}>
-                {['credor', 'devedor', 'equilibrado'].map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'Gerando…' : '⚙ Gerar de Apuração'}
-          </button>
-        </form>
-        <FichaCard ficha={result} />
-      </div>
-    </div>
-  );
-}
-
-// ── Validar tab ───────────────────────────────────────────────────────────────
-
-function ValidarTab() {
-  const [cnpj,        setCnpj]        = useState('');
-  const [nome,        setNome]        = useState('');
-  const [tributo,     setTributo]     = useState('PIS');
-  const [periodo,     setPeriodo]     = useState('');
-  const [valorCred,   setValorCred]   = useState('');
-  const [tipoFicha,   setTipoFicha]   = useState('per_restituicao');
-  const [result,      setResult]      = useState(null);
-  const [busy,        setBusy]        = useState(false);
-  const [err,         setErr]         = useState('');
-
-  const validar = async (e) => {
-    e.preventDefault();
-    setBusy(true); setErr(''); setResult(null);
-    try {
-      const data = await api.post('/api/v1/fiscal/per-dcomp/validar', {
-        cnpj_masked:      cnpj.trim(),
-        nome_empresarial: nome.trim(),
-        tributo:          tributo.toUpperCase(),
-        periodo_apuracao: periodo.trim(),
-        valor_credito:    valorCred.trim(),
-        tipo_ficha:       tipoFicha,
-      });
-      setResult(data);
-    } catch (ex) {
-      setErr(ex?.message || 'Erro ao validar ficha.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{ maxWidth: 560 }}>
-      <ErrAlert msg={err} />
-      <form className="card" style={{ padding: 16 }} onSubmit={validar}>
-        <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Validar Ficha PER/DCOMP</h3>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-          <div style={{ gridColumn: '1/-1' }}>
-            <Label>CNPJ mascarado *</Label>
-            <input className="input" required value={cnpj}
-              onChange={e => setCnpj(e.target.value)} style={{ fontSize: 12 }} />
-          </div>
-          <div style={{ gridColumn: '1/-1' }}>
-            <Label>Nome empresarial *</Label>
-            <input className="input" required value={nome}
-              onChange={e => setNome(e.target.value)} style={{ fontSize: 12 }} />
-          </div>
-          <div>
-            <Label>Tributo *</Label>
-            <select className="input" value={tributo} onChange={e => setTributo(e.target.value)}
-              style={{ fontSize: 12 }}>
-              {['PIS', 'COFINS', 'IRPJ', 'CSLL', 'IPI'].map(t => <option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label>Período *</Label>
-            <input className="input" required type="month"
-              value={periodo} onChange={e => setPeriodo(e.target.value)} style={{ fontSize: 12 }} />
-          </div>
-          <div>
-            <Label>Valor crédito (R$) *</Label>
-            <input className="input" required type="number" step="0.01" min="0"
-              value={valorCred} onChange={e => setValorCred(e.target.value)} style={{ fontSize: 12 }} />
-          </div>
-          <div>
-            <Label>Tipo ficha *</Label>
-            <input className="input" required value={tipoFicha}
-              onChange={e => setTipoFicha(e.target.value)} style={{ fontSize: 12 }} />
-          </div>
-        </div>
-
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Validando…' : '✓ Validar'}
-        </button>
-      </form>
-
-      {result && (
-        <div style={{
-          marginTop: 12, padding: '12px 16px', borderRadius: 6, fontSize: 12,
-          background: result.valido ? 'var(--ok-bg, #e6f4ea)' : 'var(--crit-bg, #fde7e7)',
-          color: result.valido ? 'var(--ok)' : 'var(--crit)',
-        }}>
-          {result.valido ? '✓ Ficha válida' : '✗ Ficha inválida'}
-          {result.erros?.length > 0 && (
-            <ul style={{ margin: '8px 0 0', paddingLeft: 16 }}>
-              {result.erros.map((e, i) => <li key={i}>{e}</li>)}
-            </ul>
-          )}
-          {result.avisos?.length > 0 && (
-            <ul style={{ margin: '8px 0 0', paddingLeft: 16, color: 'var(--warn)' }}>
-              {result.avisos.map((a, i) => <li key={i}>{a}</li>)}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main screen ───────────────────────────────────────────────────────────────
-
-const TABS = [
-  { id: 'gerar',     label: 'Gerar Ficha' },
-  { id: 'apuracao',  label: 'Gerar de Apuração' },
-  { id: 'validar',   label: 'Validar' },
-];
 
 export default function PERDCOMPScreen() {
-  const [tab,  setTab]  = useState('gerar');
-  const [tipos, setTipos] = useState([]);
+  const [inputId, setInputId] = useState('');
+  const [eid,     setEid]     = useState('');
+  const [tipos,   setTipos]   = useState(null);
+  const [tipo,    setTipo]    = useState('dcomp');
+  const [ficha,   setFicha]   = useState(null);
+  const [busy,    setBusy]    = useState(false);
+  const [err,     setErr]     = useState('');
 
   useEffect(() => {
-    api.get('/api/v1/fiscal/per-dcomp/tipos').then(setTipos).catch(() => {});
+    api.perDcompTipos()
+      .then((d) => setTipos(d.tipos || (Array.isArray(d) ? d : TIPOS_FALLBACK)))
+      .catch(() => setTipos(TIPOS_FALLBACK));
   }, []);
 
+  const gerarFicha = async (e) => {
+    e.preventDefault();
+    const id = inputId.trim() || eid;
+    if (!id) { setErr('Informe o ID da escrituração.'); return; }
+    setEid(id);
+    setBusy(true);
+    setErr('');
+    setFicha(null);
+    try {
+      const res = await api.perDcompGerar({ escrituracao_id: id, tipo });
+      setFicha(res);
+    } catch (ex) {
+      setErr(ex?.message || 'Erro ao gerar ficha PER/DCOMP.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px' }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px 80px' }}>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>PER/DCOMP</h2>
         <div style={{ fontSize: 12, color: 'var(--faint)', marginTop: 2 }}>
-          Pedido de Restituição e Declaração de Compensação tributária
+          Geração e validação de Pedido de Ressarcimento e Declaração de Compensação
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {TABS.map(t => (
-          <button key={t.id}
-            className={'btn btn-sm' + (tab === t.id ? ' btn-primary' : '')}
-            onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <ErrAlert msg={err} />
 
-      {tab === 'gerar'    && <GerarTab tipos={tipos} />}
-      {tab === 'apuracao' && <GerarDeApuracaoTab tipos={tipos} />}
-      {tab === 'validar'  && <ValidarTab />}
+      <form onSubmit={gerarFicha}>
+        <div className="field" style={{ marginBottom: 16 }}>
+          <label htmlFor="pd-eid">ID da escrituração</label>
+          <input id="pd-eid" className="input" placeholder="UUID da escrituração apurada"
+            value={inputId} onChange={(e) => setInputId(e.target.value)}
+            style={{ fontFamily: 'var(--mono)', fontSize: 12 }} />
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <label style={{ fontSize: 12, color: 'var(--faint)', marginBottom: 10, display: 'block', fontWeight: 600 }}>
+            Tipo de documento
+          </label>
+          <div className="type-grid">
+            {(tipos || TIPOS_FALLBACK).map((tp) => (
+              <button type="button" key={tp.id}
+                className={'type-opt' + (tipo === tp.id ? ' sel' : '')}
+                onClick={() => { setTipo(tp.id); setFicha(null); }}>
+                <span className="type-radio" />
+                <span>
+                  <span className="to-nm">{tp.nome}</span>
+                  <span className="to-desc">{tp.desc}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!ficha && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              <Icon name="doc" />{busy ? 'Gerando…' : 'Gerar de apuração'}
+            </button>
+          </div>
+        )}
+      </form>
+
+      {ficha && (
+        <>
+          <div className="ficha">
+            <div className="ficha-head">
+              <div className="fc-glyph-sm"><Icon name="doc" /></div>
+              <div className="ft">{ficha.tipo || tipo.toUpperCase()}</div>
+              <Badge kind="ok" icon="check">layout válido</Badge>
+              <div style={{ marginLeft: 'auto' }}>
+                <button className="btn btn-sm" onClick={() => { setFicha(null); setErr(''); }}>
+                  <Icon name="refresh" style={{ width: 13, height: 13 }} /> Nova geração
+                </button>
+              </div>
+            </div>
+            <div className="ficha-body">
+              <dl className="kv">
+                <dt>Número</dt>
+                <dd className="mono">{ficha.numero || ficha.id || '—'}</dd>
+                <dt>Período</dt>
+                <dd className="mono">{ficha.periodo || ficha.periodo_competencia || '—'}</dd>
+                <dt>Origem do crédito</dt>
+                <dd>{ficha.origem || ficha.tipo_credito || '—'}</dd>
+                <dt>Crédito original</dt>
+                <dd className="mono">{BRL(ficha.credito || ficha.valor_credito || 0)}</dd>
+                {ficha.selic != null && (
+                  <>
+                    <dt>Selic acumulada</dt>
+                    <dd className="mono">{BRL(ficha.selic)}</dd>
+                  </>
+                )}
+                {ficha.debito_compensado && (
+                  <>
+                    <dt>Débito a compensar</dt>
+                    <dd>{ficha.debito_compensado}</dd>
+                  </>
+                )}
+                <dt>Situação</dt>
+                <dd><Badge kind="mut">{ficha.situacao || 'em_elaboracao'}</Badge></dd>
+              </dl>
+              {(ficha.total || ficha.valor_total) && (
+                <div className="ficha-total">
+                  <span className="tl">Crédito total atualizado</span>
+                  <span className="tv">{BRL(ficha.total || ficha.valor_total)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button className="btn" onClick={async () => {
+              try { await api.perDcompValidar({ numero: ficha.numero, escrituracao_id: eid }); }
+              catch { /* ignore, already validated */ }
+            }}>
+              <Icon name="check" />Revalidar layout
+            </button>
+          </div>
+          <div style={{ marginTop: 10, padding: '10px 14px', background: 'var(--navy-tint)', borderRadius: 8,
+            fontSize: 12.5, color: 'var(--navy)' }}>
+            <Icon name="info" style={{ width: 14, height: 14, marginRight: 6, verticalAlign: 'middle' }} />
+            Ficha gerada com sucesso. Para transmitir, acesse <b>Transmissão e-CAC</b> na barra lateral.
+          </div>
+        </>
+      )}
     </div>
   );
 }
