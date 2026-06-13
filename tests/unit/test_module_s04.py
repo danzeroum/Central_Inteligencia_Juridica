@@ -7,7 +7,6 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
@@ -43,9 +42,9 @@ def test_builtin_slots_have_screen_id():
 
     for m in BUILTIN_MODULES:
         assert m.slot is not None
-        assert m.slot.screen_id is not None, (
-            f"Módulo '{m.module_id}' não tem screen_id no slot"
-        )
+        assert (
+            m.slot.screen_id is not None
+        ), f"Módulo '{m.module_id}' não tem screen_id no slot"
         assert m.slot.screen_id != ""
 
 
