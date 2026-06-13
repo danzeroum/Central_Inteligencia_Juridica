@@ -3,6 +3,7 @@ import { Icon } from './components/primitives.jsx';
 import { ToastProvider } from './components/toast.jsx';
 import { api } from './api/client.js';
 import { setToken, logout, isAuthed, getPrincipal, isAdmin } from './api/auth.js';
+import { useSlots } from './hooks/useSlots.js';
 
 import AssistantScreen   from './screens/user/AssistantScreen.jsx';
 import ProcessScreen     from './screens/user/ProcessScreen.jsx';
@@ -14,6 +15,12 @@ import Invest360Screen   from './screens/user/Invest360Screen.jsx';
 import PrivacyScreen     from './screens/user/PrivacyScreen.jsx';
 
 import FiscalDashboardScreen    from './screens/fiscal/FiscalDashboardScreen.jsx';
+import EscrituracaoScreen       from './screens/fiscal/EscrituracaoScreen.jsx';
+import RetificacaoScreen        from './screens/fiscal/RetificacaoScreen.jsx';
+import PERDCOMPScreen           from './screens/fiscal/PERDCOMPScreen.jsx';
+import TransmissaoScreen        from './screens/fiscal/TransmissaoScreen.jsx';
+import DueDiligenceScreen       from './screens/fiscal/DueDiligenceScreen.jsx';
+import ConsultoriaScreen        from './screens/fiscal/ConsultoriaScreen.jsx';
 import ReportsWorkbenchScreen   from './screens/fiscal/ReportsWorkbenchScreen.jsx';
 
 import HitlScreen        from './screens/admin/HitlScreen.jsx';
@@ -23,6 +30,7 @@ import AgentsScreen      from './screens/admin/AgentsScreen.jsx';
 import LedgerScreen      from './screens/admin/LedgerScreen.jsx';
 import DmnScreen         from './screens/admin/DmnScreen.jsx';
 import MonitorScreen     from './screens/admin/MonitorScreen.jsx';
+import VaultScreen       from './screens/admin/VaultScreen.jsx';
 
 // ── Navegação agrupada (Fase 1) ────────────────────────────────────────────
 const NAV = {
@@ -44,17 +52,24 @@ const NAV = {
   ],
   admin: [
     { group: 'Fiscal', items: [
-      { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law',    isNew: true },
-      { id: 'reports',          label: 'Relatórios',        icon: 'ledger', isNew: true },
-      { id: 'workbench',        label: 'Workbench SQL',     icon: 'flow',   isNew: true },
+      { id: 'fiscal-dashboard', label: 'Analytics Fiscal', icon: 'law',     isNew: true },
+      { id: 'escrituracoes',    label: 'Escriturações',    icon: 'doc',     isNew: true },
+      { id: 'retificacao',      label: 'Retificação',      icon: 'compare', isNew: true },
+      { id: 'per-dcomp',        label: 'PER/DCOMP',        icon: 'ledger',  isNew: true },
+      { id: 'transmissao',      label: 'Transmissão e-CAC', icon: 'pulse',  isNew: true },
+      { id: 'due-diligence',    label: 'Due Diligência',   icon: 'radar',   isNew: true },
+      { id: 'consultoria',      label: 'Consultoria',      icon: 'scale',   isNew: true },
+      { id: 'reports',          label: 'Relatórios',        icon: 'ledger',  isNew: true },
+      { id: 'workbench',        label: 'Workbench SQL',     icon: 'flow',    isNew: true },
     ]},
     { group: 'Operação', items: [
       { id: 'hitl',    label: 'Aprovações',    icon: 'shield', hasBadge: true },
       { id: 'monitor', label: 'Monitoramento', icon: 'pulse'                  },
     ]},
     { group: 'Governança', items: [
-      { id: 'ledger', label: 'Auditoria', icon: 'ledger' },
-      { id: 'dmn',    label: 'Autonomia', icon: 'flow'   },
+      { id: 'ledger', label: 'Auditoria',         icon: 'ledger'  },
+      { id: 'dmn',    label: 'Autonomia',          icon: 'flow'    },
+      { id: 'vault',  label: 'Cofre Credenciais', icon: 'lock',    isNew: true },
     ]},
     { group: 'Treinamento', items: [
       { id: 'training', label: 'Treinamento', icon: 'graduate' },
@@ -72,9 +87,16 @@ const TITLES = {
   history:     ['Investigar',  'Minhas consultas'],
   perfil:      ['Conta',       'Meu Perfil'],
   privacidade:        ['Conta',       'Privacidade (LGPD)'],
-  'fiscal-dashboard': ['Fiscal',      'Analytics Fiscal'],
-  reports:            ['Fiscal',      'Relatórios Premium'],
-  workbench:          ['Fiscal',      'Workbench SQL'],
+  'fiscal-dashboard': ['Fiscal', 'Analytics Fiscal'],
+  escrituracoes:      ['Fiscal', 'Escriturações SPED'],
+  retificacao:        ['Fiscal', 'Retificação SPED'],
+  'per-dcomp':        ['Fiscal', 'PER/DCOMP'],
+  transmissao:        ['Fiscal', 'Transmissão e-CAC'],
+  'due-diligence':    ['Fiscal', 'Due Diligência 360°'],
+  consultoria:        ['Fiscal', 'Consultoria Tributária'],
+  reports:            ['Fiscal', 'Relatórios Premium'],
+  workbench:          ['Fiscal', 'Workbench SQL'],
+  vault:              ['Governança', 'Cofre de Credenciais'],
   hitl:               ['Operação',    'Aprovações'],
   'hitl-detail': ['Operação',  'Aprovações', 'Modificar'],
   monitor:     ['Operação',    'Monitoramento'],
@@ -144,11 +166,18 @@ function Login({ onAuthenticated }) {
   );
 }
 
+// IDs já presentes no NAV estático — usados para deduplicar os slots dinâmicos.
+const HARDCODED_IDS = new Set(
+  [...NAV.user, ...NAV.admin].flatMap(g => g.items.map(i => i.id))
+);
+
 export default function App() {
   const [authed, setAuthed]           = useState(isAuthed());
   const [mode, setMode]               = useState(isAdmin() ? 'admin' : 'user');
   const [route, setRoute]             = useState(isAdmin() ? 'hitl' : 'assistant');
   const [pendingCount, setPendingCount] = useState(0);
+
+  const dynamicSlots = useSlots();
 
   const switchMode = (m) => { setMode(m); setRoute(m === 'admin' ? 'hitl' : 'invest360'); };
   const go = (r) => {
@@ -175,8 +204,15 @@ export default function App() {
     invest360:    <Invest360Screen go={go} />,
     privacidade:  <PrivacyScreen />,
     'fiscal-dashboard': <FiscalDashboardScreen />,
-    reports:      <ReportsWorkbenchScreen />,
-    workbench:    <ReportsWorkbenchScreen />,
+    escrituracoes:      <EscrituracaoScreen />,
+    retificacao:        <RetificacaoScreen />,
+    'per-dcomp':        <PERDCOMPScreen />,
+    transmissao:        <TransmissaoScreen />,
+    'due-diligence':    <DueDiligenceScreen />,
+    consultoria:        <ConsultoriaScreen />,
+    reports:            <ReportsWorkbenchScreen />,
+    workbench:          <ReportsWorkbenchScreen />,
+    vault:              <VaultScreen />,
     hitl:         <HitlScreen go={go} onPendingChange={setPendingCount} />,
     'hitl-detail': <HitlDetailScreen go={go} />,
     training:     <TrainingScreen />,
@@ -236,6 +272,23 @@ export default function App() {
                 })}
               </div>
             ))}
+            {/* Módulos dinâmicos — slots não presentes no NAV estático */}
+            {dynamicSlots.filter(s => s.screen_id && !HARDCODED_IDS.has(s.screen_id)).length > 0 && (
+              <div className="nav-group">
+                <div className="nav-group-label">Módulos</div>
+                {dynamicSlots
+                  .filter(s => s.screen_id && !HARDCODED_IDS.has(s.screen_id))
+                  .map(s => (
+                    <button
+                      key={s.screen_id}
+                      className={'nav-item' + (route === s.screen_id ? ' active' : '')}
+                      onClick={() => go(s.screen_id)}>
+                      <Icon name={s.icon || 'spark'} className="nav-icon" />
+                      {s.label}
+                    </button>
+                  ))}
+              </div>
+            )}
           </nav>
 
           <div className="sidebar-foot">

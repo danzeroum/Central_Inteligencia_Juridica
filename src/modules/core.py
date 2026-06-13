@@ -22,6 +22,7 @@ JURIDICO_CORE = ModuleManifest(
         icon="gavel",
         route="/app/juridico",
         order=1,
+        screen_id="assistant",
     ),
 )
 
@@ -39,6 +40,7 @@ LEGISLATIVO = ModuleManifest(
         icon="balance",
         route="/app/legislativo",
         order=2,
+        screen_id="legis",
     ),
 )
 
@@ -56,6 +58,7 @@ JURISPRUDENCIA = ModuleManifest(
         icon="library_books",
         route="/app/jurisprudencia",
         order=3,
+        screen_id="juris",
     ),
 )
 
@@ -76,6 +79,7 @@ CADASTRO_RISCO = ModuleManifest(
         icon="search",
         route="/app/fiscal/due-diligence",
         order=4,
+        screen_id="due-diligence",
     ),
 )
 
@@ -96,6 +100,7 @@ CONSULTORIA_TRIBUTARIA = ModuleManifest(
         icon="calculate",
         route="/app/fiscal/consultoria",
         order=5,
+        screen_id="consultoria",
     ),
 )
 

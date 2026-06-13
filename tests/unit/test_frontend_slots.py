@@ -29,6 +29,7 @@ def test_slot_to_dict():
         "route": "/app/bar",
         "order": 5,
         "enabled": False,
+        "screen_id": None,
     }
 
 
@@ -53,6 +54,7 @@ def test_manifest_with_slot_to_dict():
         "route": "/app/test",
         "order": 10,
         "enabled": True,
+        "screen_id": None,
     }
 
 
