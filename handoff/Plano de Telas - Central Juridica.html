@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano de Telas — Central de Inteligência Jurídica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#2C5AA0; --navy-2:#234a87; --navy-tint:#eaf0f9; --navy-tint-2:#f3f7fc;
+  --ink:#1b2330; --ink-2:#515b6b; --faint:#677387;
+  --bg:#f5f7fa; --surface:#ffffff; --line:#e6eaf0; --line-2:#eef1f5;
+  --ok:#1f8a4c; --ok-bg:#e9f6ee; --warn:#8a6d0b; --warn-bg:#fbf3df;
+  --crit:#c0392b; --crit-bg:#fae9e7; --mut-bg:#eef1f5;
+  --radius:10px; --radius-sm:7px;
+  --shadow:0 1px 2px rgba(20,30,50,.06),0 4px 16px rgba(20,30,50,.05);
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --serif:'Newsreader',Georgia,serif;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+:focus-visible{outline:2px solid var(--navy);outline-offset:2px;border-radius:4px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+.mono{font-family:var(--mono);}
+
+/* ---------- Layout ---------- */
+.wrap{display:grid;grid-template-columns:264px 1fr;align-items:start;max-width:1320px;margin:0 auto;}
+.toc{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--surface);padding:26px 18px;}
+.toc-brand{display:flex;align-items:center;gap:11px;padding-bottom:18px;margin-bottom:14px;border-bottom:1px solid var(--line-2);}
+.toc-mark{width:36px;height:36px;border-radius:9px;background:var(--navy);color:#fff;display:grid;place-items:center;flex-shrink:0;}
+.toc-mark svg{width:20px;height:20px;}
+.toc-name{font-weight:600;font-size:13.5px;line-height:1.2;}
+.toc-sub{font-size:11px;color:var(--faint);}
+.toc nav a{display:block;padding:6px 10px;border-radius:var(--radius-sm);color:var(--ink-2);text-decoration:none;font-size:13px;font-weight:500;margin-bottom:1px;}
+.toc nav a:hover{background:var(--navy-tint-2);color:var(--ink);}
+.toc nav a .n{font-family:var(--mono);font-size:11px;color:var(--faint);margin-right:8px;}
+.toc-foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--line-2);font-size:11px;color:var(--faint);}
+
+.doc{padding:44px 56px 120px;max-width:1000px;}
+
+/* ---------- Cover ---------- */
+.cover{margin-bottom:44px;padding-bottom:34px;border-bottom:1px solid var(--line);}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--navy);font-weight:600;}
+.cover h1{font-family:var(--serif);font-weight:600;font-size:42px;line-height:1.1;margin:14px 0 12px;letter-spacing:-.01em;}
+.cover .deck{font-size:16.5px;color:var(--ink-2);max-width:64ch;text-wrap:pretty;}
+.cover-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px;}
+
+/* ---------- Section ---------- */
+.sec{margin-top:56px;scroll-margin-top:20px;}
+.sec-num{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--navy);letter-spacing:.04em;}
+.sec h2{font-family:var(--serif);font-weight:600;font-size:30px;margin:6px 0 8px;letter-spacing:-.01em;}
+.sec .sec-lead{font-size:15px;color:var(--ink-2);max-width:70ch;text-wrap:pretty;margin-bottom:22px;}
+.sub{font-family:var(--serif);font-weight:600;font-size:19px;margin:34px 0 12px;}
+.sub:first-of-type{margin-top:8px;}
+p{text-wrap:pretty;}
+a.inl{color:var(--navy);font-weight:500;text-decoration:none;border-bottom:1px solid var(--navy-tint);}
+
+/* ---------- Pills / badges ---------- */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:500;white-space:nowrap;}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.p-navy{background:var(--navy-tint);color:var(--navy);}
+.p-mut{background:var(--mut-bg);color:var(--ink-2);}
+.p-ok{background:var(--ok-bg);color:var(--ok);}
+.p-warn{background:var(--warn-bg);color:var(--warn);}
+.p-crit{background:var(--crit-bg);color:var(--crit);}
+.tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:5px;}
+.t-new{background:#e7f6ee;color:#1f7a45;}
+.t-redo{background:var(--navy-tint);color:var(--navy);}
+.t-prop{background:var(--warn-bg);color:var(--warn);}
+
+/* role pills */
+.role{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:3px 8px;border-radius:5px;border:1px solid transparent;}
+.role .dot{width:6px;height:6px;border-radius:50%;}
+.r-admin{background:var(--navy-tint);color:var(--navy);} .r-admin .dot{background:var(--navy);}
+.r-op{background:var(--ok-bg);color:var(--ok);} .r-op .dot{background:var(--ok);}
+.r-aud{background:var(--warn-bg);color:var(--warn);} .r-aud .dot{background:var(--warn);}
+.r-ro{background:var(--mut-bg);color:var(--ink-2);} .r-ro .dot{background:var(--faint);}
+
+/* method pills */
+.m{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;letter-spacing:.03em;}
+.m-get{background:var(--navy-tint);color:var(--navy);}
+.m-post{background:var(--ok-bg);color:var(--ok);}
+.m-patch{background:var(--warn-bg);color:var(--warn);}
+.m-del{background:var(--crit-bg);color:var(--crit);}
+.m-sse{background:#ece7f6;color:#5a3fa0;}
+
+/* ---------- Cards ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:14px;}
+.note{background:var(--navy-tint-2);border:1px solid var(--line);border-left:3px solid var(--navy);border-radius:var(--radius-sm);padding:13px 16px;font-size:13.5px;color:var(--ink-2);margin:16px 0;}
+.note b{color:var(--ink);}
+.note.warn{background:var(--warn-bg);border-color:#f0e0bc;border-left-color:var(--warn);color:var(--warn);}
+.note.warn b{color:var(--warn);}
+.note.crit{background:var(--crit-bg);border-color:#ecc6c0;border-left-color:var(--crit);color:var(--crit);}
+.note.crit b{color:var(--crit);}
+
+/* ---------- Tables ---------- */
+table.t{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:8px 0 6px;}
+table.t th{text-align:left;padding:10px 13px;background:var(--navy-tint-2);color:var(--ink-2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--line);}
+table.t td{padding:10px 13px;border-top:1px solid var(--line-2);vertical-align:top;}
+table.t tr:first-child td{border-top:none;}
+table.t td b{font-weight:600;}
+.cap{font-size:12px;color:var(--faint);margin:2px 0 18px;}
+
+/* ---------- Binding cards (§4) ---------- */
+.dom{margin-top:30px;}
+.dom-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px;}
+.dom-head h3{font-family:var(--serif);font-size:21px;font-weight:600;margin:0;}
+.dom-head .k{font-family:var(--mono);font-size:11.5px;color:var(--faint);}
+.dom-desc{font-size:13.5px;color:var(--ink-2);margin:0 0 16px;max-width:68ch;}
+.bind{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
+.bind.capstone{border-color:#ecc6c0;}
+.bind.sensitive{border-color:#e8d9a8;}
+.bind-top{display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:14px 18px;border-bottom:1px solid var(--line-2);}
+.bind-glyph{width:34px;height:34px;border-radius:8px;background:var(--navy-tint);color:var(--navy);display:grid;place-items:center;flex-shrink:0;}
+.bind-glyph svg{width:18px;height:18px;}
+.bind.capstone .bind-glyph{background:var(--crit-bg);color:var(--crit);}
+.bind.sensitive .bind-glyph{background:var(--warn-bg);color:var(--warn);}
+.bind-name{font-weight:600;font-size:14.5px;}
+.bind-id{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:1px;}
+.bind-roles{margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;}
+.bind-body{padding:14px 18px;}
+.bind-spec{font-size:13.5px;color:var(--ink-2);margin:0 0 13px;}
+.ep{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:12.5px;border-top:1px dashed var(--line-2);}
+.ep:first-child{border-top:none;}
+.ep .path{font-family:var(--mono);font-size:12px;color:var(--ink);}
+.ep .perm{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;}
+.bind-states{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line-2);}
+.st{font-size:11px;padding:2px 9px;border-radius:20px;background:var(--mut-bg);color:var(--ink-2);}
+.st.hot{background:var(--navy-tint);color:var(--navy);font-weight:600;}
+
+/* ---------- Stepper (§5) ---------- */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0;}
+@media(max-width:820px){.flow{grid-template-columns:1fr 1fr;}}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);position:relative;}
+.step .sn{font-family:var(--mono);font-size:11px;color:var(--navy);font-weight:600;}
+.step .st-t{font-weight:600;font-size:13.5px;margin:3px 0 5px;}
+.step .st-d{font-size:12px;color:var(--ink-2);}
+.step .st-ep{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:8px;display:block;}
+
+/* ---------- Component grid (§2.3, §6) ---------- */
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:780px){.cgrid{grid-template-columns:1fr;}}
+.comp{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:15px 17px;box-shadow:var(--shadow);}
+.comp h4{margin:0 0 5px;font-size:14px;display:flex;align-items:center;gap:8px;}
+.comp h4 .gl{width:26px;height:26px;border-radius:7px;background:var(--navy-tint);color:var(--navy);display:grid;place-items:center;flex-shrink:0;}
+.comp h4 .gl svg{width:15px;height:15px;}
+.comp p{margin:0;font-size:12.5px;color:var(--ink-2);}
+.comp .meta{margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);}
+
+/* ---------- State matrix (§2.4) ---------- */
+.states6{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media(max-width:780px){.states6{grid-template-columns:1fr;}}
+.s6{border:1px solid var(--line);border-radius:var(--radius-sm);padding:13px 15px;background:var(--surface);}
+.s6 .t{font-weight:600;font-size:13px;display:flex;align-items:center;gap:7px;}
+.s6 .d{font-size:12px;color:var(--ink-2);margin-top:4px;}
+.s6 .dot{width:8px;height:8px;border-radius:50%;}
+
+ul.clean{list-style:none;padding:0;margin:10px 0;}
+ul.clean li{position:relative;padding:5px 0 5px 24px;font-size:13.5px;color:var(--ink-2);}
+ul.clean li::before{content:"";position:absolute;left:2px;top:11px;width:7px;height:7px;border-radius:2px;background:var(--navy);}
+ul.clean li b{color:var(--ink);}
+
+.legend{display:flex;flex-wrap:wrap;gap:18px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 18px;margin:14px 0;font-size:12.5px;color:var(--ink-2);}
+.legend .grp{display:flex;align-items:center;gap:7px;}
+
+hr.div{border:none;border-top:1px solid var(--line);margin:48px 0 0;}
+
+@media print{
+  .toc{display:none;}
+  .wrap{grid-template-columns:1fr;}
+  .doc{padding:0;max-width:none;}
+  .bind,.card,.step,.comp,.s6,table.t{box-shadow:none;break-inside:avoid;}
+  .sec{break-inside:avoid-page;}
+  body{font-size:11pt;}
+}
+@media(max-width:920px){
+  .wrap{grid-template-columns:1fr;}
+  .toc{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);}
+  .doc{padding:28px 22px 80px;}
+  .cover h1{font-size:32px;}
+  .cgrid,.states6,.flow{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="toc">
+    <div class="toc-brand">
+      <div class="toc-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M5 8h14"></path><path d="M5 8 2 15h6z"></path><path d="M19 8l-3 7h6z"></path><path d="M8 21h8"></path></svg></div>
+      <div>
+        <div class="toc-name">Central de Inteligência Jurídica</div>
+        <div class="toc-sub">Plano de telas · Frontend ↔ Backend</div>
+      </div>
+    </div>
+    <nav>
+      <a href="#resumo"><span class="n">00</span>Resumo &amp; legenda</a>
+      <a href="#personas"><span class="n">01</span>Personas &amp; RBAC</a>
+      <a href="#ds"><span class="n">02</span>Sistema de design</a>
+      <a href="#shell"><span class="n">03</span>Shell do aplicativo</a>
+      <a href="#mapa"><span class="n">04</span>Mapa-mestre (binding)</a>
+      <a href="#fio"><span class="n">05</span>Fio-de-ouro fiscal</a>
+      <a href="#transversais"><span class="n">06</span>Padrões transversais</a>
+      <a href="#config"><span class="n">07</span>Configurações</a>
+      <a href="#gap"><span class="n">08</span>Novo vs. redesenho</a>
+      <a href="#fluxos"><span class="n">09</span>Fluxos prioritários</a>
+      <a href="#entregaveis"><span class="n">10</span>Entregáveis &amp; roadmap</a>
+    </nav>
+    <div class="toc-foot">
+      30 telas · 6 domínios · 4 papéis<br>API <span class="mono">/api/v1</span> · pt-BR · WCAG 2.1 AA<br>v1 · jun 2026
+    </div>
+  </aside>
+
+  <main class="doc">
+    <!-- COVER -->
+    <header class="cover">
+      <div class="eyebrow">Plano de produto · Fase de design</div>
+      <h1>Plano completo de telas</h1>
+      <p class="deck">O contrato de design que liga cada tela do frontend a endpoints reais da API, sob o papel certo, com todos os estados obrigatórios. Ancorado no mapa-mestre do brief — nada aqui é inventado: o que não tem backend é marcado como <span class="tag t-prop">proposta</span>.</p>
+      <div class="cover-meta">
+        <span class="pill p-navy"><span class="dot"></span>30 telas mapeadas</span>
+        <span class="pill p-mut">6 domínios</span>
+        <span class="pill p-mut">4 papéis (RBAC)</span>
+        <span class="pill p-ok"><span class="dot"></span>24 a refinar</span>
+        <span class="pill p-warn"><span class="dot"></span>5 novas + 1 read-only</span>
+      </div>
+    </header>
+
+    <!-- 00 RESUMO -->
+    <section class="sec" id="resumo">
+      <div class="sec-num">00</div>
+      <h2>Como ler este plano</h2>
+      <p class="sec-lead">O <a class="inl" href="#mapa">mapa-mestre (§4)</a> é a peça central: cada cartão é uma tela que consome endpoints específicos sob um papel mínimo. Toda tela deve entregar os <a class="inl" href="#ds">estados obrigatórios (§2.4)</a>. Os <a class="inl" href="#transversais">padrões transversais (§6)</a> se repetem em dezenas de telas — desenhados uma vez como componentes, reusados sempre.</p>
+
+      <div class="legend">
+        <div class="grp"><b style="color:var(--ink)">Papéis</b></div>
+        <div class="grp"><span class="role r-admin"><span class="dot"></span>ADMIN</span> gestor</div>
+        <div class="grp"><span class="role r-op"><span class="dot"></span>OPERATOR</span> contador / analista</div>
+        <div class="grp"><span class="role r-aud"><span class="dot"></span>AUDITOR</span> auditor / perito</div>
+        <div class="grp"><span class="role r-ro"><span class="dot"></span>READONLY</span> consulta</div>
+      </div>
+      <div class="legend">
+        <div class="grp"><b style="color:var(--ink)">Status da tela</b></div>
+        <div class="grp"><span class="tag t-redo">redesenho</span> já existe — refinar ao DS</div>
+        <div class="grp"><span class="tag t-new">nova</span> criar do zero</div>
+        <div class="grp"><span class="tag t-prop">proposta</span> sem backend confirmado</div>
+        <div class="grp" style="margin-left:auto"><span class="m m-get">GET</span><span class="m m-post">POST</span><span class="m m-patch">PATCH</span><span class="m m-del">DEL</span><span class="m m-sse">SSE</span></div>
+      </div>
+
+      <div class="note"><b>Regra de ouro do RBAC.</b> Ação sem permissão nunca aparece como erro: o controle fica <b>oculto</b>, ou <b>visível-desabilitado</b> com tooltip "requer perfil X". Telas inteiras fora do papel não entram no menu.</div>
+    </section>
+
+    <!-- 01 PERSONAS -->
+    <section class="sec" id="personas">
+      <div class="sec-num">01</div>
+      <h2>Personas &amp; RBAC</h2>
+      <p class="sec-lead">As personas <em>são</em> os papéis RBAC. A UI é role-gated: menu, botões e telas mudam por papel. Toda decisão de layout parte de quem está olhando.</p>
+
+      <table class="t">
+        <thead><tr><th style="width:130px">Papel</th><th style="width:200px">Persona</th><th>O que faz na UI</th></tr></thead>
+        <tbody>
+          <tr><td><span class="role r-admin"><span class="dot"></span>ADMIN</span></td><td><b>Gestor da plataforma</b></td><td>Tudo: configura módulos, autonomia, cofre/certificado, usuários, workbench.</td></tr>
+          <tr><td><span class="role r-op"><span class="dot"></span>OPERATOR</span></td><td><b>Contador / Analista fiscal</b></td><td>Núcleo fiscal: upload, apuração, retificação, PER/DCOMP, relatórios.</td></tr>
+          <tr><td><span class="role r-aud"><span class="dot"></span>AUDITOR</span></td><td><b>Auditor / Perito</b></td><td>Leitura + aprovações (HITL), auditoria (ledger), achados — <b>não edita</b>.</td></tr>
+          <tr><td><span class="role r-ro"><span class="dot"></span>READONLY</span></td><td><b>Cliente / Consulta</b></td><td>Dashboards, consultas, histórico — somente leitura.</td></tr>
+        </tbody>
+      </table>
+      <p class="cap">Fonte da verdade dos papéis: <span class="mono">src/api/rbac.py</span>. Cliente HTTP centraliza auth/headers em <span class="mono">frontend/src/api/client.js</span>.</p>
+    </section>
+
+    <!-- 02 DESIGN SYSTEM -->
+    <section class="sec" id="ds">
+      <div class="sec-num">02</div>
+      <h2>Sistema de design</h2>
+      <p class="sec-lead">Não criar do zero: <b>auditar e formalizar</b> as 24 telas e o set de ícones existentes num único universo visual. Os tokens abaixo já vivem em <span class="mono">frontend/src/styles.css</span> — usar exclusivamente eles.</p>
+
+      <h3 class="sub">2.1 · Tokens</h3>
+      <table class="t">
+        <thead><tr><th>Grupo</th><th>Tokens</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td><b>Marca / primária</b></td><td><span class="mono">--navy #2C5AA0</span> · <span class="mono">--navy-2</span> · <span class="mono">--navy-tint</span> · <span class="mono">--navy-tint-2</span></td><td>Ações primárias, item ativo, glyphs, badges navy.</td></tr>
+          <tr><td><b>Texto</b></td><td><span class="mono">--ink</span> · <span class="mono">--ink-2</span> · <span class="mono">--faint</span></td><td>Principal · secundário/labels · placeholders/metadados.</td></tr>
+          <tr><td><b>Superfícies</b></td><td><span class="mono">--bg</span> · <span class="mono">--surface</span> · <span class="mono">--line</span> · <span class="mono">--mut-bg</span></td><td>Fundo app · cards/modais · bordas · badges neutros.</td></tr>
+          <tr><td><b>Semáforo</b></td><td><span class="pill p-ok"><span class="dot"></span>--ok</span> <span class="pill p-warn"><span class="dot"></span>--warn</span> <span class="pill p-crit"><span class="dot"></span>--crit</span> + <span class="mono">-bg</span></td><td>Sucesso · aviso · erro. Severidades fiscais (ERRO/AVISO) e situação (devedor/credor/equilibrado) usam estes.</td></tr>
+          <tr><td><b>Forma</b></td><td><span class="mono">--radius 10</span> · <span class="mono">--radius-sm 7</span> · <span class="mono">--shadow</span></td><td>Cards/modais · botões/inputs · elevação sutil.</td></tr>
+          <tr><td><b>Tipografia</b></td><td><span class="mono">IBM Plex Sans</span> · <span class="mono">IBM Plex Mono</span> · <span class="serif" style="font-family:var(--serif)">Newsreader</span></td><td>UI · números/IDs/valores monetários · títulos.</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>Data-heavy.</b> A escala tipográfica enfatiza tabelas densas e valores monetários — sempre tabulares e <b>alinhados à direita</b> em <span class="mono">IBM Plex Mono</span>. Moeda R$, datas dd/mm/aaaa, milhar com separador. Tema claro e escuro com paridade.</div>
+
+      <h3 class="sub">2.2 · Biblioteca de componentes (mínimo)</h3>
+      <div class="cgrid">
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"></path></svg></span>KPI &amp; gráficos</h4><p>Cartão de KPI; séries temporais de apuração; distribuição de achados.</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3.5 6h.01"></path><path d="M3.5 12h.01"></path><path d="M3.5 18h.01"></path></svg></span>Tabela densa</h4><p>Ordenação, paginação, filtro. Base de quase toda tela fiscal.</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"></path><path d="M9 13h6"></path><path d="M9 17h4"></path></svg></span>Formulário validado</h4><p>Validação inline (taxonomia 422 → campo realçado).</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11l-8 8a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7-7"></path></svg></span>Dropzone de upload</h4><p>Até 500 MB, validação client-side, barra de progresso → estado processando.</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h5v4H6z"></path><path d="M13 16h5v4h-5z"></path><path d="M8.5 8v4h7v4"></path><path d="M3.5 12h5"></path></svg></span>Stepper / wizard</h4><p>Fluxos multi-etapa (o fio-de-ouro fiscal e PER/DCOMP).</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M7 7 3 11l4 4"></path><path d="M17 7l4 4-4 4"></path></svg></span>Diff viewer</h4><p>Original × retificado, lado a lado, com revalidação simulada.</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4 3 7 7 9 4-2 7-5 7-9V6z"></path></svg></span>Badge de status</h4><p>Pills: processando/processado/erro · devedor/credor · aguardando_aprovação.</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"></path><path d="M9 8h7"></path><path d="M9 12h7"></path><path d="M9 16h4"></path></svg></span>Modal · drawer · toast</h4><p>Confirmação de irreversíveis, detalhe lateral, feedback efêmero.</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z"></path><path d="M21 21l-4-4"></path></svg></span>Busca · período · UF</h4><p>Barra de busca, seletor de período (aaaa-mm) e seletor de UF.</p></div>
+        <div class="comp"><h4><span class="gl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"></path><path d="M9 12h7"></path></svg></span>Visualizador JSON / ficha</h4><p>Ficha PER/DCOMP legível; resposta crua expansível; tabela de auditoria.</p></div>
+      </div>
+
+      <h3 class="sub">2.3 · Estados obrigatórios — entregar TODOS por tela</h3>
+      <p class="cap">Skeletons em vez de spinners vazios. Erro segue a taxonomia da §6.</p>
+      <div class="states6">
+        <div class="s6"><div class="t"><span class="dot" style="background:var(--navy)"></span>Carregando</div><div class="d">Skeletons que ecoam o layout final — nunca um spinner morto.</div></div>
+        <div class="s6"><div class="t"><span class="dot" style="background:var(--faint)"></span>Vazio / 1º uso</div><div class="d">Com CTA ("Envie sua primeira escrituração").</div></div>
+        <div class="s6"><div class="t"><span class="dot" style="background:var(--crit)"></span>Erro</div><div class="d">422 validação · 403 permissão · 503 indisponível · 500 c/ id de referência.</div></div>
+        <div class="s6"><div class="t"><span class="dot" style="background:var(--warn)"></span>Sem permissão</div><div class="d">Controle oculto ou desabilitado com o motivo ("requer perfil X").</div></div>
+        <div class="s6"><div class="t"><span class="dot" style="background:var(--ok)"></span>Sucesso / conteúdo</div><div class="d">O estado normal, povoado.</div></div>
+        <div class="s6"><div class="t"><span class="dot" style="background:#5a3fa0"></span>Processando (async)</div><div class="d">Job em background (§6.2): poll de status, sair e voltar sem perder.</div></div>
+      </div>
+
+      <h3 class="sub">2.4 · Transversais sempre presentes</h3>
+      <ul class="clean">
+        <li><b>i18n pt-BR</b>, moeda R$, datas dd/mm/aaaa, números com separador de milhar.</li>
+        <li><b>A11y WCAG 2.1 AA</b>: contraste, navegação por teclado, rótulos ARIA, foco visível (anel navy 2px), <span class="mono">prefers-reduced-motion</span>.</li>
+        <li><b>Responsivo desktop-first</b> (ferramenta de trabalho): tabelas/formulários degradam para tablet; mobile = consulta/aprovação, não edição pesada.</li>
+        <li><b>Mascaramento de PII (LGPD)</b>: CPF/CNPJ e dados pessoais mascarados por padrão (<span class="mono">***.456.789-**</span>); "revelar" auditado, só para papéis autorizados.</li>
+      </ul>
+    </section>
+
+    <!-- 03 SHELL -->
+    <section class="sec" id="shell">
+      <div class="sec-num">03</div>
+      <h2>Shell do aplicativo</h2>
+      <p class="sec-lead">A moldura comum a todas as telas: autenticação, top bar, e a sidebar role-gated com um grupo "Módulos" que muda <em>ao vivo</em>.</p>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span class="bind-glyph" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10h12v10H6z"></path><path d="M9 10V7a3 3 0 0 1 6 0v3"></path></svg></span><b style="font-size:15px">Login / sessão</b><span class="tag t-redo" style="margin-left:auto">redesenho</span></div>
+        <p style="margin:0;font-size:13.5px;color:var(--ink-2)">Autenticação JWT via <span class="mono">/auth</span>. Estados: <b>token expirado</b>, <b>credencial inválida</b>, e o caso <b>"auth desligada"</b> (ambiente dev — banner informativo, entra direto).</p>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span class="bind-glyph" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"></path><path d="M10.5 21h3"></path></svg></span><b style="font-size:15px">Top bar</b></div>
+        <p style="margin:0;font-size:13.5px;color:var(--ink-2)">Identidade do usuário + papel · alternância de tema (claro/escuro) · notificações com <b>badge de aprovações HITL pendentes</b> · busca global · breadcrumb da tela atual.</p>
+      </div>
+
+      <div class="card sensitive" style="border-color:#e8d9a8">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span class="bind-glyph" style="width:30px;height:30px;background:var(--warn-bg);color:var(--warn)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"></path></svg></span><b style="font-size:15px">Sidebar com grupo "Módulos" dinâmico</b><span class="m m-sse" style="margin-left:auto">SSE</span></div>
+        <p style="margin:0 0 10px;font-size:13.5px;color:var(--ink-2)">Grupos por domínio (Jurídico · Fiscal · Operação · Administração), gated por papel. O grupo <b>Módulos</b> é alimentado em tempo real por <span class="mono">GET /api/v1/slots/stream</span>. Quando um admin liga/desliga um módulo (<span class="mono">PATCH /modules/{id}</span>), o item aparece/some <b>sem recarregar</b>.</p>
+        <ul class="clean" style="margin:0">
+          <li><b>Estado de transição</b>: item entrando (fade+slide) / saindo (some com aviso se aberto).</li>
+          <li><b>Indicador "ao vivo"</b>: dot pulsante junto ao rótulo do grupo enquanto o stream está conectado.</li>
+          <li><b>Tela aberta desligada</b>: banner "Este módulo foi desativado pelo administrador" + redirect suave para a home do papel.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 04 MAPA-MESTRE -->
+    <section class="sec" id="mapa">
+      <div class="sec-num">04</div>
+      <h2>Mapa-mestre — tela ↔ endpoint ↔ permissão</h2>
+      <p class="sec-lead">O contrato. Cada cartão é uma tela (ou aba) que consome esses endpoints sob o papel mínimo indicado. Prefixo de API: <span class="mono">/api/v1</span>. O <span class="mono">screen_id</span> é a chave que entra no sistema de slots dinâmicos — acordar com o dev antes de criar tela nova.</p>
+
+      <!-- 4.1 FISCAL -->
+      <div class="dom">
+        <div class="dom-head"><h3>4.1 · Fiscal — núcleo de valor</h3><span class="k">9 telas</span></div>
+        <p class="dom-desc">O fio-de-ouro do produto (§5). Tudo gira em torno da escrituração SPED: importar, validar, corrigir, apurar e retificar.</p>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="attach"></span><div><div class="bind-name">Upload SPED</div><div class="bind-id">fiscal-upload · <span class="tag t-new">nova</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Dropzone grande (≤500 MB) + campos <span class="mono">regime</span> (lucro_real/presumido/simples) e <span class="mono">uf</span>. Ao enviar, retorna <span class="mono">db_id</span> e dispara processamento assíncrono — levar ao estado "processando", nunca a um spinner morto.</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/fiscal/upload</span><span class="perm">multipart · → job</span></div>
+            <div class="bind-states"><span class="st hot">processando (async)</span><span class="st hot">erro 422 tipo/tamanho</span><span class="st">vazio / 1º uso</span><span class="st">sucesso → escrituração</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="list"></span><div><div class="bind-name">Escriturações (lista)</div><div class="bind-id">fiscal-escrituracoes · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR</span><span class="role r-aud"><span class="dot"></span>AUDITOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Tabela densa com status por escrituração (pill processando/processado/erro), período, UF e regime. Filtro + ordenação + paginação.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/fiscal/apuracoes</span><span class="perm">lista</span></div>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/fiscal/escrituracoes/{id}</span><span class="perm">status</span></div>
+            <div class="bind-states"><span class="st hot">vazio → CTA upload</span><span class="st">carregando (skeleton)</span><span class="st">erro 503</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="doc"></span><div><div class="bind-name">Escrituração (detalhe)</div><div class="bind-id">fiscal-escrituracao · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR</span><span class="role r-aud"><span class="dot"></span>AUDITOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Hub da escrituração com <b>stepper de progresso</b> (upload → achados → lote → apuração → retificação). Abas: registros, achados, status.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/fiscal/escrituracoes/{id}</span><span class="perm">status</span></div>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/{id}/achados · /{id}/registros</span><span class="perm">conteúdo</span></div>
+            <div class="bind-states"><span class="st hot">processando</span><span class="st">carregando</span><span class="st">erro 500 + id ref.</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="alert"></span><div><div class="bind-name">Achados (validação)</div><div class="bind-id">fiscal-achados · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-aud"><span class="dot"></span>AUDITOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Lista filtrável por severidade (<span class="pill p-crit" style="padding:1px 8px">ERRO</span> <span class="pill p-warn" style="padding:1px 8px">AVISO</span>) e por regra. Cada achado mostra registro, campo, descrição e <b>dica de correção</b> — ponte para a edição em lote.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/fiscal/escrituracoes/{id}/achados</span><span class="perm">auditor</span></div>
+            <div class="bind-states"><span class="st hot">vazio → "nenhum achado"</span><span class="st">carregando</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="edit"></span><div><div class="bind-name">Edição em lote</div><div class="bind-id">fiscal-edicao-lote · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Seleção de registros + campos. <span class="mono">dry_run</span> mostra o <b>antes/depois</b> e a revalidação simulada antes de aplicar. Se exigir aprovação, entra em HITL (§6) e a tela passa a <span class="pill p-warn" style="padding:1px 8px">aguardando_aprovação</span>.</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/fiscal/escrituracoes/{id}/registros/lote</span><span class="perm">dry_run → real</span></div>
+            <div class="bind-states"><span class="st hot">preview dry-run</span><span class="st hot">aguardando_aprovação</span><span class="st">erro 422</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="scale"></span><div><div class="bind-name">Apuração</div><div class="bind-id">fiscal-apuracao · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Painel por tributo (ICMS · PIS · COFINS · ICMS-ST · IPI) com débitos, créditos, ajustes, saldo e situação (<span class="pill p-crit" style="padding:1px 8px">devedor</span> <span class="pill p-ok" style="padding:1px 8px">credor</span> <span class="pill p-mut" style="padding:1px 8px">equilibrado</span>). Destaque para divergências computado × declarado (E110/E210/E520/M200/M600).</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/fiscal/escrituracoes/{id}/apuracao</span><span class="perm">operator</span></div>
+            <div class="bind-states"><span class="st hot">divergências realçadas</span><span class="st">processando</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="compare"></span><div><div class="bind-name">Retificação</div><div class="bind-id">retificacao · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR <span style="opacity:.7">retificacao:write</span></span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec"><b>Diff viewer</b> original × retificado · resultado de validar-layout · registro de nota de correção · download do TXT. Gerar retificadora é <b>ato formal</b> — confirmação clara (§6).</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/retificacao/comparar · /validar-layout · /nota-correcao</span></div>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/fiscal/escrituracoes/{id}/retificado</span><span class="perm">download TXT</span></div>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/fiscal/escrituracoes/{id}/lote/confirmar</span><span class="perm">pós-HITL</span></div>
+            <div class="bind-states"><span class="st hot">confirmação irreversível</span><span class="st">gerar → baixar</span><span class="st">erro layout</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="building"></span><div><div class="bind-name">Due Diligência</div><div class="bind-id">due-diligence · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Ficha fiscal por CNPJ. Identificador <b>mascarado por padrão</b> (LGPD).</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/fiscal/due-diligence/{cnpj}</span><span class="perm">operator</span></div>
+            <div class="bind-states"><span class="st">vazio → busca</span><span class="st">erro 422 CNPJ inválido</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="spark"></span><div><div class="bind-name">Consultoria Tributária (RAG)</div><div class="bind-id">consultoria · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Pergunta tributária → resposta fundamentada (RAG) com fontes citadas. Pode acionar HITL conforme autonomia (§7).</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/fiscal/consultoria</span><span class="perm">operator · RAG</span></div>
+            <div class="bind-states"><span class="st">vazio → sugestões</span><span class="st">processando</span><span class="st">sucesso + fontes</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4.2 PER/DCOMP -->
+      <div class="dom">
+        <div class="dom-head"><h3>4.2 · PER/DCOMP &amp; Transmissão</h3><span class="k">2 telas · capstone</span></div>
+        <p class="dom-desc">A ponta irreversível e federal do produto. Máxima fricção e clareza de impacto.</p>
+
+        <div class="bind capstone">
+          <div class="bind-top"><span class="bind-glyph" data-ic="doc"></span><div><div class="bind-name">PER/DCOMP</div><div class="bind-id">per-dcomp · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR <span style="opacity:.7">per_dcomp:generate/validate</span></span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Escolher tipo (<span class="mono">/tipos</span>) → gerar a partir da apuração → validar layout antes de transmitir. Mostrar a <b>ficha gerada de forma legível</b> (visualizador de ficha/JSON).</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/per_dcomp/tipos</span></div>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/per_dcomp/gerar · /gerar-de-apuracao · /validar</span></div>
+            <div class="bind-states"><span class="st hot">ficha legível</span><span class="st">erro de validação</span><span class="st">sucesso → transmissão</span></div>
+          </div>
+        </div>
+
+        <div class="bind capstone">
+          <div class="bind-top"><span class="bind-glyph" data-ic="send"></span><div><div class="bind-name">Transmissão e-CAC</div><div class="bind-id">transmissao · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>OPERATOR <span style="opacity:.7">transmissao:enviar/consultar</span></span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">A ação mais sensível: <b>irreversível e federal</b>. Exigir <b>dupla confirmação</b> + resumo do que será transmitido (homologação vs produção bem rotulado). Acompanhar status; histórico; expor o <b>circuit breaker</b>: quando aberto, explicar "e-CAC indisponível, transmissão bloqueada temporariamente".</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/transmissao/enviar</span><span class="perm">dupla confirmação</span></div>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/transmissao/status/{id} · /historico · /circuit</span></div>
+            <div class="bind-states"><span class="st hot">dupla confirmação</span><span class="st hot">circuit aberto → bloqueio</span><span class="st">processando</span><span class="st">homolog. vs produção</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4.3 COFRE -->
+      <div class="dom">
+        <div class="dom-head"><h3>4.3 · Cofre &amp; Certificado</h3><span class="k">1 tela · sensível</span></div>
+        <p class="dom-desc">Credenciais e certificado A1. Nunca exibir o payload — só metadados.</p>
+
+        <div class="bind sensitive">
+          <div class="bind-top"><span class="bind-glyph" data-ic="lock"></span><div><div class="bind-name">Cofre de Credenciais</div><div class="bind-id">vault · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>ADMIN <span style="opacity:.7">vault:read/write/rotate</span></span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Só metadados (tipo, validade, último uso) — <b>nunca o payload</b>. Armazenar · rotacionar (histórico de timestamps) · excluir (destrutivo → confirmação forte). Assinatura <span class="mono">/sign</span> com cert A1: deixar claro o que está sendo assinado.</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/vault/store · /rotate · /sign</span></div>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/vault/metadata</span></div>
+            <div class="ep"><span class="m m-del">DEL</span><span class="path">/vault/delete</span><span class="perm">destrutivo</span></div>
+            <div class="bind-states"><span class="st hot">cert ausente/expirado → bloqueia PER/DCOMP</span><span class="st hot">exclusão c/ confirmação forte</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+        <div class="note warn"><b>Estado especial (owner-action AP-05).</b> Certificado ausente ou expirado → banner bloqueando PER/DCOMP e transmissão, com instrução de upload/renovação.</div>
+      </div>
+
+      <!-- 4.4 ANALITICA -->
+      <div class="dom">
+        <div class="dom-head"><h3>4.4 · Analítica, Relatórios &amp; Workbench</h3><span class="k">3 telas</span></div>
+        <p class="dom-desc">Leitura agregada do que o núcleo fiscal produziu.</p>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="graph"></span><div><div class="bind-name">Analytics Fiscal</div><div class="bind-id">analytics · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-aud"><span class="dot"></span>AUDITOR</span><span class="role r-op"><span class="dot"></span>OPERATOR</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">≥5 KPIs · séries históricas de apuração · distribuição de achados · lista de anomalias — tudo com <b>seletor de período/UF/tributo</b>.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/analytics/kpis · /apuracoes/historico · /achados/distribuicao</span></div>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/analytics/anomalias · /retificacoes</span></div>
+            <div class="bind-states"><span class="st hot">vazio → "sem dados no período"</span><span class="st">carregando (skeleton gráficos)</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="list"></span><div><div class="bind-name">Relatórios</div><div class="bind-id">reports · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>reports:read</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Catálogo de tipos → gerar com download em CSV ou visualização JSON. Padrão "gerar → baixar" (§6).</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/reports/tipos · /reports/gerar</span><span class="perm">JSON | CSV</span></div>
+            <div class="bind-states"><span class="st">vazio → escolher tipo</span><span class="st hot">gerar → baixar</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="kit"></span><div><div class="bind-name">Workbench SQL</div><div class="bind-id">workbench · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-op"><span class="dot"></span>workbench:execute</span><span class="role r-admin"><span class="dot"></span>workbench:admin</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Executar <b>queries pré-aprovadas parametrizadas</b> (não SQL livre). <span class="mono">/validar</span> mostra por que um SQL foi rejeitado. <span class="mono">/registrar</span> novo template é só admin.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/workbench/queries</span></div>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/workbench/executar · /validar · /registrar</span></div>
+            <div class="bind-states"><span class="st hot">SQL rejeitado → motivo</span><span class="st">sem permissão (registrar oculto)</span><span class="st">sucesso → resultado</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4.5 JURIDICO / USUARIO -->
+      <div class="dom">
+        <div class="dom-head"><h3>4.5 · Jurídico / Usuário</h3><span class="k">7 telas</span></div>
+        <p class="dom-desc">A área do usuário consultor. Maioria já existe; Investigação 360° entregue na Fase 1.</p>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="chat"></span><div><div class="bind-name">Assistente / Tarefas</div><div class="bind-id">assistant · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>qualquer</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Chat com intent + fontes + trilha. Tarefas possivelmente assíncronas → ciclo de job (§6). Banner HITL quando a resposta exige revisão.</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/api/v1/tasks</span><span class="perm">+ MCP</span></div>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/jobs/{id}</span><span class="perm">status async</span></div>
+            <div class="bind-states"><span class="st hot">vazio → sugestões</span><span class="st">processando (job)</span><span class="st">banner HITL</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="scale"></span><div><div class="bind-name">Jurisprudência</div><div class="bind-id">jurisprudencia · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>qualquer</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Busca + comparação lado a lado de decisões (componente compare).</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/jurisprudencia/...</span></div>
+            <div class="bind-states"><span class="st">vazio → busca</span><span class="st">sem resultados</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="law"></span><div><div class="bind-name">Legislativo</div><div class="bind-id">legislativo · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>qualquer</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Proposições legislativas + análise de IA sob demanda.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/proposicoes-legislativas</span></div>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/api/v1/analises-legislativas</span></div>
+            <div class="bind-states"><span class="st">vazio</span><span class="st">processando (análise)</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="radar"></span><div><div class="bind-name">Investigação 360°</div><div class="bind-id">investigacao · <span class="tag t-new">nova · Fase 1 ✓</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>intelligence:query</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Due diligence de CPF/CNPJ/processo/nome contra 7 fontes, score de risco 0–100 em 4 dimensões, gate HITL ≥ 70. <b>Já entregue em alta fidelidade</b> (ver handoff). PII sempre mascarada; QSA com expansão de quadro societário.</p>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/api/v1/intelligence/graphql</span><span class="perm">GraphQL</span></div>
+            <div class="bind-states"><span class="st">vazio</span><span class="st">carregando (probe 7 fontes)</span><span class="st">erro</span><span class="st">sucesso + HITL gate</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="clock"></span><div><div class="bind-name">Minhas consultas (histórico)</div><div class="bind-id">minhas-consultas · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>ledger:read</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Histórico auditável das consultas (inclui 360°), com export CSV.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/ledger · /ledger/export.csv</span></div>
+            <div class="bind-states"><span class="st">vazio → 1ª consulta</span><span class="st hot">gerar → baixar CSV</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="cog"></span><div><div class="bind-name">Perfil</div><div class="bind-id">profile · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>self</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Dados do usuário, tema, preferências. Zona de perigo (exclusão de conta) é Fase 3.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/profile</span></div>
+            <div class="ep"><span class="m m-patch">PUT</span><span class="path">/api/v1/profile</span></div>
+            <div class="bind-states"><span class="st">carregando</span><span class="st">erro 422 validação</span><span class="st">sucesso + toast</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="privacy"></span><div><div class="bind-name">Privacidade (LGPD)</div><div class="bind-id">privacidade · <span class="tag t-new">nova</span> <span class="tag t-prop">Fase 3</span></div></div><div class="bind-roles"><span class="role r-ro"><span class="dot"></span>self · lgpd:*</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Consentimento e direitos do titular (Art. 18). Por ora, placeholder com nota de fase; linguagem de "meus dados", ao lado do Perfil.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/lgpd</span><span class="perm">consentimento · direitos</span></div>
+            <div class="bind-states"><span class="st">placeholder Fase 3</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4.6 ADMIN -->
+      <div class="dom">
+        <div class="dom-head"><h3>4.6 · Administração &amp; Configurações</h3><span class="k">9 telas</span></div>
+        <p class="dom-desc">Governança da plataforma. Inclui as superfícies de configuração da §7.</p>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="shield"></span><div><div class="bind-name">Aprovações (HITL)</div><div class="bind-id">hitl · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-aud"><span class="dot"></span>hitl:write</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Fila + detalhe de aprovações. Aplica no fluxo de lote (<span class="mono">/lote/confirmar</span>). Aprovar/recusar com justificativa. Badge de pendências no shell.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/hitl</span><span class="perm">fila + detalhe</span></div>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/fiscal/.../lote/confirmar</span></div>
+            <div class="bind-states"><span class="st hot">vazio → "fila limpa"</span><span class="st">recusa c/ justificativa</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="pulse"></span><div><div class="bind-name">Monitoramento</div><div class="bind-id">monitor · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>monitoring:read</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Circuit breakers, profundidade de fila, saúde dos serviços. Ganha abas Saúde · Integrações · A2A na Fase 4.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/monitoring · /health</span></div>
+            <div class="bind-states"><span class="st hot">circuit aberto/fechado</span><span class="st">carregando</span><span class="st">sucesso (ao vivo)</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="ledger"></span><div><div class="bind-name">Auditoria (Ledger)</div><div class="bind-id">ledger · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-aud"><span class="dot"></span>ledger:read</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Tabela de auditoria imutável com hash por evento + export CSV. Identificadores mascarados.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/ledger · /ledger/export.csv</span></div>
+            <div class="bind-states"><span class="st">carregando</span><span class="st hot">gerar → baixar CSV</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="flow"></span><div><div class="bind-name">Autonomia (DMN)</div><div class="bind-id">autonomy · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>config:write</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Tabela de decisão DMN + faixas de confiança que acionam HITL (gate = 70). Editar regras.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/autonomy</span></div>
+            <div class="ep"><span class="m m-patch">PATCH</span><span class="path">/api/v1/autonomy</span><span class="perm">config:write</span></div>
+            <div class="bind-states"><span class="st">sem permissão (read-only p/ não-admin)</span><span class="st">erro 422 regra</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="graduate"></span><div><div class="bind-name">Treinamento</div><div class="bind-id">training · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>ADMIN</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Sessões, feedback, A/B e métricas. Seção A/B Test de agentes na Fase 4.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/training</span><span class="perm">sessões · feedback · A/B</span></div>
+            <div class="bind-states"><span class="st">vazio → 1ª sessão</span><span class="st">processando</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="robot"></span><div><div class="bind-name">Agentes de IA</div><div class="bind-id">agents · <span class="tag t-redo">redesenho</span></div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>agents:read/manage</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Lista de agentes com trust score (barra), capacidades, e invocação. PATCH de trust e drawer "Testar agente" (Fase 4).</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/agents · /capabilities · /by-capability/{c} · /{id}</span></div>
+            <div class="ep"><span class="m m-patch">PATCH</span><span class="path">/agents/{id}/trust</span></div>
+            <div class="ep"><span class="m m-post">POST</span><span class="path">/agents/{id}/invoke</span></div>
+            <div class="bind-states"><span class="st">sem permissão (trust read-only)</span><span class="st">processando (invoke)</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind sensitive">
+          <div class="bind-top"><span class="bind-glyph" data-ic="cog"></span><div><div class="bind-name">Gestão de Módulos</div><div class="bind-id">modules · <span class="tag t-new">nova</span></div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>modules:write</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">UI admin do toggle: liga/desliga módulos e licenças. <b>PATCH propaga via SSE</b> ao menu de todos os usuários, sem reload (§3). Backend existe; só falta a tela de gestão.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/api/v1/modules · /{id}</span></div>
+            <div class="ep"><span class="m m-patch">PATCH</span><span class="path">/api/v1/modules/{id}</span><span class="perm">→ SSE</span></div>
+            <div class="bind-states"><span class="st hot">toggle → broadcast SSE</span><span class="st">confirmação ao desligar</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="user"></span><div><div class="bind-name">Usuários &amp; RBAC</div><div class="bind-id">usuarios · <span class="tag t-new">nova</span> <span class="tag t-prop">AP-08</span></div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>ADMIN</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Gestão de usuários e papéis (criar/editar/desativar, atribuir papel). <b>Backend a implementar (AP-08)</b> — desenhar como proposta e confirmar contratos com o time.</p>
+            <div class="ep"><span class="m m-sse">PROP.</span><span class="path">CRUD usuários + atribuição de papel</span><span class="perm">a definir</span></div>
+            <div class="bind-states"><span class="st">vazio → convidar</span><span class="st">erro 422</span><span class="st">sucesso</span></div>
+          </div>
+        </div>
+
+        <div class="bind">
+          <div class="bind-top"><span class="bind-glyph" data-ic="info"></span><div><div class="bind-name">Prontidão de Sistema</div><div class="bind-id">system-readiness · <span class="tag t-new">nova</span> · read-only</div></div><div class="bind-roles"><span class="role r-admin"><span class="dot"></span>monitoring:read</span></div></div>
+          <div class="bind-body">
+            <p class="bind-spec">Painel read-only que reflete os owner-actions AP-01..06: Postgres · MinIO · certificado A1 · e-CAC. Verde/âmbar/vermelho por dependência, com instrução de ação.</p>
+            <div class="ep"><span class="m m-get">GET</span><span class="path">/health · /circuit</span><span class="perm">reflete AP-01..06</span></div>
+            <div class="bind-states"><span class="st hot">dependência fora → instrução</span><span class="st">carregando</span><span class="st">tudo verde</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 FIO-DE-OURO -->
+    <section class="sec" id="fio">
+      <div class="sec-num">05</div>
+      <h2>Fio-de-ouro fiscal</h2>
+      <p class="sec-lead">O fluxo central, ponta a ponta. Desenhá-lo como uma <b>jornada com stepper/breadcrumb de progresso visível dentro da escrituração</b>, para o usuário sempre saber em que etapa está e o que falta. É a demonstração principal do produto (§9).</p>
+      <div class="flow">
+        <div class="step"><span class="sn">01</span><div class="st-t">Upload</div><div class="st-d">Dropzone ≤500 MB + regime/UF → dispara job.</div><span class="st-ep">POST /fiscal/upload</span></div>
+        <div class="step"><span class="sn">02</span><div class="st-t">Processando</div><div class="st-d">Job em background; poll de status, sair e voltar.</div><span class="st-ep">GET /escrituracoes/{id}</span></div>
+        <div class="step"><span class="sn">03</span><div class="st-t">Achados</div><div class="st-d">ERRO/AVISO filtráveis + dica de correção.</div><span class="st-ep">GET /{id}/achados</span></div>
+        <div class="step"><span class="sn">04</span><div class="st-t">Edição em lote</div><div class="st-d">dry-run antes/depois → aplicar (pode ir a HITL).</div><span class="st-ep">POST /{id}/registros/lote</span></div>
+        <div class="step"><span class="sn">05</span><div class="st-t">Apuração</div><div class="st-d">Por tributo, saldo e situação; divergências.</div><span class="st-ep">POST /{id}/apuracao</span></div>
+        <div class="step"><span class="sn">06</span><div class="st-t">Retificação</div><div class="st-d">Diff → validar layout → baixar TXT.</div><span class="st-ep">POST /retificacao/*</span></div>
+        <div class="step"><span class="sn">07</span><div class="st-t">PER/DCOMP</div><div class="st-d">Gerar-de-apuração → validar → ficha legível.</div><span class="st-ep">POST /per_dcomp/*</span></div>
+        <div class="step"><span class="sn">08</span><div class="st-t">Transmissão</div><div class="st-d">Dupla confirmação → status (irreversível).</div><span class="st-ep">POST /transmissao/enviar</span></div>
+      </div>
+    </section>
+
+    <!-- 06 TRANSVERSAIS -->
+    <section class="sec" id="transversais">
+      <div class="sec-num">06</div>
+      <h2>Padrões transversais</h2>
+      <p class="sec-lead">Repetem-se em dezenas de telas. Desenhar <b>uma vez</b> como componentes e reusar — não reinventar por tela.</p>
+      <div class="cgrid">
+        <div class="comp"><h4><span class="gl" data-ic="attach"></span>Upload de arquivo grande</h4><p>Dropzone ≤500 MB, validação client-side de tipo/tamanho, barra de progresso, transição para processamento.</p></div>
+        <div class="comp"><h4><span class="gl" data-ic="refresh"></span>Ciclo de job assíncrono</h4><p>Submeter → "em andamento" com status (<span class="mono">/jobs/{id}</span>) → conclusão. Nunca bloquear a UI; permitir sair e voltar.</p></div>
+        <div class="comp"><h4><span class="gl" data-ic="shield"></span>HITL (aprovação humana)</h4><p>Entra na fila; solicitante vê <span class="mono">aguardando_aprovação</span>; aprovador decide com justificativa. Badge de pendências no shell.</p></div>
+        <div class="comp"><h4><span class="gl" data-ic="pulse"></span>Tempo real (SSE)</h4><p>Menu de módulos e status. Indicador "ao vivo" enquanto o stream está conectado.</p></div>
+        <div class="comp"><h4><span class="gl" data-ic="copy"></span>Downloads</h4><p>TXT retificado e CSV de relatórios/ledger. Padrão único "gerar → baixar".</p></div>
+        <div class="comp"><h4><span class="gl" data-ic="alert"></span>Confirmação de irreversíveis</h4><p>Transmissão e-CAC, exclusão de credencial, retificadora → modal com resumo do impacto.</p></div>
+      </div>
+
+      <h3 class="sub">6.5 · Taxonomia de erro (consistente em todas as telas)</h3>
+      <table class="t">
+        <thead><tr><th style="width:90px">Código</th><th>Significado</th><th>Tratamento na UI</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill p-warn" style="padding:1px 9px">422</span></td><td>Validação</td><td>Realçar o campo + mensagem específica inline.</td></tr>
+          <tr><td><span class="pill p-warn" style="padding:1px 9px">403</span></td><td>Sem permissão</td><td>Estado "sem permissão" (§2.3) — controle oculto/desabilitado com motivo.</td></tr>
+          <tr><td><span class="pill p-crit" style="padding:1px 9px">503</span></td><td>Banco/serviço indisponível</td><td>Estado de manutenção, com botão de retry.</td></tr>
+          <tr><td><span class="pill p-crit" style="padding:1px 9px">500</span></td><td>Erro interno</td><td>Mensagem neutra + <b>id de referência</b> para suporte (o backend já devolve — exibi-lo).</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>Mascaramento de PII em toda exibição.</b> CPF/CNPJ e dados pessoais mascarados por padrão; "revelar" auditado só para papéis autorizados. Nunca no DOM oculto, tooltips ou logs.</div>
+    </section>
+
+    <!-- 07 CONFIG -->
+    <section class="sec" id="config">
+      <div class="sec-num">07</div>
+      <h2>Configurações — todas as superfícies</h2>
+      <p class="sec-lead">"Todas as configurações" não é uma tela só — é um conjunto de superfícies espalhadas pelos domínios. Mapa de onde cada uma vive.</p>
+      <table class="t">
+        <thead><tr><th>Configuração</th><th style="width:200px">Onde</th><th style="width:230px">Backend</th></tr></thead>
+        <tbody>
+          <tr><td><b>Módulos</b> (ligar/desligar, licenças)</td><td>Gestão de Módulos</td><td class="mono">PATCH /modules/{id} + SSE</td></tr>
+          <tr><td><b>Autonomia</b> (DMN, faixas de confiança → HITL)</td><td>Autonomia</td><td class="mono">/api/v1/autonomy</td></tr>
+          <tr><td><b>Usuários &amp; papéis</b> (RBAC) <span class="tag t-new">nova</span></td><td>Admin → Usuários</td><td class="mono">a implementar (AP-08)</td></tr>
+          <tr><td><b>Cofre &amp; certificado A1</b></td><td>Cofre</td><td class="mono">/vault/*</td></tr>
+          <tr><td><b>Templates de query</b> do workbench</td><td>Workbench (admin)</td><td class="mono">POST /workbench/registrar</td></tr>
+          <tr><td><b>Treinamento / A-B</b> dos agentes</td><td>Treinamento</td><td class="mono">/api/v1/training</td></tr>
+          <tr><td><b>Trust score</b> dos agentes</td><td>Agentes</td><td class="mono">PATCH /agents/{id}/trust</td></tr>
+          <tr><td><b>Perfil</b> do usuário</td><td>Perfil</td><td class="mono">/api/v1/profile</td></tr>
+          <tr><td><b>Consentimento / LGPD</b></td><td>Privacidade</td><td class="mono">/api/v1/lgpd</td></tr>
+          <tr><td><b>Prontidão de sistema</b> (read-only) <span class="tag t-new">nova</span></td><td>Admin → Sistema</td><td class="mono">GET /health · /circuit</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 08 GAP -->
+    <section class="sec" id="gap">
+      <div class="sec-num">08</div>
+      <h2>Novo vs. redesenho</h2>
+      <p class="sec-lead">A maioria das telas já existe (refino ao design system). Algumas são novas — confirmar com o time antes de desenhar as <span class="tag t-prop">propostas</span>.</p>
+
+      <h3 class="sub"><span class="tag t-redo">redesenho</span> &nbsp;Já existem — auditar + refinar (24 telas)</h3>
+      <p style="font-size:13.5px;color:var(--ink-2);margin-top:0">Em <span class="mono">frontend/src/screens/</span>: <b>fiscal</b> — dashboard, escrituração, retificação, PER/DCOMP, transmissão, due diligence, consultoria, reports/workbench · <b>admin</b> — HITL, HITL detalhe, treinamento, agentes, ledger, DMN, monitor, vault · <b>usuário</b> — assistente, processos, jurisprudência, legislativo, investigação 360°, histórico, perfil, privacidade.</p>
+
+      <h3 class="sub"><span class="tag t-new">nova</span> &nbsp;Provavelmente novas — confirmar antes</h3>
+      <ul class="clean">
+        <li><b>Upload SPED</b> como tela/fluxo de primeira-classe (hoje pode estar embutido), com progresso + job.</li>
+        <li><b>Acompanhamento de jobs assíncronos</b> — lista/painel de processamentos em andamento.</li>
+        <li><b>Gestão de Módulos</b> — a UI admin do toggle (o backend existe, o front só consome via nav).</li>
+        <li><b>Usuários &amp; RBAC</b> (AP-08) — não há tela; backend a implementar.</li>
+        <li><b>Prontidão de Sistema</b> (read-only) — reflete os owner-actions AP-01..06.</li>
+      </ul>
+    </section>
+
+    <!-- 09 FLUXOS -->
+    <section class="sec" id="fluxos">
+      <div class="sec-num">09</div>
+      <h2>Fluxos prioritários para prototipar</h2>
+      <p class="sec-lead">Três fluxos navegáveis em alta fidelidade — a espinha demonstrável do produto.</p>
+      <div class="card">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><span class="pill p-navy"><span class="dot"></span>Fluxo 1</span><b>Fio-de-ouro fiscal completo</b></div>
+        <p style="margin:0;font-size:13.5px;color:var(--ink-2)">Upload → processando → achados → corrigir em lote (dry-run → aplicar) → apuração com saldo → retificação (diff → validar → baixar TXT) → PER/DCOMP (gerar-de-apuração → validar) → transmissão e-CAC (dupla confirmação → status). <b>Demonstração principal.</b></p>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><span class="pill p-navy"><span class="dot"></span>Fluxo 2</span><b>Aprovação HITL</b></div>
+        <p style="margin:0;font-size:13.5px;color:var(--ink-2)">Operador dispara edição que exige aprovação → auditor aprova na fila → operador confirma o lote. Mostra o badge de pendências e o estado <span class="mono">aguardando_aprovação</span>.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><span class="pill p-navy"><span class="dot"></span>Fluxo 3</span><b>Módulo ao vivo (SSE)</b></div>
+        <p style="margin:0;font-size:13.5px;color:var(--ink-2)">Admin desliga um módulo na Gestão de Módulos → o item some do menu de outro usuário via SSE, sem reload. Demonstra o grupo dinâmico do shell.</p>
+      </div>
+    </section>
+
+    <!-- 10 ENTREGAVEIS -->
+    <section class="sec" id="entregaveis">
+      <div class="sec-num">10</div>
+      <h2>Entregáveis &amp; roadmap</h2>
+      <p class="sec-lead">O que sai desta fase de design, e em que ordem construir.</p>
+
+      <h3 class="sub">Entregáveis</h3>
+      <ul class="clean">
+        <li><b>Design system</b>: tokens (cor/tipo/espaço/tema claro+escuro) + biblioteca de componentes (§2.2) com todos os estados (§2.3).</li>
+        <li><b>Telas de cada item do mapa §4</b>, em todos os estados, com anotações de a11y.</li>
+        <li><b>Protótipo navegável</b> dos 3 fluxos do §9.</li>
+        <li><b>Tabela de binding</b> (este documento) → detalhar com o time os contratos exatos de request/response via OpenAPI/Swagger (<span class="mono">/docs</span>).</li>
+        <li><b>Redlines/specs</b> de espaçamento e comportamento responsivo (≤768 / ≤860 / ≤980).</li>
+      </ul>
+
+      <div class="note"><b>Convenção de <span class="mono">screen_id</span>.</b> O frontend mapeia rota de módulo → tela por um <span class="mono">screen_id</span> (ex.: <span class="mono">assistant</span>, <span class="mono">due-diligence</span>, <span class="mono">consultoria</span>). Toda tela nova precisa de um <span class="mono">screen_id</span> acordado com o dev para entrar no sistema de slots dinâmicos. Os ids deste plano estão em cada cartão do §4.</div>
+
+      <h3 class="sub">Ordem sugerida de construção</h3>
+      <table class="t">
+        <thead><tr><th style="width:70px">Onda</th><th>Foco</th><th>Por quê</th></tr></thead>
+        <tbody>
+          <tr><td><b>1</b></td><td>Design system + shell + estados base</td><td>Fundação de tudo; sem ela cada tela diverge.</td></tr>
+          <tr><td><b>2</b></td><td>Fio-de-ouro fiscal (8 etapas) + HITL</td><td>Núcleo de valor e a demo principal (Fluxos 1 e 2).</td></tr>
+          <tr><td><b>3</b></td><td>PER/DCOMP + Transmissão + Cofre/cert</td><td>Capstone irreversível; depende do cofre/certificado.</td></tr>
+          <tr><td><b>4</b></td><td>Analytics · Relatórios · Workbench · Ledger</td><td>Leitura agregada do que o núcleo produziu.</td></tr>
+          <tr><td><b>5</b></td><td>Admin: Módulos (SSE) · Usuários/RBAC · Prontidão</td><td>Telas novas; fecham governança (Fluxo 3).</td></tr>
+          <tr><td><b>6</b></td><td>Jurídico/Usuário: refino + LGPD placeholder</td><td>Já existem; 360° entregue. Refinar ao DS.</td></tr>
+        </tbody>
+      </table>
+
+      <hr class="div">
+      <p style="font-size:12.5px;color:var(--faint);margin-top:20px">Fonte da verdade técnica: OpenAPI/Swagger do backend (<span class="mono">/docs</span>) · papéis em <span class="mono">src/api/rbac.py</span> · cliente HTTP <span class="mono">frontend/src/api/client.js</span> · navegação e slots <span class="mono">frontend/src/App.jsx</span> + <span class="mono">GET /api/v1/slots/stream</span>.</p>
+    </section>
+  </main>
+</div>
+</div>
+<script>
+const IC = {
+  spark:'M13 2 4 14h6l-1 8 9-12h-6z', chat:'M4 5h16v11H8l-4 4z',
+  process:'M7 3h7l4 4v14H7z M14 3v4h4', scale:'M12 3v18 M5 8h14 M5 8 2 15h6z M19 8l-3 7h6z M8 21h8',
+  law:'M4 7h16 M4 7 12 3l8 4 M6 7v9 M10 7v9 M14 7v9 M18 7v9 M4 19h16',
+  clock:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2',
+  shield:'M12 3 5 6v5c0 4 3 7 7 9 4-2 7-5 7-9V6z M9 12l2 2 4-4',
+  graduate:'M12 4 2 9l10 5 10-5z M6 11v5c0 1 3 3 6 3s6-2 6-3v-5',
+  robot:'M8 7h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z M12 4v3 M9.5 12h.01 M14.5 12h.01 M3 11v4 M21 11v4',
+  ledger:'M5 3h11l3 3v15H5z M9 8h7 M9 12h7 M9 16h4',
+  flow:'M6 4h5v4H6z M13 16h5v4h-5z M8.5 8v4h7v4 M3.5 12h5',
+  pulse:'M3 12h4l2-6 4 12 2-6h6', search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-4-4',
+  radar:'M12 21a9 9 0 1 0-9-9 M12 17a5 5 0 1 0-5-5 M12 13a1 1 0 1 0-1-1 M12 12 21 3',
+  send:'M4 12 20 4l-6 16-3-7z', attach:'M21 11l-8 8a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7-7',
+  check:'M5 12l4 4 10-10', alert:'M12 3 2 20h20z M12 10v5 M12 18h.01',
+  edit:'M4 20h4L19 9l-4-4L4 16z M14 5l4 4', refresh:'M4 12a8 8 0 0 1 14-5l2 2 M20 5v4h-4 M20 12a8 8 0 0 1-14 5l-2-2 M4 19v-4h4',
+  lock:'M6 10h12v10H6z M9 10V7a3 3 0 0 1 6 0v3', compare:'M12 3v18 M7 7 3 11l4 4 M17 7l4 4-4 4',
+  building:'M5 21V5l7-2v18 M12 21h7V9h-7 M8 8h.01 M8 12h.01 M8 16h.01 M15.5 13h.01 M15.5 17h.01',
+  copy:'M9 9h11v11H9z M9 15H4V4h11v5', cog:'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M12 2v3 M12 19v3 M5 5l2 2 M17 17l2 2 M2 12h3 M19 12h3 M5 19l2-2 M17 7l2-2',
+  user:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c0-4 4-6 8-6s8 2 8 6', doc:'M6 3h8l4 4v14H6z M14 3v4h4 M9 13h6 M9 17h4',
+  graph:'M12 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M19 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M10.8 9.9 6.2 16 M13.2 9.9l4.6 6.1',
+  list:'M8 6h13 M8 12h13 M8 18h13 M3.5 6h.01 M3.5 12h.01 M3.5 18h.01', info:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 11v5 M12 8h.01',
+  privacy:'M12 3 5 6v5c0 4 3 7 7 9 4-2 7-5 7-9V6z M12 9a2 2 0 0 1 2 2v1h-4v-1a2 2 0 0 1 2-2z M10 12h4v4h-4z',
+  kit:'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
+};
+document.querySelectorAll('[data-ic]').forEach(el => {
+  const d = IC[el.dataset.ic] || IC.doc;
+  el.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+    d.split(' M').map((s, i) => '<path d="' + (i ? 'M' : '') + s + '"></path>').join('') + '</svg>';
+});
+</script>
+</body>
+</html>
