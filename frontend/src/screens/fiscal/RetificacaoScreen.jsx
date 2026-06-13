@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Icon, Badge, Modal } from '../../components/primitives.jsx';
 import { api } from '../../api/client.js';
-
-const BRL = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function ErrAlert({ msg }) {
   if (!msg) return null;
