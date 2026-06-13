@@ -61,6 +61,19 @@ class NotaCorrecaoRequest(BaseModel):
     # Contrato simplificado (frontend envia escrituracao_id)
     escrituracao_id: Optional[str] = None
 
+    @field_validator(
+        "escrituracao_original_id", "escrituracao_retificada_id", mode="before"
+    )
+    @classmethod
+    def uuid_valido(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        try:
+            uuid.UUID(v)
+        except (ValueError, AttributeError):
+            raise ValueError("ID deve ser um UUID válido.")
+        return v
+
 
 class ValidarLayoutRequest(BaseModel):
     # Contrato completo
