@@ -85,7 +85,9 @@ async def comparar(body: ComparacaoRequest) -> Dict[str, Any]:
     Aceita contrato simplificado com escrituracao_id (retorna diff stub).
     """
     if body.escrituracao_id and not body.registros_originais:
-        logger.info("retificacao comparar stub: escrituracao_id=%s", body.escrituracao_id)
+        logger.info(
+            "retificacao comparar stub: escrituracao_id=%s", body.escrituracao_id
+        )
         return {
             "diff": [],
             "alteracoes": [],
@@ -127,7 +129,9 @@ async def validar_layout_retificado(body: ValidarLayoutRequest) -> Dict[str, Any
     Aceita contrato simplificado com escrituracao_id (retorna validação stub ok).
     """
     if body.escrituracao_id and not body.registros:
-        logger.info("retificacao validar-layout stub: escrituracao_id=%s", body.escrituracao_id)
+        logger.info(
+            "retificacao validar-layout stub: escrituracao_id=%s", body.escrituracao_id
+        )
         return {
             "valido": True,
             "erros": [],
@@ -176,7 +180,7 @@ async def criar_nota_correcao(body: NotaCorrecaoRequest) -> Dict[str, Any]:
     # Contrato simplificado: apenas escrituracao_id
     eid = body.escrituracao_id
     orig_id = body.escrituracao_original_id or eid
-    ret_id  = body.escrituracao_retificada_id or eid
+    ret_id = body.escrituracao_retificada_id or eid
 
     if not orig_id:
         raise HTTPException(

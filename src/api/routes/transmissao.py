@@ -48,6 +48,7 @@ class EnviarRequest(BaseModel):
         if v is None:
             return v
         import base64
+
         try:
             decoded = base64.b64decode(v)
             if not decoded.strip():

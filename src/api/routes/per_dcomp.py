@@ -172,9 +172,12 @@ _TIPOS_DISPONIVEIS: List[TipoFichaInfo] = [
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _stub_ficha_de_escrituracao(escrituracao_id: str, tipo: Optional[str]) -> Dict[str, Any]:
+def _stub_ficha_de_escrituracao(
+    escrituracao_id: str, tipo: Optional[str]
+) -> Dict[str, Any]:
     """Retorna ficha stub quando apenas escrituracao_id é fornecido (sem dados completos)."""
     import datetime
+
     ficha_id = str(uuid.uuid4())
     tipo_str = tipo or "dcomp_credito_apuracao"
     periodo = datetime.date.today().strftime("%Y-%m")
@@ -252,7 +255,9 @@ async def gerar_ficha(
             body.tipo,
             principal.user_id,
         )
-        return _stub_ficha_de_escrituracao(body.escrituracao_id, body.tipo or body.tipo_ficha)
+        return _stub_ficha_de_escrituracao(
+            body.escrituracao_id, body.tipo or body.tipo_ficha
+        )
 
     # Contrato completo: valida campos obrigatórios
     if not body.cnpj_masked:
