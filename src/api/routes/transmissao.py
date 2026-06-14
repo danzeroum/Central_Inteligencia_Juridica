@@ -94,27 +94,35 @@ async def enviar_transmissao(
 
     # Contrato simplificado: apenas escrituracao_id + ambiente (stub)
     if body.escrituracao_id and not body.xml_b64:
-        tx_id = str(uuid.uuid4())
-        protocolo = f"PROT-{tx_id[:8].upper()}"
-        now = datetime.datetime.utcnow().isoformat()
-        logger.info(
-            "transmissao enviar stub: escrituracao_id=%s ambiente=%s user=%s",
-            body.escrituracao_id,
-            body.ambiente,
-            principal.user_id,
-        )
-        return {
-            "transmissao_id": tx_id,
-            "ficha_id": body.escrituracao_id,
-            "situacao": "transmitido",
-            "protocolo": protocolo,
-            "recibo": f"REC-{tx_id[-8:].upper()}",
-            "mensagem": f"Transmissão em {body.ambiente or 'homologacao'} (stub)",
-            "is_stub": True,
-            "ambiente": body.ambiente or "homologacao",
-            "enviado_em": now,
-            "atualizado_em": now,
-        }
+        try:
+            tx_id = str(uuid.uuid4())
+            protocolo = f"PROT-{tx_id[:8].upper()}"
+            now = datetime.datetime.utcnow().isoformat()
+            logger.info(
+                "transmissao enviar stub: escrituracao_id=%s ambiente=%s user=%s",
+                body.escrituracao_id,
+                body.ambiente,
+                principal.user_id,
+            )
+            return {
+                "transmissao_id": tx_id,
+                "ficha_id": body.escrituracao_id,
+                "situacao": "transmitido",
+                "protocolo": protocolo,
+                "recibo": f"REC-{tx_id[-8:].upper()}",
+                "mensagem": f"Transmissão em {body.ambiente or 'homologacao'} (stub)",
+                "is_stub": True,
+                "ambiente": body.ambiente or "homologacao",
+                "enviado_em": now,
+                "atualizado_em": now,
+            }
+        except Exception as exc:
+            cid = uuid.uuid4().hex
+            logger.error("transmissao enviar stub [%s]: %s", cid, exc, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Erro interno (stub). Referência: {cid}",
+            )
 
     # Contrato completo: valida campos obrigatórios
     if not body.xml_b64:
@@ -214,4 +222,8 @@ async def circuit_status(
     adapter = get_ecac_adapter()
     cs = adapter.circuit_status()
     cs["is_stub"] = adapter.is_stub
+    # Normalise: expose 'open' (bool) and 'status' (str) so callers don't need
+    # to know the internal 'state' field name from CircuitBreaker.
+    cs["open"] = cs.get("state") == "open"
+    cs["status"] = cs.get("state", "closed")
     return cs
