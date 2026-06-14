@@ -8,6 +8,7 @@ retornam estruturas vazias a partir do guard de RuntimeError.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -110,6 +111,9 @@ async def get_kpis(
     user_id: str = Depends(AuthManager.verify_token),
 ) -> KpisResponse:
     """KPIs agregados do pipeline fiscal."""
+    if not os.environ.get("DATABASE_URL"):
+        logger.info("get_kpis stub (sem DATABASE_URL)")
+        return KpisResponse()
     try:
         from sqlalchemy import func, select
 
@@ -181,6 +185,9 @@ async def get_historico_apuracoes(
     user_id: str = Depends(AuthManager.verify_token),
 ) -> List[HistoricoItem]:
     """Histórico de apurações com filtros opcionais."""
+    if not os.environ.get("DATABASE_URL"):
+        logger.info("get_historico_apuracoes stub (sem DATABASE_URL)")
+        return []
     try:
         from sqlalchemy import select
 
@@ -240,6 +247,9 @@ async def get_achados_distribuicao(
     user_id: str = Depends(AuthManager.verify_token),
 ) -> AchadosDistribuicao:
     """Distribuição de achados agregados de todas as escriturações."""
+    if not os.environ.get("DATABASE_URL"):
+        logger.info("get_achados_distribuicao stub (sem DATABASE_URL)")
+        return AchadosDistribuicao()
     try:
         from sqlalchemy import select
 
@@ -304,6 +314,9 @@ async def get_anomalias(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="severidade_minima deve ser 'erro', 'aviso' ou 'informacao'.",
         )
+    if not os.environ.get("DATABASE_URL"):
+        logger.info("get_anomalias stub (sem DATABASE_URL)")
+        return []
 
     filtro = {"erro", "aviso", "informacao"}
     if severidade_minima == "erro":
