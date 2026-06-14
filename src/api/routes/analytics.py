@@ -309,14 +309,14 @@ async def get_anomalias(
     user_id: str = Depends(AuthManager.verify_token),
 ) -> List[AnomaliaItem]:
     """Lista escriturações com anomalias detectadas."""
-    if not os.environ.get("DATABASE_URL"):
-        logger.info("get_anomalias stub (sem DATABASE_URL)")
-        return []
     if severidade_minima not in ("erro", "aviso", "informacao"):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="severidade_minima deve ser 'erro', 'aviso' ou 'informacao'.",
         )
+    if not os.environ.get("DATABASE_URL"):
+        logger.info("get_anomalias stub (sem DATABASE_URL)")
+        return []
 
     filtro = {"erro", "aviso", "informacao"}
     if severidade_minima == "erro":
