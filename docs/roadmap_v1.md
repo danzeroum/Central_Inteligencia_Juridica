@@ -27,7 +27,8 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 | PR4b | 3 | Migrations ledger/hitl/training/a2a + embeddings reais + A2A pub/sub + A/B real | ⬜ | — | I2, I3, I4; C3-real⏸️PEND-09 |
 | PR5 | 4 | e-CAC real atrás do stub + CRC/CADIN/ONR + Vault wiring + handlers Celery | ⬜ | — | credenciais→pendência |
 | PR6 | 5 | Diferenciais UX: "Contradição encontrada", Modo Explorador, badges, mapa (MVP) | ⬜ | — | XL |
-| — | T | Transversal segurança/LGPD tecido nos PRs | ⬜ | — | rate-limit, redact_pii, etc. |
+| PR5 | T | **LGPD**: redação de PII no resultado persistido na VectorMemory (snapshot/documento de longo prazo) | 🟦 | — | transversal (1/n) |
+| — | T | Transversal restante: redact no parse DataJud, rate-limit, sincronizar `constitution.yaml` | ⬜ | — | — |
 
 ---
 
@@ -80,6 +81,13 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 - Nova suíte `tests/unit/test_training_manager.py` (4 casos) — fecha a lacuna de teste apontada na auditoria.
 - Local: 4 unit + 15 integração (training) passam; black/bandit/compileall ok.
 - **A/B real fica bloqueado** por falta de versionamento de agentes → registrado em `pendencia_v1.md` PEND-09.
+
+### PR5 — LGPD: redação de PII no snapshot da VectorMemory (🟦 em andamento)
+- `VectorMemory.remember` já redigia o `task`, mas **persistia o `result` sem redação** — o snapshot e o
+  documento de embedding são cache de longo prazo e podiam reter PII de terceiros (partes de processos).
+- Adicionado `_redact_obj` (recursivo, puro) aplicado ao resultado antes de gerar `result_snapshot` e o
+  documento. Trade-off consciente: um cache-hit futuro devolve o resultado já redigido (mais seguro p/ LGPD).
+- Novo teste `tests/unit/test_vector_memory_redaction.py` (puro, sem ChromaDB).
 
 ## Decisões de execução (desvios do plano, justificados)
 - **`handoff/`→`design-handoff/` NÃO renomeado:** o diretório é referenciado em `docs/ADRs/ADR-002`
