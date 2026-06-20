@@ -10,7 +10,7 @@ import os
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 try:  # pragma: no cover - import guard for optional dependency
     import chromadb
@@ -293,6 +293,25 @@ class VectorMemory:
             logger.error("Erro ao excluir da memória vetorial (LGPD): %s", exc)
             return 0
 
+    @classmethod
+    def _redact_obj(cls, obj: Any, redact_fn: Callable[[str], str]) -> Any:
+        """Redige PII recursivamente nas strings de uma estrutura (LGPD).
+
+        Preserva a estrutura (dict/list) e os valores não-string; aplica
+        ``redact_fn`` apenas a strings. Função pura, sem dependência de ChromaDB
+        (testável isoladamente).
+        """
+
+        if isinstance(obj, str):
+            return redact_fn(obj)
+        if isinstance(obj, dict):
+            return {
+                key: cls._redact_obj(value, redact_fn) for key, value in obj.items()
+            }
+        if isinstance(obj, list):
+            return [cls._redact_obj(item, redact_fn) for item in obj]
+        return obj
+
     def remember(
         self,
         task: str,
@@ -317,25 +336,32 @@ class VectorMemory:
         try:
             interaction_id = str(uuid.uuid4())
 
-            # LGPD / PII (Item 18): redigir PII antes de indexar no ChromaDB
+            # LGPD / PII (Item 18): redigir PII do task E do resultado antes de
+            # indexar/persistir. O snapshot é cache de LONGO PRAZO — não deve reter
+            # PII de terceiros (partes de processos públicos). Trade-off consciente:
+            # um cache-hit futuro devolve o resultado já redigido.
+            result_for_storage: Dict[str, Any] = result
             try:
                 from src.safety.pii import redact_pii as _redact_pii
 
                 task = _redact_pii(task)
+                result_for_storage = self._redact_obj(result, _redact_pii)
             except Exception:  # pragma: no cover - defensive
-                pass
+                result_for_storage = result
 
             # Evitar mutar metadata original
             metadata = dict(metadata)
 
             # Persistir um snapshot compacto do resultado para cache futuro
             try:
-                metadata["result_snapshot"] = json.dumps(result, ensure_ascii=False)
+                metadata["result_snapshot"] = json.dumps(
+                    result_for_storage, ensure_ascii=False
+                )
             except (TypeError, ValueError):
                 logger.debug("Result snapshot could not be serialized for memory cache")
 
             # Criar documento rico para embedding
-            document = self._create_document(task, result, metadata)
+            document = self._create_document(task, result_for_storage, metadata)
 
             # Adicionar timestamp ao metadata se não existir
             if "timestamp" not in metadata:
