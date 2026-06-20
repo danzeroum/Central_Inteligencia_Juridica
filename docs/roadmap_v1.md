@@ -7,6 +7,33 @@
 
 Status: ⬜ a fazer · 🟦 em andamento · ✅ merged · ⏸️ bloqueado (ver pendência) · 🔵 roadmap futuro
 
+## Resumo da sessão (handoff — 2026-06-20)
+
+**7 PRs entregues e merged**, cada um CI 6/6 verde, atacando os achados de **maior valor e mais
+contidos** das duas análises (validados em código):
+
+| PR | Achado | Entrega |
+|---|---|---|
+| #133 | — | Scaffolding (roadmap/pendência/plano persistido) |
+| #134 | I5, I6, O4‑5, M2, M5 | Higiene: botões Demo→`DEV`, botão morto Invest360→Processos, defaults `INTEGRATIONS_*`, README, `handoff/` |
+| #135 | **C2** | CoT por LLM plugável (fallback determinístico) |
+| #136 | **C1** | Consenso: gate de fonte‑única→HITL + métricas de concordância |
+| #137 | **C3** | Training: baseline real + A/B honesto (flag `simulated`) + suíte de testes |
+| #138 | LGPD | Redação de PII no resultado persistido na VectorMemory |
+| #139 | Segurança | Testes de regressão JWT (expirado/inválido/sem credencial) |
+
+**O que NÃO foi feito e por quê** (não por falta de execução, mas por barreiras reais):
+- **Bloqueado pelo dono** → `pendencia_v1.md` (PEND‑01..09): Postgres/MinIO/Celery, `DATAJUD_API_KEY`,
+  Ollama/OpenAI, certificado A1 + e‑CAC, captcha CRC/CADIN/ONR, `VAULT_MASTER_KEY`, versionamento de agentes.
+  Sem isso, e‑CAC real, fontes restritas, migrations de persistência e IA real ficam incompletos por definição.
+- **Features grandes (XL) / risco alto p/ execução não supervisionada**: streaming SSE + timeline (cirurgia no
+  `process_task` de ~500 linhas), diferenciais de UX (mapa de conhecimento, badges), A2A pub/sub (correlação
+  central), embeddings reais (dep pesada `sentence-transformers`, não testável aqui).
+- **Já estava resolvido** (auditoria de maio era stale): auth/JWT exigido, rate‑limit (`enforce_rate_limit`),
+  validação de IDs A2A, secret/dep scanning e gates de CI bloqueantes.
+
+**Maior destrave imediato:** prover Postgres + Ollama + `DATAJUD_API_KEY` (tira o app do modo simulado).
+
 ## Protocolo
 Branch `claude/<onda>-<slug>` ← `master` → implementar+testar → pré-validar local
 (`black`, `bandit` high, `pytest unit cov≥50`, `eslint`, `npm build`) → push → PR →
@@ -28,7 +55,7 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 | PR5 | 4 | e-CAC real atrás do stub + CRC/CADIN/ONR + Vault wiring + handlers Celery | ⬜ | — | credenciais→pendência |
 | PR6 | 5 | Diferenciais UX: "Contradição encontrada", Modo Explorador, badges, mapa (MVP) | ⬜ | — | XL |
 | PR5 | T | **LGPD**: redação de PII no resultado persistido na VectorMemory (snapshot/documento de longo prazo) | ✅ | #138 | merged |
-| PR6 | T | **Segurança**: testes de regressão JWT (token expirado / assinatura inválida / sem credencial) | 🟦 | — | lacuna da auditoria |
+| PR6 | T | **Segurança**: testes de regressão JWT (token expirado / assinatura inválida / sem credencial) | ✅ | #139 | merged |
 | — | T | Transversal restante: rate-limit (já há `enforce_rate_limit`), sincronizar `constitution.yaml` | ⬜ | — | DataJud parse NÃO precisa (fonte anonimizada) |
 
 ---
