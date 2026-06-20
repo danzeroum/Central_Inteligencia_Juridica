@@ -773,27 +773,52 @@ class SupervisorAgent(A2ACapable):
                     outcome="weak" if consensus_strength_value < 0.6 else "strong",
                 )
 
-                if consensus_strength_value < 0.6:
+                # C1: consenso de FONTE ÚNICA não é consenso real. Numa consulta
+                # multi-tribunal, se menos de 2 tribunais responderam, o "consenso"
+                # vem de um único agente concordando consigo mesmo — força revisão
+                # humana mesmo que a força calculada ultrapasse o limiar (corrige o
+                # bypass do HITL identificado na auditoria).
+                single_source = (
+                    len(tribunal_codes) >= 2 and len(consultation_responses) < 2
+                )
+                weak_consensus = consensus_strength_value < 0.6
+                if weak_consensus or single_source:
                     DecisionMetricsCollector.record_hitl_request(
                         agent="SupervisorAgent",
                         status="pending",
                     )
 
+                    reason = (
+                        "weak_consensus"
+                        if weak_consensus
+                        else "single_source_consensus"
+                    )
                     self.ledger.log_decision(
                         agent_type="SupervisorAgent",
                         decision_type="HITL_REQUIRED",
                         metadata={
-                            "reason": "weak_consensus",
+                            "reason": reason,
                             "strength": consensus_strength_value,
+                            "responders": len(consultation_responses),
+                            "expected_tribunals": len(tribunal_codes),
                         },
                     )
 
+                    message = (
+                        "Consenso insuficiente. Revisão humana necessária."
+                        if weak_consensus
+                        else (
+                            "Consenso de fonte única (apenas um tribunal respondeu). "
+                            "Revisão humana necessária."
+                        )
+                    )
                     return {
                         "status": "pending_human_review",
-                        "message": "Consenso insuficiente. Revisão humana necessária.",
+                        "message": message,
                         "consensus_strength": consensus_strength_value,
                         "consensus_details": consensus_details,
                         "tribunals_consulted": tribunal_codes,
+                        "hitl_reason": reason,
                         "timestamp": self._get_timestamp(),
                     }
             else:
