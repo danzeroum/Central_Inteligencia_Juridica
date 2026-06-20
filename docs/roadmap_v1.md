@@ -56,6 +56,7 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 | PR6 | 5 | Diferenciais UX: "Contradição encontrada", Modo Explorador, badges, mapa (MVP) | ⬜ | — | XL |
 | PR5 | T | **LGPD**: redação de PII no resultado persistido na VectorMemory (snapshot/documento de longo prazo) | ✅ | #138 | merged |
 | PR6 | T | **Segurança**: testes de regressão JWT (token expirado / assinatura inválida / sem credencial) | ✅ | #139 | merged |
+| PR7 | Docker | **Tudo em Docker (modo real) + pronto p/ escalar**: serviços `ollama`+`migrate`, `.env.docker.example`, override local de porta, README | 🟦 | — | turnkey full-stack |
 | — | T | Transversal restante: rate-limit (já há `enforce_rate_limit`), sincronizar `constitution.yaml` | ⬜ | — | DataJud parse NÃO precisa (fonte anonimizada) |
 
 ---
@@ -116,6 +117,19 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 - Adicionado `_redact_obj` (recursivo, puro) aplicado ao resultado antes de gerar `result_snapshot` e o
   documento. Trade-off consciente: um cache-hit futuro devolve o resultado já redigido (mais seguro p/ LGPD).
 - Novo teste `tests/unit/test_vector_memory_redaction.py` (puro, sem ChromaDB).
+
+### PR7 — Docker-first (modo real) + escala (🟦 em andamento)
+- **Direção de produto do dono:** "tudo em Docker desde já, pronto para escalar".
+- Serviço **`ollama`** (profile `llm`) + `OLLAMA_BASE_URL`/`ARCHITECT_COT_LLM` no app → **IA local em Docker**.
+- Serviço **`migrate`** (profile `migrate`) → `alembic upgrade head` one-shot (cria as tabelas no Postgres).
+- **`.env.docker.example`** turnkey: liga Postgres + Redis-backed state + ChromaDB remoto + MinIO + Celery +
+  Ollama + integrações reais. Tira o app do modo simulado.
+- **`docker-compose.local.yml`**: publica a porta 8000 p/ acesso local (o base só expõe via ingress).
+- README: seção "Rodar TUDO em Docker (modo real) e escalar" + escala horizontal (`--scale agent-system=N`
+  com estado no Redis/Postgres/Chroma/MinIO; trocar por RDS/ElastiCache/S3 na nuvem sem mudar o app).
+- **Validação:** `docker compose config` (com e sem override; todos os profiles) — **VÁLIDO**. ⚠️ O daemon
+  Docker estava indisponível neste ambiente, então o runtime end-to-end não foi executado por mim; a config
+  foi validada por parsing e alinhada às variáveis lidas pelo código.
 
 ## Decisões de execução (desvios do plano, justificados)
 - **`handoff/`→`design-handoff/` NÃO renomeado:** o diretório é referenciado em `docs/ADRs/ADR-002`

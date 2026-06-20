@@ -93,10 +93,52 @@ npm run dev            # http://localhost:5173
 
 ## Docker
 
+Stack mínimo (app + Postgres + Redis + observabilidade):
+
 ```bash
 docker-compose up -d
 curl http://localhost:8000/health
 ```
+
+### Rodar TUDO em Docker (modo real) e escalar
+
+Sobe o stack completo — sem modo simulado: Postgres (persistência), ChromaDB
+(RAG), MinIO (documentos), Celery (jobs), **Ollama (IA local)** — e publica a
+porta do app para acesso local.
+
+```bash
+# 1. Preset turnkey (edite as senhas TROQUE_*)
+cp .env.docker.example .env
+
+# 2. Rede externa exigida pelo compose base + tabelas do banco
+docker network create btv-prod-net
+docker compose --profile migrate run --rm migrate          # alembic upgrade head
+
+# 3. Stack completo (app publicado em :8000 via override local)
+docker compose -f docker-compose.yml -f docker-compose.local.yml \
+  --profile chromadb --profile storage --profile workers --profile llm up -d
+
+# 4. Baixe o modelo de IA e acesse
+docker compose exec ollama ollama pull llama3
+open http://localhost:8000/app      # operator/operator (demo só em dev)
+```
+
+### Pronto para escalar (horizontal)
+
+O estado é externalizável: com `RATE_LIMIT_BACKEND=redis`, `LEDGER_BACKEND=redis`
+e `HITL_BACKEND=redis` (já no `.env.docker.example`), o app fica **stateless** e
+várias réplicas compartilham fila HITL, rate-limit e ledger via Redis; a memória
+vetorial vai para o ChromaDB remoto e os arquivos para o MinIO/S3.
+
+```bash
+# N réplicas do app atrás do ingress (estado no Redis/Postgres/Chroma/MinIO):
+docker compose -f docker-compose.yml --profile chromadb --profile storage \
+  --profile workers up -d --scale agent-system=3
+```
+
+Para nuvem, troque os serviços `postgres`/`redis`/`minio` do compose por
+endpoints gerenciados (RDS/ElastiCache/S3) apontando as mesmas variáveis do
+`.env` — o app não muda.
 
 ## Testes
 

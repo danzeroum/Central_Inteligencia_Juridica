@@ -1,0 +1,16 @@
+# Override para DESENVOLVIMENTO/EXECUÇÃO LOCAL.
+#
+# O compose base não publica portas no host: em produção o acesso passa SOMENTE
+# pelo ingress nginx (TLS). Este override publica a porta do app (8000) para você
+# acessar de http://localhost:8000/app na máquina local.
+#
+# NÃO use este override em produção.
+#
+# Uso (com o preset .env.docker.example copiado para .env):
+#   docker network create btv-prod-net
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml \
+#       --profile chromadb --profile storage --profile workers --profile llm up -d
+services:
+  agent-system:
+    ports:
+      - "8000:8000"

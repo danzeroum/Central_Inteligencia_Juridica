@@ -8,7 +8,7 @@ useDefault = true
 description = "Falsos positivos conhecidos: templates, fixtures de teste e exemplos"
 # Caminhos sem segredos reais — placeholders/valores de exemplo.
 paths = [
-  '''\.env\.example$''',
+  '''\.env(\..+)?\.example$''',
   '''(^|/)tests/''',
   '''(^|/)examples/''',
   '''(^|/)docs/''',

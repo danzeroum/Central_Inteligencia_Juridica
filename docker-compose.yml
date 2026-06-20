@@ -84,6 +84,10 @@ services:
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      # IA local em Docker: aponte para o serviço ``ollama`` (--profile llm).
+      # Vazio = usa localhost:11434 (default do cliente). Habilita CoT-LLM real.
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+      - ARCHITECT_COT_LLM=${ARCHITECT_COT_LLM:-}
       # ChromaDB (RAG — Item 11/12). VECTOR_MEMORY_MODE=local usa PersistentClient
       # embutido (padrão, single-node). Para escalar horizontalmente defina
       # VECTOR_MEMORY_MODE=remote, CHROMA_HOST=chromadb e suba com
@@ -395,6 +399,47 @@ services:
     networks:
       - cij_internal
 
+  # --------------------------------------------------------------------------
+  # IA local (LLM) — Ollama. Habilita CoT-LLM real e classificação de intenção
+  # sem provedor externo. Suba com --profile llm e baixe o modelo após o boot:
+  #   docker compose exec ollama ollama pull llama3
+  # --------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cij-ollama
+    profiles:
+      - llm
+    expose:
+      - "11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - cij_internal
+
+  # --------------------------------------------------------------------------
+  # Migrações de schema (one-shot). Cria/atualiza as tabelas no Postgres.
+  #   docker compose --profile migrate run --rm migrate
+  # --------------------------------------------------------------------------
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cij-migrate
+    profiles:
+      - migrate
+    command: ["alembic", "upgrade", "head"]
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=${DATABASE_URL:?defina DATABASE_URL para migrar (veja .env.docker.example)}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - cij_internal
+
 volumes:
   postgres_data:
   redis_data:
@@ -404,6 +449,7 @@ volumes:
   grafana_data:
   vector_memory_data:
   chromadb_data:        # coleções RAG quando VECTOR_MEMORY_MODE=remote
+  ollama_data:          # modelos LLM baixados (ollama pull) — profile llm
 
 networks:
   cij_internal:
