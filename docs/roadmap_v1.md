@@ -21,9 +21,10 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 | PR0 | — | Scaffolding: `roadmap_v1`, `pendencia_v1`, cópia do plano | ✅ | #133 | merged |
 | PR1 | 1 | Higiene: botões Demo (guard DEV), botão morto Invest360 (wire→Processos), default `INTEGRATIONS_*=real` (só fontes implementadas), ortografia README, clarificação `handoff/` | ✅ | #134 | merged |
 | PR2 | 2 | **CoT-LLM plugável** no ArchitectAgent (narrativa via LLM + fallback determinístico; roteamento sempre determinístico) | ✅ | #135 | merged |
-| PR3 | 2 | **Consenso: gate de fonte-única → HITL** + métricas de concordância (`agreement_ratio`/`single_source`) | 🟦 | — | **C1** |
+| PR3 | 2 | **Consenso: gate de fonte-única → HITL** + métricas de concordância (`agreement_ratio`/`single_source`) | ✅ | #136 | merged |
+| PR4a | 3 | **Training realista**: `_get_current_metrics` real + `run_ab_test` honesto (`agent_factory` + flag `simulated`) + suíte `test_training_manager` | 🟦 | — | **C3 (parcial)** |
 | PR-S | 1 | Streaming SSE `/api/v1/tasks/stream` + timeline/agentes no AssistantScreen | ⬜ | — | reordenado p/ depois (god-method) |
-| PR4 | 3 | Migrations ledger/hitl/training/a2a + training real + embeddings reais + A2A pub/sub | ⬜ | — | C3, I2, I3, I4 |
+| PR4b | 3 | Migrations ledger/hitl/training/a2a + embeddings reais + A2A pub/sub + A/B real | ⬜ | — | I2, I3, I4; C3-real⏸️PEND-09 |
 | PR5 | 4 | e-CAC real atrás do stub + CRC/CADIN/ONR + Vault wiring + handlers Celery | ⬜ | — | credenciais→pendência |
 | PR6 | 5 | Diferenciais UX: "Contradição encontrada", Modo Explorador, badges, mapa (MVP) | ⬜ | — | XL |
 | — | T | Transversal segurança/LGPD tecido nos PRs | ⬜ | — | rate-limit, redact_pii, etc. |
@@ -57,7 +58,7 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 - Novos testes: `tests/unit/test_architect_cot_llm.py` (6 casos). Local: 14 passed, black/bandit ok.
 - Endereça o achado C2 (validado): o "CoT" era 100% heurística por keyword — agora há caminho real de LLM.
 
-### PR3 — C1: consenso de fonte-única → HITL (🟦 em andamento)
+### PR3 — C1: consenso de fonte-única → HITL (✅ merged em #136)
 - **Bug corrigido (analista C1):** numa consulta multi-tribunal, se apenas 1 tribunal respondia, o
   "consenso" vinha de um único agente concordando consigo mesmo e, com força > 0,6, **burlava o HITL**.
   Agora o `SupervisorAgent` força `pending_human_review` quando `len(tribunal_codes) >= 2` e
@@ -70,6 +71,15 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 - **Escopo:** não reescrevi o clustering por igualdade de JSON para similaridade semântica (exigiria
   embeddings/limiar e arriscaria os testes existentes). O gate de fonte-única ataca o efeito prático mais
   grave (bypass do HITL). Clustering semântico fica registrado para um PR futuro.
+
+### PR4a — C3 (parcial): training realista (🟦 em andamento)
+- **`_get_current_metrics`** deixa de retornar constantes fabricadas (`0.7`/`0.85`): agora usa o desempenho
+  medido, senão deriva do feedback pendente, senão zeros (baseline honesto "sem dados").
+- **`run_ab_test`** deixa de fabricar agentes fake e esconder: aceita `agent_factory` (compara agentes
+  reais) e, sem ela, roda em **modo simulação explícito** (`simulated=true`).
+- Nova suíte `tests/unit/test_training_manager.py` (4 casos) — fecha a lacuna de teste apontada na auditoria.
+- Local: 4 unit + 15 integração (training) passam; black/bandit/compileall ok.
+- **A/B real fica bloqueado** por falta de versionamento de agentes → registrado em `pendencia_v1.md` PEND-09.
 
 ## Decisões de execução (desvios do plano, justificados)
 - **`handoff/`→`design-handoff/` NÃO renomeado:** o diretório é referenciado em `docs/ADRs/ADR-002`

@@ -8,7 +8,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from src.evaluation.ab_testing import AgentABTestingFramework
 from src.evaluation.continuous_evaluator import ContinuousEvaluator
@@ -54,11 +54,17 @@ class TrainingManager:
         router: Optional[LearningRouter] = None,
         ab_framework: Optional[AgentABTestingFramework] = None,
         ledger: Optional[DecisionLedger] = None,
+        agent_factory: Optional[Callable[[str], Any]] = None,
     ) -> None:
         self.evaluator = evaluator or ContinuousEvaluator()
         self.router = router or LearningRouter()
         self.ab_framework = ab_framework or AgentABTestingFramework()
         self.ledger = ledger or DecisionLedger()
+        # C3: fábrica opcional de agentes reais para o A/B test. Sem ela, o A/B
+        # roda em modo SIMULAÇÃO explícito (resultado sinalizado com
+        # ``simulated=True``) — A/B de agentes reais exige versionamento de
+        # agentes (ver docs/pendencia_v1.md PEND-09).
+        self._agent_factory: Optional[Callable[[str], Any]] = agent_factory
 
         self.training_states: Dict[str, AgentTrainingState] = {}
         self.active_sessions: Dict[str, TrainingSession] = {}
@@ -249,16 +255,20 @@ class TrainingManager:
 
         logger.info("Starting A/B test: %s vs %s", agent_a_type, agent_b_type)
 
-        agent_a = type(
-            "Agent",
-            (),
-            {"execute": lambda self, task: {"success": True, "latency": 0.5}},
-        )()
-        agent_b = type(
-            "Agent",
-            (),
-            {"execute": lambda self, task: {"success": True, "latency": 0.3}},
-        )()
+        if self._agent_factory is not None:
+            agent_a = self._agent_factory(agent_a_type)
+            agent_b = self._agent_factory(agent_b_type)
+            simulated = False
+        else:
+            # Sem fábrica de agentes reais injetada: SIMULAÇÃO explícita. O
+            # resultado NÃO reflete versões reais de agentes (exige versionamento
+            # de agentes — ver docs/pendencia_v1.md PEND-09). Sinalizado abaixo.
+            logger.warning(
+                "run_ab_test sem agent_factory: modo SIMULAÇÃO (simulated=True)."
+            )
+            agent_a = self._make_sim_agent(0.5)
+            agent_b = self._make_sim_agent(0.3)
+            simulated = True
 
         result = await self.ab_framework.run_ab_test(
             agent_a=agent_a,
@@ -266,6 +276,7 @@ class TrainingManager:
             test_cases=test_cases,
             metrics=["latency", "accuracy"],
         )
+        result["simulated"] = simulated
 
         self.ledger.log_decision(
             agent_type="TrainingManager",
@@ -275,10 +286,21 @@ class TrainingManager:
                 "agent_b": agent_b_type,
                 "winner": result["winner"],
                 "confidence": result["statistical_significance"],
+                "simulated": simulated,
             },
         )
 
         return result
+
+    @staticmethod
+    def _make_sim_agent(latency: float) -> Any:
+        """Agente sintético para o modo simulação do A/B (latência fixa)."""
+
+        return type(
+            "SimulatedAgent",
+            (),
+            {"execute": lambda self, task: {"success": True, "latency": latency}},
+        )()
 
     def get_training_stats(self, agent_type: Optional[str] = None) -> Dict[str, Any]:
         """Get training statistics for agents."""
@@ -386,12 +408,30 @@ class TrainingManager:
         return improvements
 
     def _get_current_metrics(self, agent_type: str) -> Dict[str, float]:
-        """Get current baseline metrics for an agent."""
+        """Baseline real do agente — sem constantes fabricadas (C3).
 
+        Prioriza o desempenho já medido (``current_performance``); senão deriva do
+        feedback pendente; e, sem qualquer sinal, retorna zeros (baseline honesto
+        "sem dados" em vez dos valores fixos 0.7/0.85 anteriores).
+        """
+
+        state = self.training_states.get(agent_type)
+        if state and state.current_performance:
+            return dict(state.current_performance)
+
+        pending = self.feedback_queue.get(agent_type, [])
+        ratings = [
+            fb["user_rating"] for fb in pending if fb.get("user_rating") is not None
+        ]
+        successes = [bool(fb.get("task_result", {}).get("success")) for fb in pending]
         return {
-            "user_satisfaction": 0.7,
-            "success_rate": 0.85,
-            "feedback_volume": 0.0,
+            "user_satisfaction": (
+                round(sum(ratings) / len(ratings), 4) if ratings else 0.0
+            ),
+            "success_rate": (
+                round(sum(successes) / len(successes), 4) if successes else 0.0
+            ),
+            "feedback_volume": float(len(pending)),
         }
 
 

@@ -34,4 +34,12 @@ Complementa `docs/acaoPendenteDono.md` (mantido pelo histórico de sprints).
 ## Decisões de produto/abordagem que podem requerer aval do dono
 _(registradas conforme surgem na execução; sigo com a opção recomendada e anoto aqui)_
 
-- _(nenhuma ainda)_
+### PEND-09 — A/B testing real de agentes exige versionamento de agentes
+**Contexto (C3):** `TrainingManager.run_ab_test` comparava dois **agentes sintéticos fabricados** com
+latência fixa — não havia como comparar duas **versões reais** de um agente, pois o projeto **não tem
+mecanismo de versionamento/registro de variantes de agente**. Já mitigei no código: `run_ab_test` aceita
+um `agent_factory` injetável (compara agentes reais quando fornecido) e, sem ele, roda em **modo
+simulação explícito** (`simulated=true`), em vez de fabricar e esconder.
+**Decisão necessária do dono:** definir a estratégia de versionamento de agentes (ex.: registry de
+variantes por `agent_type@versão`, ou comparar prompts/políticas), para então plugar uma `agent_factory`
+de produção. Enquanto não houver, o A/B permanece sinalizado como simulação.
