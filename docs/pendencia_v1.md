@@ -11,6 +11,12 @@ Complementa `docs/acaoPendenteDono.md` (mantido pelo histórico de sprints).
 
 ---
 
+> 🐳 **Atalho Docker (turnkey):** boa parte da infra abaixo (Postgres, Redis, ChromaDB, MinIO, Celery,
+> **Ollama**) agora sobe com **um comando** via `.env.docker.example` + profiles — ver README
+> "Rodar TUDO em Docker (modo real) e escalar". O que **ainda exige o dono** são as **credenciais
+> externas** (DATAJUD_API_KEY, certificado A1 + acesso e‑CAC, captcha CRC/CADIN/ONR) e a decisão de
+> versionamento de agentes (PEND‑09).
+
 ## Infraestrutura (Camada A — "ligar" o que está simulado)
 
 | ID | 🔴/🟡 | Item | Efeito enquanto ausente | Como prover |
