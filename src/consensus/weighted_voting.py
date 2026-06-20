@@ -67,6 +67,10 @@ class WeightedConsensusEngine:
                 "consensus_strength": 0.0,
                 "dissenting_opinions": [],
                 "confidence_distribution": [],
+                "participant_count": 0,
+                "agreeing_count": 0,
+                "agreement_ratio": 0.0,
+                "single_source": False,
             }
 
         cluster_scores: Dict[str, float] = {}
@@ -115,6 +119,10 @@ class WeightedConsensusEngine:
                 "consensus_strength": 0.0,
                 "dissenting_opinions": [],
                 "confidence_distribution": confidence_distribution,
+                "participant_count": len(confidence_distribution),
+                "agreeing_count": 0,
+                "agreement_ratio": 0.0,
+                "single_source": False,
             }
 
         winning_votes_sorted = sorted(
@@ -138,6 +146,16 @@ class WeightedConsensusEngine:
 
         consensus_strength = round(min(1.0, winning_score), 4)
 
+        # C1: métricas de concordância para distinguir "um agente confiante" de
+        # "vários agentes concordando". ``agreement_ratio`` = fração dos proponentes
+        # no cluster vencedor; ``single_source`` sinaliza proposta de fonte única.
+        # Aditivo: não altera ``consensus_strength`` (preserva o contrato existente).
+        participant_count = len(confidence_distribution)
+        agreeing_count = len(winning_votes)
+        agreement_ratio = (
+            round(agreeing_count / participant_count, 4) if participant_count else 0.0
+        )
+
         decision_payload = {
             "proposal": winning_vote.proposal,
             "score": round(winning_score, 4),
@@ -151,6 +169,10 @@ class WeightedConsensusEngine:
             "consensus_strength": consensus_strength,
             "dissenting_opinions": dissenting,
             "confidence_distribution": confidence_distribution,
+            "participant_count": participant_count,
+            "agreeing_count": agreeing_count,
+            "agreement_ratio": agreement_ratio,
+            "single_source": participant_count == 1,
         }
 
     def _select_winning_cluster(

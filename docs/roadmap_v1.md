@@ -20,8 +20,8 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 |---|---|---|---|---|---|
 | PR0 | — | Scaffolding: `roadmap_v1`, `pendencia_v1`, cópia do plano | ✅ | #133 | merged |
 | PR1 | 1 | Higiene: botões Demo (guard DEV), botão morto Invest360 (wire→Processos), default `INTEGRATIONS_*=real` (só fontes implementadas), ortografia README, clarificação `handoff/` | ✅ | #134 | merged |
-| PR2 | 2 | **CoT-LLM plugável** no ArchitectAgent (narrativa via LLM + fallback determinístico; roteamento sempre determinístico) | 🟦 | — | **C2** |
-| PR3 | 2 | Consenso semântico + recalibrar `consensus_strength`/gate HITL | ⬜ | — | C1 |
+| PR2 | 2 | **CoT-LLM plugável** no ArchitectAgent (narrativa via LLM + fallback determinístico; roteamento sempre determinístico) | ✅ | #135 | merged |
+| PR3 | 2 | **Consenso: gate de fonte-única → HITL** + métricas de concordância (`agreement_ratio`/`single_source`) | 🟦 | — | **C1** |
 | PR-S | 1 | Streaming SSE `/api/v1/tasks/stream` + timeline/agentes no AssistantScreen | ⬜ | — | reordenado p/ depois (god-method) |
 | PR4 | 3 | Migrations ledger/hitl/training/a2a + training real + embeddings reais + A2A pub/sub | ⬜ | — | C3, I2, I3, I4 |
 | PR5 | 4 | e-CAC real atrás do stub + CRC/CADIN/ONR + Vault wiring + handlers Celery | ⬜ | — | credenciais→pendência |
@@ -48,7 +48,7 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 
 ---
 
-### PR2 — C2: CoT por LLM plugável (🟦 em andamento)
+### PR2 — C2: CoT por LLM plugável (✅ merged em #135)
 - `ArchitectAgent` ganha modo opcional de Chain-of-Thought por LLM: a **narrativa** (`chain_of_thought`)
   pode vir de um LLM (`llm_fn` injetável ou Ollama local lazy; flag `ARCHITECT_COT_LLM=1`), enquanto a
   **identificação de tribunais e a confiança permanecem determinísticas** (roteamento reprodutível).
@@ -56,6 +56,20 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 - **Aditivo e retrocompatível** (default = heurística), então os testes existentes seguem verdes.
 - Novos testes: `tests/unit/test_architect_cot_llm.py` (6 casos). Local: 14 passed, black/bandit ok.
 - Endereça o achado C2 (validado): o "CoT" era 100% heurística por keyword — agora há caminho real de LLM.
+
+### PR3 — C1: consenso de fonte-única → HITL (🟦 em andamento)
+- **Bug corrigido (analista C1):** numa consulta multi-tribunal, se apenas 1 tribunal respondia, o
+  "consenso" vinha de um único agente concordando consigo mesmo e, com força > 0,6, **burlava o HITL**.
+  Agora o `SupervisorAgent` força `pending_human_review` quando `len(tribunal_codes) >= 2` e
+  `len(consultation_responses) < 2` (motivo `single_source_consensus`).
+- **Métricas de concordância** (aditivas) no `WeightedConsensusEngine`: `participant_count`,
+  `agreeing_count`, `agreement_ratio`, `single_source` — sem alterar `consensus_strength` (contrato
+  preservado; 5 testes existentes seguem verdes).
+- Novos testes: `tests/unit/test_weighted_voting_agreement.py` (4 casos). Local: weighted_voting 9 passed,
+  supervisor_coverage 17 passed, black/bandit/compileall ok.
+- **Escopo:** não reescrevi o clustering por igualdade de JSON para similaridade semântica (exigiria
+  embeddings/limiar e arriscaria os testes existentes). O gate de fonte-única ataca o efeito prático mais
+  grave (bypass do HITL). Clustering semântico fica registrado para um PR futuro.
 
 ## Decisões de execução (desvios do plano, justificados)
 - **`handoff/`→`design-handoff/` NÃO renomeado:** o diretório é referenciado em `docs/ADRs/ADR-002`
