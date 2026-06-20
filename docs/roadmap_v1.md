@@ -27,8 +27,9 @@ CI verde (corrigir até) → auto-review → **merge**. Cobertura unitária do C
 | PR4b | 3 | Migrations ledger/hitl/training/a2a + embeddings reais + A2A pub/sub + A/B real | ⬜ | — | I2, I3, I4; C3-real⏸️PEND-09 |
 | PR5 | 4 | e-CAC real atrás do stub + CRC/CADIN/ONR + Vault wiring + handlers Celery | ⬜ | — | credenciais→pendência |
 | PR6 | 5 | Diferenciais UX: "Contradição encontrada", Modo Explorador, badges, mapa (MVP) | ⬜ | — | XL |
-| PR5 | T | **LGPD**: redação de PII no resultado persistido na VectorMemory (snapshot/documento de longo prazo) | 🟦 | — | transversal (1/n) |
-| — | T | Transversal restante: redact no parse DataJud, rate-limit, sincronizar `constitution.yaml` | ⬜ | — | — |
+| PR5 | T | **LGPD**: redação de PII no resultado persistido na VectorMemory (snapshot/documento de longo prazo) | ✅ | #138 | merged |
+| PR6 | T | **Segurança**: testes de regressão JWT (token expirado / assinatura inválida / sem credencial) | 🟦 | — | lacuna da auditoria |
+| — | T | Transversal restante: rate-limit (já há `enforce_rate_limit`), sincronizar `constitution.yaml` | ⬜ | — | DataJud parse NÃO precisa (fonte anonimizada) |
 
 ---
 
