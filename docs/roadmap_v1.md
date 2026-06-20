@@ -21,11 +21,14 @@ contidos** das duas análises (validados em código):
 | #137 | **C3** | Training: baseline real + A/B honesto (flag `simulated`) + suíte de testes |
 | #138 | LGPD | Redação de PII no resultado persistido na VectorMemory |
 | #139 | Segurança | Testes de regressão JWT (expirado/inválido/sem credencial) |
+| #140 | — | Documento de handoff |
+| #141 | **Docker** | **Tudo em Docker (modo real) + pronto p/ escalar**: serviços `ollama`+`migrate`, `.env.docker.example` turnkey, override de porta local, README (escala horizontal) |
 
 **O que NÃO foi feito e por quê** (não por falta de execução, mas por barreiras reais):
-- **Bloqueado pelo dono** → `pendencia_v1.md` (PEND‑01..09): Postgres/MinIO/Celery, `DATAJUD_API_KEY`,
-  Ollama/OpenAI, certificado A1 + e‑CAC, captcha CRC/CADIN/ONR, `VAULT_MASTER_KEY`, versionamento de agentes.
-  Sem isso, e‑CAC real, fontes restritas, migrations de persistência e IA real ficam incompletos por definição.
+- **Infra agora é turnkey em Docker** (#141): Postgres, Redis, ChromaDB, MinIO, Celery e **Ollama** sobem com
+  um comando (`.env.docker.example` + profiles) e tiram o app do modo simulado. **Só restam ao dono as
+  credenciais externas**: `DATAJUD_API_KEY` (jurisprudência real), **certificado A1 + acesso e‑CAC** (transmissão
+  fiscal real), captcha CRC/CADIN/ONR, e a decisão de versionamento de agentes (PEND‑09). Ver `pendencia_v1.md`.
 - **Features grandes (XL) / risco alto p/ execução não supervisionada**: streaming SSE + timeline (cirurgia no
   `process_task` de ~500 linhas), diferenciais de UX (mapa de conhecimento, badges), A2A pub/sub (correlação
   central), embeddings reais (dep pesada `sentence-transformers`, não testável aqui).
