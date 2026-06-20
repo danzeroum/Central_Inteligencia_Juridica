@@ -7,20 +7,42 @@ with optional plan creation and ADR generation for architectural tasks.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from src.utils.input_sanitizer import InputSanitizer
 
 logger = logging.getLogger(__name__)
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 class ArchitectAgent:
     """Performs lightweight chain-of-thought style reasoning for legal tribunals."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        llm_fn: Optional[Callable[[str], str]] = None,
+        use_llm: Optional[bool] = None,
+    ) -> None:
         self.logger = logging.getLogger(__name__)
         self.sanitizer = InputSanitizer()
+        # CoT por LLM (H18/C2): opcional e plugável. Quando habilitado, a NARRATIVA
+        # de raciocínio (chain_of_thought) é gerada por um LLM; a identificação de
+        # tribunais e a confiança permanecem DETERMINÍSTICAS (reprodutibilidade do
+        # roteamento). Sem LLM disponível ou em erro, degrada para a heurística.
+        # ``llm_fn(prompt) -> str``; default = Ollama local (lazy). Flag:
+        # ``ARCHITECT_COT_LLM=1``.
+        self._llm_fn: Optional[Callable[[str], str]] = llm_fn
+        self._use_llm: bool = (
+            use_llm if use_llm is not None else _env_flag("ARCHITECT_COT_LLM", False)
+        )
         self.reasoning_history: List[Dict[str, Any]] = []
         self.memory: Any = None
         self.agent_type = "architect"
@@ -38,7 +60,14 @@ class ArchitectAgent:
         self.status = "active"
         self.metadata = {
             "reasoning_engine": "deterministic_keyword_heuristic",
-            "llm_note": "CoT é heurístico determinístico; modo LLM plugável via IntentClassifier",
+            "cot_mode": (
+                "llm+heuristica" if self._use_llm else "heuristica_deterministica"
+            ),
+            "llm_note": (
+                "CoT plugável: narrativa pode vir de LLM (ARCHITECT_COT_LLM=1 ou "
+                "llm_fn) com fallback determinístico; identificação de tribunais e "
+                "confiança permanecem sempre determinísticas"
+            ),
             "tribunal_keywords": {
                 "TJSP": ["tjsp", "sao", "paulo"],
                 "TJMG": ["tjmg", "minas", "gerais"],
@@ -178,11 +207,77 @@ class ArchitectAgent:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
+        # C2: enriquece a NARRATIVA com LLM quando habilitado (tribunais/confiança
+        # permanecem determinísticos). Qualquer falha → mantém o payload heurístico.
+        if self._use_llm:
+            reasoning_payload = self._enrich_with_llm(sanitized, reasoning_payload)
+
         self.reasoning_history.append(reasoning_payload)
         self.logger.info(
             "ArchitectAgent concluiu CoT com tribunais: %s", unique_tribunals
         )
         return reasoning_payload
+
+    def _default_llm_fn(self) -> Optional[Callable[[str], str]]:
+        """Resolve o cliente LLM (injeção explícita ou Ollama local lazy).
+
+        Import preguiçoso mantém o agente importável mesmo sem o pacote ``ollama``
+        instalado (retorna None → heurística determinística).
+        """
+        if self._llm_fn is not None:
+            return self._llm_fn
+        try:
+            from src.services.llm_client import gerar_resposta_ollama
+
+            return gerar_resposta_ollama
+        except Exception:  # pragma: no cover - dependência opcional ausente
+            return None
+
+    def _enrich_with_llm(
+        self, task_description: str, base_payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Gera a narrativa (chain_of_thought) via LLM, preservando o roteamento.
+
+        ``identified_tribunals`` e ``confidence`` são mantidos do payload
+        determinístico. Qualquer falha/resposta inválida retorna o ``base_payload``
+        inalterado (degradação graciosa).
+        """
+        llm = self._default_llm_fn()
+        if llm is None:
+            return base_payload
+
+        tribunais = ", ".join(base_payload.get("identified_tribunals", [])) or "n/d"
+        prompt = (
+            "Você é um agente arquiteto de um sistema jurídico brasileiro. Raciocine "
+            "em PASSOS NUMERADOS (chain-of-thought) sobre como abordar a solicitação "
+            "a seguir. Responda apenas com os passos, um por linha.\n\n"
+            f"Solicitação: {task_description}\n"
+            f"Tribunais identificados (roteamento): {tribunais}\n"
+        )
+        try:
+            text = llm(prompt)
+        except Exception:
+            self.logger.warning(
+                "CoT-LLM falhou; mantendo heurística determinística", exc_info=True
+            )
+            return base_payload
+
+        if not isinstance(text, str):
+            return base_payload
+        stripped = text.strip()
+        # llm_client devolve "Erro: ..." quando o serviço está indisponível.
+        if not stripped or stripped.lower().startswith("erro"):
+            return base_payload
+
+        steps = [line.strip() for line in stripped.splitlines() if line.strip()]
+        if not steps:
+            return base_payload
+
+        enriched = dict(base_payload)
+        enriched["chain_of_thought"] = steps
+        enriched["problem_analysis"] = steps[0]
+        enriched["reasoning_engine"] = "llm"
+        return enriched
 
     async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Interface assíncrona uniforme com os demais agentes.
