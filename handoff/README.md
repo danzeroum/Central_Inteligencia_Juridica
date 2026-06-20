@@ -2,6 +2,12 @@
 
 **Central de Inteligência Jurídica · Plataforma Modular de Engenharia Tributária**
 
+> ⚠️ **Esclarecimento (escopo):** este diretório é um **_design handoff_** — protótipos
+> HTML/CSS/JSX e contrato de telas para a equipe de frontend recriar a UI. **NÃO** é o
+> mecanismo de _handoff de contexto entre agentes em runtime_. O handoff/coordenação
+> agente-a-agente em tempo de execução vive em `src/protocols/a2a_channel.py` (protocolo
+> A2A, pub/sub Redis + fallback em memória).
+
 Este pacote tem dois entregáveis complementares:
 
 1. **`Plano de Telas — Central Juridica.html`** — o **contrato de design de todo o produto**: as 30 telas, ligadas a endpoints reais e papéis RBAC, com os estados obrigatórios. É o mapa do que existe e do que falta construir.

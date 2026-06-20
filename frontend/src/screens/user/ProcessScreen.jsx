@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon, Badge } from '../../components/primitives.jsx';
 import { useToast } from '../../components/toast.jsx';
 import { api } from '../../api/client.js';
+import { store } from '../../state.js';
 
 function fmtDate(raw) {
   if (!raw) return '—';
@@ -29,7 +30,13 @@ function InfoRow({ label, value }) {
 
 export default function ProcessScreen() {
   const toast = useToast();
-  const [numero, setNumero] = useState('');
+  // Pré-preenche o número quando o usuário vem da Investigação 360°
+  // ("Abrir na consulta processual"); consome e limpa o estado compartilhado.
+  const [numero, setNumero] = useState(() => {
+    const n = store.consultaProcesso;
+    store.consultaProcesso = null;
+    return n || '';
+  });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -47,6 +54,12 @@ export default function ProcessScreen() {
       setLoading(false);
     }
   };
+
+  // Consulta automaticamente quando o número chega da Investigação 360°.
+  useEffect(() => {
+    if (numero) consultar();
+    // eslint-disable-next-line
+  }, []);
 
   // Normaliza a estrutura de resposta
   const sr = result?.supervisor_result || result || {};

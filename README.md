@@ -1,6 +1,6 @@
-# Central de Inteligencia Juridica
+# Central de Inteligência Jurídica
 
-Plataforma multiagente de inteligencia juridica com coordenacao autonoma, consenso ponderado e aprendizado continuo.
+Plataforma multiagente de inteligência jurídica com coordenação autônoma, consenso ponderado e aprendizado contínuo.
 
 ## Arquitetura
 
@@ -8,7 +8,7 @@ Sistema baseado em agentes especializados coordenados por um SupervisorAgent:
 
 - **SupervisorAgent** — Orquestrador principal (identifica tribunais, delega tarefas)
 - **TribunalAgent** — Agentes especializados por tribunal (TJSP, TJMG, TJRS, TJRJ, STF)
-- **ArchitectAgent** — Raciocimento Chain-of-Thought para planejamento estrategico
+- **ArchitectAgent** — Raciocínio Chain-of-Thought para planejamento estratégico
 - **WeightedConsensusEngine** — Consenso ponderado por expertise
 - **ProgressiveAutonomyManager** — Autonomia progressiva com HITL (Human-in-the-Loop)
 - **DecisionLedger** — Registro persistente de decisoes para auditoria
@@ -42,7 +42,7 @@ Sistema baseado em agentes especializados coordenados por um SupervisorAgent:
   +---------------------------------------------------------------+
 ```
 
-## Stack Tecnica
+## Stack Técnica
 
 | Componente | Tecnologia |
 |---|---|
@@ -55,7 +55,7 @@ Sistema baseado em agentes especializados coordenados por um SupervisorAgent:
 | Containerizacao | Docker + Docker Compose |
 | Testes | pytest + pytest-asyncio + pytest-cov |
 
-## Setup Rapido
+## Setup Rápido
 
 ```bash
 git clone https://github.com/danzeroum/Central_Inteligencia_Juridica.git
@@ -111,7 +111,7 @@ pytest tests/unit tests/integration -q
 pytest tests/unit --cov=src --cov-report=term-missing --cov-report=html
 ```
 
-## Documentacao
+## Documentação
 
 | Documento | Conteudo |
 |---|---|
@@ -129,7 +129,7 @@ pytest tests/unit --cov=src --cov-report=term-missing --cov-report=html
 > A spec OpenAPI versionada (`docs/API/openapi.json`) e gerada por
 > `python scripts/dev/export_openapi.py` — a fonte da verdade e o codigo.
 
-## Estrutura de Diretorios
+## Estrutura de Diretórios
 
 ```
 Central_Inteligencia_Juridica/
@@ -176,7 +176,7 @@ Central_Inteligencia_Juridica/
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (usuário/senha via `GF_SECURITY_ADMIN_USER`/`GF_SECURITY_ADMIN_PASSWORD` no `.env`) |
 
-## Cobertura de Codigo (30% overall)
+## Cobertura de Código (30% overall)
 
 | Modulo | Coverage |
 |---|---|
@@ -193,6 +193,6 @@ Central_Inteligencia_Juridica/
 
 GitHub Actions (`.github/workflows/ci.yml`): lint, type-check, security scan, tests.
 
-## Licenca
+## Licença
 
-Distribuido sob a licenca [Apache License 2.0](LICENSE).
+Distribuído sob a licença [Apache License 2.0](LICENSE).
