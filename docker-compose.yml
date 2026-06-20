@@ -60,11 +60,17 @@ services:
       - CACHE_ENCRYPTION_ENABLED=${CACHE_ENCRYPTION_ENABLED:-false}
       - CACHE_ENCRYPTION_KEY=${CACHE_ENCRYPTION_KEY:-}
       # Onda 1: Camada de Integrações Jurídicas.
-      # Modo padrão mock para desenvolvimento; defina =real para produção.
-      - INTEGRATIONS_DATAJUD_MODE=${INTEGRATIONS_DATAJUD_MODE:-mock}
-      - INTEGRATIONS_DJEN_MODE=${INTEGRATIONS_DJEN_MODE:-mock}
-      - INTEGRATIONS_RECEITA_CNPJ_MODE=${INTEGRATIONS_RECEITA_CNPJ_MODE:-mock}
-      - INTEGRATIONS_TSE_MODE=${INTEGRATIONS_TSE_MODE:-mock}
+      # Fontes JÁ IMPLEMENTADAS (DataJud/DJEN/Receita/TSE): padrão =real — sem
+      # credencial o adapter degrada graciosamente para mock (com alerta
+      # IntegrationMockInProduction no Prometheus), evitando "rodar em mock
+      # silenciosamente em produção". Sobrescreva com =mock em desenvolvimento.
+      - INTEGRATIONS_DATAJUD_MODE=${INTEGRATIONS_DATAJUD_MODE:-real}
+      - INTEGRATIONS_DJEN_MODE=${INTEGRATIONS_DJEN_MODE:-real}
+      - INTEGRATIONS_RECEITA_CNPJ_MODE=${INTEGRATIONS_RECEITA_CNPJ_MODE:-real}
+      - INTEGRATIONS_TSE_MODE=${INTEGRATIONS_TSE_MODE:-real}
+      # Fontes restritas SEM implementação real (captcha/credencial — ver
+      # pendencia_v1.md PEND-07): permanecem =mock, pois modo real levanta
+      # NotImplementedError. Não altere para =real até existir adapter real.
       - INTEGRATIONS_CRC_PROTESTOS_MODE=${INTEGRATIONS_CRC_PROTESTOS_MODE:-mock}
       - INTEGRATIONS_CADIN_MODE=${INTEGRATIONS_CADIN_MODE:-mock}
       - INTEGRATIONS_ONR_IMOVEIS_MODE=${INTEGRATIONS_ONR_IMOVEIS_MODE:-mock}

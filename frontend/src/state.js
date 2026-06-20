@@ -2,6 +2,9 @@
 // edição em "Modificar"). Evita prop-drilling sem trazer uma lib de estado.
 export const store = {
   selectedRequest: null,
+  // Nº de processo (CNJ) levado da Investigação 360° para a tela de Processos,
+  // ao clicar em "Abrir na consulta processual". Consumido e limpo no destino.
+  consultaProcesso: null,
 };
 
 // Humaniza a ação proposta por um agente em campos jurídicos legíveis

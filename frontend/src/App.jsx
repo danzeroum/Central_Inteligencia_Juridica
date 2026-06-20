@@ -155,12 +155,17 @@ function Login({ onAuthenticated }) {
           style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
           <Icon name="lock" /> {busy ? 'Entrando…' : 'Entrar'}
         </button>
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button type="button" className="btn btn-sm" disabled={busy} style={{ flex: 1, justifyContent: 'center' }}
-            onClick={() => doLogin('operator', 'operator')}>Demo: Operador</button>
-          <button type="button" className="btn btn-sm" disabled={busy} style={{ flex: 1, justifyContent: 'center' }}
-            onClick={() => doLogin('admin', 'admin')}>Demo: Admin</button>
-        </div>
+        {/* Atalhos de demonstração com credenciais padrão: visíveis apenas em
+            desenvolvimento. O build de produção (import.meta.env.DEV=false) os
+            remove via tree-shaking, evitando expor credenciais default na UI. */}
+        {import.meta.env.DEV && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button type="button" className="btn btn-sm" disabled={busy} style={{ flex: 1, justifyContent: 'center' }}
+              onClick={() => doLogin('operator', 'operator')}>Demo: Operador</button>
+            <button type="button" className="btn btn-sm" disabled={busy} style={{ flex: 1, justifyContent: 'center' }}
+              onClick={() => doLogin('admin', 'admin')}>Demo: Admin</button>
+          </div>
+        )}
       </form>
     </div>
   );

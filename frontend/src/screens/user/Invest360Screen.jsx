@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Icon, Badge, Drawer } from '../../components/primitives.jsx';
 import { api } from '../../api/client.js';
+import { store } from '../../state.js';
 
 // ── Metadados das fontes ────────────────────────────────────────────────────
 const SOURCES_META = {
@@ -255,7 +256,7 @@ function drawerRows(it) {
   }
 }
 
-function ItemDrawer({ item, dataMode, onClose }) {
+function ItemDrawer({ item, dataMode, onClose, go }) {
   const title = item.kind === 'processo' ? (item.classe || 'Processo')
     : item.kind === 'protesto' ? 'Protesto em cartório'
     : item.kind === 'cadin'    ? 'Pendência CADIN'
@@ -283,9 +284,9 @@ function ItemDrawer({ item, dataMode, onClose }) {
           <React.Fragment key={k}><dt>{k}</dt><dd>{v}</dd></React.Fragment>
         ))}
       </dl>
-      {item.kind === 'processo' && (
+      {item.kind === 'processo' && item.numero && go && (
         <button className="btn" style={{ marginTop: 18 }}
-          onClick={() => {}}>
+          onClick={() => { store.consultaProcesso = item.numero; go('process'); }}>
           <Icon name="external" /> Abrir na consulta processual
         </button>
       )}
@@ -504,7 +505,7 @@ function QsaCard({ report, onOpenItem }) {
 }
 
 // ── Report360 (estado sucesso) ─────────────────────────────────────────────
-function Report360({ report, depth, setDepth, onNew }) {
+function Report360({ report, depth, setDepth, onNew, go }) {
   const [drawer, setDrawer] = useState(null);
   const locked   = report.hitl_status === 'pending';
   const rejected = report.hitl_status === 'rejected';
@@ -613,7 +614,7 @@ function Report360({ report, depth, setDepth, onNew }) {
       </div>
 
       {drawer && (
-        <ItemDrawer item={drawer.item} dataMode={drawer.mode} onClose={() => setDrawer(null)} />
+        <ItemDrawer item={drawer.item} dataMode={drawer.mode} onClose={() => setDrawer(null)} go={go} />
       )}
     </React.Fragment>
   );
@@ -793,7 +794,7 @@ export default function Invest360Screen({ go }) {
         )}
         {ui === 'success' && report && (
           <Report360
-            report={report} depth={depth} setDepth={setDepth} onNew={reset}
+            report={report} depth={depth} setDepth={setDepth} onNew={reset} go={go}
           />
         )}
       </div>
