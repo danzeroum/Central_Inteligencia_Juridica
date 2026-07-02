@@ -353,8 +353,12 @@ services:
       - "9000"
       - "9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?defina MINIO_ACCESS_KEY no .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?defina MINIO_SECRET_KEY no .env}
+      # Requerido em runtime (minio falha com mensagem clara sem eles) em vez
+      # de ${VAR:?...}: esse operador falha a interpolação para TODO o compose
+      # file mesmo com este serviço atrás de um profile inativo — travando
+      # comandos como "docker compose up -d postgres".
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-}
     volumes:
       - minio_data:/data
     healthcheck:
@@ -391,7 +395,11 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - HOME=/tmp
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:?defina CELERY_BROKER_URL no .env}
+      # Requerido em runtime (celery falha com mensagem clara sem ele) em vez
+      # de ${VAR:?...}: esse operador falha a interpolação para TODO o compose
+      # file mesmo com este serviço atrás de um profile inativo — travando
+      # comandos como "docker compose up -d postgres".
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-}
       - DATABASE_URL=${DATABASE_URL:-}
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
@@ -442,7 +450,11 @@ services:
     working_dir: /app
     environment:
       - PYTHONPATH=/app
-      - DATABASE_URL=${DATABASE_URL:?defina DATABASE_URL para migrar (veja .env.docker.example)}
+      # Requerido em runtime (alembic falha com mensagem clara sem ele) em vez
+      # de ${VAR:?...}: esse operador falha a interpolação para TODO o compose
+      # file, mesmo com o serviço 'migrate' atrás de um profile inativo —
+      # travando comandos como "docker compose up -d postgres".
+      - DATABASE_URL=${DATABASE_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
