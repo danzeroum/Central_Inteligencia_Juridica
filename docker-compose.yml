@@ -153,6 +153,16 @@ services:
     restart: unless-stopped
     cap_drop:
       - ALL
+    # O entrypoint oficial precisa rodar como root primeiro para ajustar
+    # dono/permissões de /var/lib/postgresql/data (chown/chmod) antes de
+    # trocar para o usuário postgres (su-exec) — sem estas capabilities o
+    # container falha com "Operation not permitted" no bootstrap do volume.
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
     security_opt:
       - no-new-privileges:true
     deploy:
